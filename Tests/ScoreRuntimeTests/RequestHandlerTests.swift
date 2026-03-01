@@ -140,7 +140,7 @@ private func readResponsePart(from channel: NIOAsyncTestingChannel) async throws
 
     #expect(response.status == HTTPResponseStatus.ok)
     #expect(response.headers["Content-Type"].first == "text/html; charset=utf-8")
-    #expect(response.body.contains("<h1>Runtime Home</h1>"))
+    #expect(response.body.contains("Runtime Home</h1>"))
     #expect(response.body.contains("<title>Runtime Site</title>"))
 }
 

@@ -22,7 +22,12 @@ final class RequestHandler: ChannelInboundHandler, Sendable {
     private let theme: (any Theme)?
     private let staticDirectory: String?
     private let middlewares: [HTTPMiddleware]
+    private let environment: Environment
     private let logger: Logger
+
+    /// In-memory store of source maps keyed by script ID, populated during
+    /// page rendering in development mode and served under `/_score/maps/`.
+    let sourceMaps: SourceMapStore
 
     // Request accumulation state. Safe because NIO calls channelRead
     // on the same event loop thread for a given channel.
@@ -36,6 +41,7 @@ final class RequestHandler: ChannelInboundHandler, Sendable {
         theme: (any Theme)?,
         staticDirectory: String? = nil,
         middlewares: [HTTPMiddleware] = [],
+        environment: Environment = .current,
         logger: Logger = Logger(label: "dev.allegro.score.server")
     ) {
         self.routeTable = routeTable
@@ -44,6 +50,8 @@ final class RequestHandler: ChannelInboundHandler, Sendable {
         self.theme = theme
         self.staticDirectory = staticDirectory
         self.middlewares = middlewares
+        self.environment = environment
+        self.sourceMaps = SourceMapStore()
         self.logger = logger
     }
 
@@ -77,6 +85,18 @@ final class RequestHandler: ChannelInboundHandler, Sendable {
         let path = uri.split(separator: "?", maxSplits: 1).first.map(String.init) ?? uri
         let method = httpMethod(from: head.method)
 
+        // Dev resource serving — /_score/ paths in development mode.
+        if environment == .development, path.hasPrefix("/_score/") {
+            if let result = serveDevResource(path: path) {
+                respond(context: context, status: .ok, contentType: result.contentType, body: result.body)
+                logRequest(method: head.method, path: path, status: .ok, start: start)
+            } else {
+                respond(context: context, status: .notFound, contentType: "text/plain", body: "Not Found")
+                logRequest(method: head.method, path: path, status: .notFound, start: start)
+            }
+            return
+        }
+
         // Static file serving — checked before route resolution.
         if let staticDir = staticDirectory, path.hasPrefix("/static/") {
             let relativePath = String(path.dropFirst("/static/".count))
@@ -94,7 +114,27 @@ final class RequestHandler: ChannelInboundHandler, Sendable {
             let resolved = try routeTable.resolve(method: method, path: path)
 
             if resolved.isPage, let page = pages[resolved.pattern] {
-                let html = PageRenderer.render(page: page, metadata: metadata, theme: theme)
+                let html: String
+                do {
+                    let result = try PageRenderer.renderWithDevTools(
+                        page: page,
+                        metadata: metadata,
+                        theme: theme,
+                        environment: environment
+                    )
+                    html = result.html
+                    if let id = result.scriptID, let map = result.sourceMap {
+                        sourceMaps.store(id: id, json: map)
+                    }
+                } catch {
+                    if environment == .development {
+                        let overlay = ErrorOverlay.render(error, path: path, environment: environment)
+                        respond(context: context, status: .internalServerError, contentType: "text/html; charset=utf-8", body: overlay)
+                        logRequest(method: head.method, path: path, status: .internalServerError, start: start)
+                        return
+                    }
+                    throw error
+                }
                 respond(context: context, status: .ok, contentType: "text/html; charset=utf-8", body: html)
                 logRequest(method: head.method, path: path, status: .ok, start: start)
             } else if let handler = resolved.handler {
@@ -262,5 +302,77 @@ final class RequestHandler: ChannelInboundHandler, Sendable {
 
     private func nioStatus(from status: HTTPResponse.Status) -> HTTPResponseStatus {
         HTTPResponseStatus(statusCode: status.code)
+    }
+
+    // MARK: - Dev Resources
+
+    private struct DevResource {
+        let body: String
+        let contentType: String
+    }
+
+    private func serveDevResource(path: String) -> DevResource? {
+        switch path {
+        case "/_score/signal-polyfill.js":
+            return serveBundledJS(resource: "signal-polyfill")
+
+        case "/_score/score-runtime.js":
+            return serveBundledJS(resource: "score-runtime")
+
+        case "/_score/score-devtools.js":
+            return serveBundledJS(resource: "score-devtools")
+
+        default:
+            // Source map requests: /_score/maps/<scriptID>.js.map
+            if path.hasPrefix("/_score/maps/"), path.hasSuffix(".js.map") {
+                let filename = String(path.dropFirst("/_score/maps/".count))
+                let scriptID = String(filename.dropLast(".js.map".count))
+                if let json = sourceMaps.get(id: scriptID) {
+                    return DevResource(body: json, contentType: "application/json")
+                }
+            }
+            return nil
+        }
+    }
+
+    private func serveBundledJS(resource: String) -> DevResource? {
+        guard let url = Bundle.module.url(forResource: resource, withExtension: "js"),
+            let contents = try? String(contentsOf: url, encoding: .utf8)
+        else { return nil }
+        return DevResource(
+            body: contents,
+            contentType: "application/javascript; charset=utf-8"
+        )
+    }
+}
+
+/// Thread-safe in-memory store for source map JSON strings.
+final class SourceMapStore: Sendable {
+    private let storage = _SourceMapStorage()
+
+    func store(id: String, json: String) {
+        storage.set(id: id, json: json)
+    }
+
+    func get(id: String) -> String? {
+        storage.get(id: id)
+    }
+}
+
+/// Uses `nonisolated(unsafe)` storage protected by a lock.
+private final class _SourceMapStorage: Sendable {
+    private let lock = NSLock()
+    nonisolated(unsafe) private var maps: [String: String] = [:]
+
+    func set(id: String, json: String) {
+        lock.lock()
+        defer { lock.unlock() }
+        maps[id] = json
+    }
+
+    func get(id: String) -> String? {
+        lock.lock()
+        defer { lock.unlock() }
+        return maps[id]
     }
 }

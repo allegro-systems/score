@@ -1,3 +1,4 @@
+import Foundation
 import ScoreCore
 
 /// Emits client-side JavaScript that wires reactive signals and event
@@ -27,6 +28,16 @@ import ScoreCore
 /// // Returns a <script> tag string or empty string if no reactivity
 /// ```
 public enum JSEmitter: Sendable {
+
+    /// The result of emitting a page script, including an optional source map.
+    public struct EmitResult: Sendable {
+        /// The `<script>` tag string, or empty if no reactivity is needed.
+        public let script: String
+        /// The v3 source map JSON, or `nil` if no script was emitted or in production.
+        public let sourceMap: String?
+        /// A stable identifier for this script (used as the source map filename).
+        public let scriptID: String?
+    }
 
     /// A discovered reactive state declaration.
     public struct StateDeclaration: Sendable {
@@ -66,27 +77,70 @@ public enum JSEmitter: Sendable {
     ///   - environment: The current build environment.
     /// - Returns: A `<script>` tag string, or empty if no reactivity is needed.
     public static func emit(page: some Page, environment: Environment) -> String {
+        emitWithSourceMap(page: page, environment: environment).script
+    }
+
+    /// Emits a client script and an accompanying v3 source map for the given page.
+    ///
+    /// In development mode the returned ``EmitResult`` includes a source map
+    /// and the script tag contains a `sourceMappingURL` comment. In production
+    /// the source map is `nil`.
+    ///
+    /// - Parameters:
+    ///   - page: The page instance to inspect for reactive properties.
+    ///   - environment: The current build environment.
+    ///   - sourceFile: The Swift source file path embedded in the source map.
+    /// - Returns: An ``EmitResult`` with the script, optional source map, and script ID.
+    public static func emitWithSourceMap(
+        page: some Page,
+        environment: Environment,
+        sourceFile: String? = nil
+    ) -> EmitResult {
         let states = extractStates(from: page)
         let computeds = extractComputeds(from: page)
         let actions = extractActions(from: page)
         let bindings = extractEventBindings(from: page.body)
 
         guard !states.isEmpty || !computeds.isEmpty || !actions.isEmpty || !bindings.isEmpty else {
-            return ""
+            return EmitResult(script: "", sourceMap: nil, scriptID: nil)
         }
 
+        let pagePath = type(of: page).path
+        let scriptID = stableScriptID(for: pagePath)
+        let swiftSource = sourceFile ?? "Page(\(pagePath))"
+
         var js = ""
+        var line = 0
+        var mapBuilder = SourceMap.Builder(file: "\(scriptID).js")
 
         for s in states {
+            mapBuilder.addMapping(
+                generatedLine: line, generatedColumn: 0,
+                source: swiftSource, sourceLine: line, sourceColumn: 0,
+                name: s.name
+            )
             js.append("const \(s.name) = Score.state(\(s.initialValue));\n")
+            line += 1
         }
 
         for c in computeds {
+            mapBuilder.addMapping(
+                generatedLine: line, generatedColumn: 0,
+                source: swiftSource, sourceLine: line, sourceColumn: 0,
+                name: c.name
+            )
             js.append("const \(c.name) = Score.computed(() => \(c.name));\n")
+            line += 1
         }
 
         for a in actions {
+            mapBuilder.addMapping(
+                generatedLine: line, generatedColumn: 0,
+                source: swiftSource, sourceLine: line, sourceColumn: 0,
+                name: a.name
+            )
             js.append("function \(a.name)() {}\n")
+            line += 1
         }
 
         for b in bindings {
@@ -97,9 +151,27 @@ public enum JSEmitter: Sendable {
             js.append(
                 "\(selector).addEventListener(\"\(b.event)\", \(b.handler));\n"
             )
+            line += 1
         }
 
-        return "<script>\n\(js)</script>"
+        if environment == .development {
+            js.append("//# sourceMappingURL=/_score/maps/\(scriptID).js.map\n")
+            let sourceMapJSON = mapBuilder.build()
+            return EmitResult(
+                script: "<script>\n\(js)</script>",
+                sourceMap: sourceMapJSON,
+                scriptID: scriptID
+            )
+        }
+
+        return EmitResult(script: "<script>\n\(js)</script>", sourceMap: nil, scriptID: nil)
+    }
+
+    /// Produces a stable, URL-safe identifier from a page path.
+    static func stableScriptID(for pagePath: String) -> String {
+        let replaced = pagePath.replacingOccurrences(of: "/", with: "-")
+        let safe = replaced.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+        return safe.isEmpty ? "index" : safe
     }
 
     /// Extracts `@State` property declarations from a page using `Mirror`.

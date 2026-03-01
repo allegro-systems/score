@@ -100,6 +100,7 @@ public struct Server: Sendable {
         let theme = self.theme
         let staticDirectory = self.configuration.staticDirectory
         let middlewares = self.configuration.middlewares
+        let environment = self.configuration.environment
         let logger = self.logger
 
         let bootstrap = ServerBootstrap(group: group)
@@ -115,6 +116,7 @@ public struct Server: Sendable {
                             theme: theme,
                             staticDirectory: staticDirectory,
                             middlewares: middlewares,
+                            environment: environment,
                             logger: logger
                         )
                     )

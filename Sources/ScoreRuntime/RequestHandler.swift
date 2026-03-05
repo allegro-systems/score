@@ -18,9 +18,10 @@ final class RequestHandler: ChannelInboundHandler, Sendable {
 
     private let routeTable: RouteTable
     private let pages: [String: any Page]
-    private let metadata: (any Metadata)?
+    private let metadata: Metadata?
     private let theme: (any Theme)?
     private let staticDirectory: String?
+    private let outputRoot: String?
     private let middlewares: [HTTPMiddleware]
     private let environment: Environment
     private let logger: Logger
@@ -37,9 +38,10 @@ final class RequestHandler: ChannelInboundHandler, Sendable {
     init(
         routeTable: RouteTable,
         pages: [String: any Page],
-        metadata: (any Metadata)?,
+        metadata: Metadata?,
         theme: (any Theme)?,
         staticDirectory: String? = nil,
+        outputRoot: String? = nil,
         middlewares: [HTTPMiddleware] = [],
         environment: Environment = .current,
         logger: Logger = Logger(label: "dev.allegro.score.server")
@@ -49,6 +51,7 @@ final class RequestHandler: ChannelInboundHandler, Sendable {
         self.metadata = metadata
         self.theme = theme
         self.staticDirectory = staticDirectory
+        self.outputRoot = outputRoot
         self.middlewares = middlewares
         self.environment = environment
         self.sourceMaps = SourceMapStore()
@@ -83,12 +86,21 @@ final class RequestHandler: ChannelInboundHandler, Sendable {
     ) {
         let uri = head.uri
         let path = uri.split(separator: "?", maxSplits: 1).first.map(String.init) ?? uri
-        let method = httpMethod(from: head.method)
+        guard let method = httpMethod(from: head.method) else {
+            respond(context: context, status: .methodNotAllowed, contentType: "text/plain", body: "Method Not Allowed")
+            logRequest(method: head.method, path: path, status: .methodNotAllowed, start: start)
+            return
+        }
 
         // Dev resource serving — /_score/ paths in development mode.
         if environment == .development, path.hasPrefix("/_score/") {
             if let result = serveDevResource(path: path) {
-                respond(context: context, status: .ok, contentType: result.contentType, body: result.body)
+                switch result {
+                case .text(let body, let contentType):
+                    respond(context: context, status: .ok, contentType: contentType, body: body)
+                case .binary(let body, let contentType):
+                    respondWithData(context: context, status: .ok, contentType: contentType, body: body)
+                }
                 logRequest(method: head.method, path: path, status: .ok, start: start)
             } else {
                 respond(context: context, status: .notFound, contentType: "text/plain", body: "Not Found")
@@ -110,10 +122,20 @@ final class RequestHandler: ChannelInboundHandler, Sendable {
             return
         }
 
+        // Serve pre-rendered static output (HTML pages, CSS, JS).
+        if let root = outputRoot {
+            if let (data, contentType) = serveFromOutput(path: path, root: root) {
+                respondWithData(context: context, status: .ok, contentType: contentType, body: data)
+                logRequest(method: head.method, path: path, status: .ok, start: start)
+                return
+            }
+        }
+
         do {
             let resolved = try routeTable.resolve(method: method, path: path)
 
             if resolved.isPage, let page = pages[resolved.pattern] {
+                // Fall back to live rendering when static output is unavailable.
                 let html: String
                 do {
                     let result = try PageRenderer.renderWithDevTools(
@@ -287,7 +309,7 @@ final class RequestHandler: ChannelInboundHandler, Sendable {
 
     // MARK: - Conversions
 
-    private func httpMethod(from nioMethod: NIOHTTP1.HTTPMethod) -> HTTPRequest.Method {
+    private func httpMethod(from nioMethod: NIOHTTP1.HTTPMethod) -> HTTPRequest.Method? {
         switch nioMethod {
         case .GET: return .get
         case .POST: return .post
@@ -296,7 +318,7 @@ final class RequestHandler: ChannelInboundHandler, Sendable {
         case .PATCH: return .patch
         case .HEAD: return .head
         case .OPTIONS: return .options
-        default: return .get
+        default: return nil
         }
     }
 
@@ -304,11 +326,41 @@ final class RequestHandler: ChannelInboundHandler, Sendable {
         HTTPResponseStatus(statusCode: status.code)
     }
 
+    // MARK: - Static Output
+
+    private func serveFromOutput(path: String, root: String) -> (Data, String)? {
+        let rootURL = URL(fileURLWithPath: root).standardized
+
+        // Direct file match (e.g. /as-global.css → root/as-global.css).
+        let directPath = rootURL.appendingPathComponent(path).standardized.path
+        guard directPath.hasPrefix(rootURL.path) else { return nil }
+        var isDir: ObjCBool = false
+        if FileManager.default.fileExists(atPath: directPath, isDirectory: &isDir),
+            !isDir.boolValue,
+            let data = FileManager.default.contents(atPath: directPath)
+        {
+            let ext = (directPath as NSString).pathExtension.lowercased()
+            return (data, StaticFileHandler.mimeType(for: ext))
+        }
+
+        // Directory-style page route (e.g. /about → root/about/index.html).
+        let indexPath = rootURL.appendingPathComponent(path == "/" ? "/index.html" : path + "/index.html").standardized.path
+        guard indexPath.hasPrefix(rootURL.path) else { return nil }
+        if FileManager.default.fileExists(atPath: indexPath, isDirectory: &isDir),
+            !isDir.boolValue,
+            let data = FileManager.default.contents(atPath: indexPath)
+        {
+            return (data, "text/html; charset=utf-8")
+        }
+
+        return nil
+    }
+
     // MARK: - Dev Resources
 
-    private struct DevResource {
-        let body: String
-        let contentType: String
+    private enum DevResource {
+        case text(body: String, contentType: String)
+        case binary(body: Data, contentType: String)
     }
 
     private func serveDevResource(path: String) -> DevResource? {
@@ -322,13 +374,37 @@ final class RequestHandler: ChannelInboundHandler, Sendable {
         case "/_score/score-devtools.js":
             return serveBundledJS(resource: "score-devtools")
 
+        case "/_score/score-editor.js":
+            return serveBundledJS(resource: "score-editor")
+
+        case "/_score/score-lsp.js":
+            return serveBundledJS(resource: "score-lsp")
+
+        case "/_score/web-tree-sitter.js":
+            return serveBundledJS(resource: "web-tree-sitter")
+
+        case "/_score/tree-sitter.wasm":
+            return serveBundledWASM(resource: "tree-sitter")
+
+        case "/_score/tree-sitter-swift.wasm":
+            return serveBundledWASM(resource: "tree-sitter-swift")
+
+        case "/_score/tree-sitter-typescript.wasm":
+            return serveBundledWASM(resource: "tree-sitter-typescript")
+
+        case "/_score/tree-sitter-c.wasm":
+            return serveBundledWASM(resource: "tree-sitter-c")
+
+        case "/_score/tree-sitter-bash.wasm":
+            return serveBundledWASM(resource: "tree-sitter-bash")
+
         default:
             // Source map requests: /_score/maps/<scriptID>.js.map
             if path.hasPrefix("/_score/maps/"), path.hasSuffix(".js.map") {
                 let filename = String(path.dropFirst("/_score/maps/".count))
                 let scriptID = String(filename.dropLast(".js.map".count))
                 if let json = sourceMaps.get(id: scriptID) {
-                    return DevResource(body: json, contentType: "application/json")
+                    return .text(body: json, contentType: "application/json")
                 }
             }
             return nil
@@ -339,10 +415,17 @@ final class RequestHandler: ChannelInboundHandler, Sendable {
         guard let url = Bundle.module.url(forResource: resource, withExtension: "js"),
             let contents = try? String(contentsOf: url, encoding: .utf8)
         else { return nil }
-        return DevResource(
+        return .text(
             body: contents,
             contentType: "application/javascript; charset=utf-8"
         )
+    }
+
+    private func serveBundledWASM(resource: String) -> DevResource? {
+        guard let url = Bundle.module.url(forResource: resource, withExtension: "wasm"),
+            let data = try? Data(contentsOf: url)
+        else { return nil }
+        return .binary(body: data, contentType: "application/wasm")
     }
 }
 

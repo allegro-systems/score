@@ -64,8 +64,9 @@ public struct Server: Sendable {
 
     private let routeTable: RouteTable
     private let pages: [String: any Page]
-    private let metadata: (any Metadata)?
+    private let metadata: Metadata?
     private let theme: (any Theme)?
+    private let outputRoot: String
     private let configuration: Configuration
     private let logger: Logger
 
@@ -83,6 +84,7 @@ public struct Server: Sendable {
         self.pages = pages
         self.metadata = application.metadata
         self.theme = application.theme
+        self.outputRoot = application.outputDirectory + "/static"
         self.configuration = configuration
         self.logger = Logger(label: "allegro.score.server")
     }
@@ -98,6 +100,7 @@ public struct Server: Sendable {
         let pages = self.pages
         let metadata = self.metadata
         let theme = self.theme
+        let outputRoot = self.outputRoot
         let staticDirectory = self.configuration.staticDirectory
         let middlewares = self.configuration.middlewares
         let environment = self.configuration.environment
@@ -115,6 +118,7 @@ public struct Server: Sendable {
                             metadata: metadata,
                             theme: theme,
                             staticDirectory: staticDirectory,
+                            outputRoot: outputRoot,
                             middlewares: middlewares,
                             environment: environment,
                             logger: logger

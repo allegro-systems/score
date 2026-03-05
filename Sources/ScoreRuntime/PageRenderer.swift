@@ -26,7 +26,9 @@ import ScoreHTML
 ///     theme: appTheme
 /// )
 /// ```
-public enum PageRenderer: Sendable {
+public struct PageRenderer: Sendable {
+
+    private init() {}
 
     /// Renders a page into a complete HTML document.
     ///
@@ -39,7 +41,7 @@ public enum PageRenderer: Sendable {
     /// - Returns: A complete HTML document string.
     public static func render(
         page: some Page,
-        metadata: (any Metadata)?,
+        metadata: Metadata?,
         theme: (any Theme)?,
         environment: Environment = .current
     ) -> String {
@@ -50,13 +52,16 @@ public enum PageRenderer: Sendable {
         let rules = collector.collectedRules()
 
         let classLookup = buildClassLookup(from: rules)
-        let renderer = HTMLRenderer(classInjector: { modifiers in
-            classLookup(modifiers)
-        })
+        let scopeInjector = JSEmitter.buildScopeInjector()
+        let renderer = HTMLRenderer(
+            classInjector: { modifiers in classLookup(modifiers) },
+            scopeInjector: scopeInjector
+        )
         let bodyHTML = renderer.render(body)
 
         let componentCSS = collector.renderStylesheet()
         let themeCSS = theme.map { ThemeCSSEmitter.emit($0) } ?? ""
+        let uiCSS = ThemeCSSEmitter.emitComponentCSS()
 
         let emitResult = JSEmitter.emitWithSourceMap(page: page, environment: environment)
         var scripts: [String] = []
@@ -66,6 +71,12 @@ public enum PageRenderer: Sendable {
             scripts.append(emitResult.script)
         }
 
+        // Inject editor scripts when TextEditor is present.
+        if bodyHTML.contains("data-component=\"editor\"") {
+            scripts.append("<script src=\"/_score/score-editor.js\"></script>")
+            scripts.append("<script src=\"/_score/score-lsp.js\"></script>")
+        }
+
         let patch = page.metadata
         let title = DocumentAssembler.composeTitle(
             page: patch?.title ?? metadata?.title,
@@ -73,12 +84,14 @@ public enum PageRenderer: Sendable {
             site: patch?.site ?? metadata?.site
         )
 
+        let combinedThemeCSS = themeCSS.isEmpty ? uiCSS : themeCSS + "\n" + uiCSS
+
         let parts = DocumentAssembler.Parts(
             title: title,
             description: patch?.description ?? metadata?.description,
             keywords: patch?.keywords ?? metadata?.keywords ?? [],
             structuredData: patch?.structuredData ?? metadata?.structuredData ?? [],
-            themeCSS: themeCSS,
+            themeCSS: combinedThemeCSS,
             componentCSS: componentCSS,
             bodyHTML: bodyHTML,
             scripts: scripts,
@@ -115,7 +128,7 @@ public enum PageRenderer: Sendable {
     /// - Returns: A ``RenderResult`` containing the HTML and optional source map.
     public static func renderWithDevTools(
         page: some Page,
-        metadata: (any Metadata)?,
+        metadata: Metadata?,
         theme: (any Theme)?,
         environment: Environment = .current
     ) throws -> RenderResult {
@@ -126,13 +139,16 @@ public enum PageRenderer: Sendable {
         let rules = collector.collectedRules()
 
         let classLookup = buildClassLookup(from: rules)
-        let renderer = HTMLRenderer(classInjector: { modifiers in
-            classLookup(modifiers)
-        })
+        let scopeInjector = JSEmitter.buildScopeInjector()
+        let renderer = HTMLRenderer(
+            classInjector: { modifiers in classLookup(modifiers) },
+            scopeInjector: scopeInjector
+        )
         var bodyHTML = renderer.render(body)
 
         let componentCSS = collector.renderStylesheet()
         let themeCSS = theme.map { ThemeCSSEmitter.emit($0) } ?? ""
+        let uiCSS = ThemeCSSEmitter.emitComponentCSS()
 
         let emitResult = JSEmitter.emitWithSourceMap(page: page, environment: environment)
         var scripts: [String] = []
@@ -168,6 +184,12 @@ public enum PageRenderer: Sendable {
             scripts.append(devToolsScript)
         }
 
+        // Inject editor scripts when TextEditor is present.
+        if bodyHTML.contains("data-component=\"editor\"") {
+            scripts.append("<script src=\"/_score/score-editor.js\"></script>")
+            scripts.append("<script src=\"/_score/score-lsp.js\"></script>")
+        }
+
         let patch = page.metadata
         let title = DocumentAssembler.composeTitle(
             page: patch?.title ?? metadata?.title,
@@ -175,12 +197,14 @@ public enum PageRenderer: Sendable {
             site: patch?.site ?? metadata?.site
         )
 
+        let combinedThemeCSS = themeCSS.isEmpty ? uiCSS : themeCSS + "\n" + uiCSS
+
         let parts = DocumentAssembler.Parts(
             title: title,
             description: patch?.description ?? metadata?.description,
             keywords: patch?.keywords ?? metadata?.keywords ?? [],
             structuredData: patch?.structuredData ?? metadata?.structuredData ?? [],
-            themeCSS: themeCSS,
+            themeCSS: combinedThemeCSS,
             componentCSS: componentCSS,
             bodyHTML: bodyHTML,
             scripts: scripts,
@@ -194,7 +218,7 @@ public enum PageRenderer: Sendable {
         )
     }
 
-    private static func buildClassLookup(
+    static func buildClassLookup(
         from rules: [CSSCollector.Rule]
     ) -> @Sendable ([any ModifierValue]) -> String? {
         var mapping: [String: String] = [:]

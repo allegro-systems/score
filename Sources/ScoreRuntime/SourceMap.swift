@@ -18,7 +18,9 @@ import Foundation
 /// )
 /// let json = builder.build()
 /// ```
-public enum SourceMap: Sendable {
+public struct SourceMap: Sendable {
+
+    private init() {}
 
     /// A single source mapping entry.
     public struct Mapping: Sendable, Equatable {
@@ -184,7 +186,7 @@ public enum SourceMap: Sendable {
         return result
     }
 
-    private static func escapeJSON(_ string: String) -> String {
+    static func escapeJSON(_ string: String) -> String {
         string
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
@@ -194,16 +196,11 @@ public enum SourceMap: Sendable {
     }
 }
 
-// Make the free function accessible from Builder.
+// Make the static functions accessible from Builder without qualifying.
 private func vlqEncode(_ value: Int) -> String {
     SourceMap.vlqEncode(value)
 }
 
 private func escapeJSON(_ string: String) -> String {
-    string
-        .replacingOccurrences(of: "\\", with: "\\\\")
-        .replacingOccurrences(of: "\"", with: "\\\"")
-        .replacingOccurrences(of: "\n", with: "\\n")
-        .replacingOccurrences(of: "\r", with: "\\r")
-        .replacingOccurrences(of: "\t", with: "\\t")
+    SourceMap.escapeJSON(string)
 }

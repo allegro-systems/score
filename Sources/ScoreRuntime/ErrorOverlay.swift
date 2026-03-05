@@ -11,7 +11,9 @@
 ///
 /// In production mode, ``render(_:environment:)`` returns a generic error
 /// page with no implementation details.
-public enum ErrorOverlay: Sendable {
+public struct ErrorOverlay: Sendable {
+
+    private init() {}
 
     /// A single frame in a source-mapped stack trace.
     public struct Frame: Sendable {

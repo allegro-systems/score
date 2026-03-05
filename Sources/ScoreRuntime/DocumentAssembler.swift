@@ -19,7 +19,9 @@ import ScoreCore
 ///     scripts: []
 /// )
 /// ```
-public enum DocumentAssembler: Sendable {
+public struct DocumentAssembler: Sendable {
+
+    private init() {}
 
     /// The parts needed to assemble a complete HTML document.
     public struct Parts: Sendable {
@@ -51,6 +53,12 @@ public enum DocumentAssembler: Sendable {
         /// The active named theme, emitted as `data-theme` on `<html>`.
         public var activeTheme: String?
 
+        /// When `true`, emit external `<link>` and `<script src>` references
+        /// instead of inline `<style>` and `<script>` blocks. Used by the
+        /// static site emitter to produce files that reference `as-global.css`,
+        /// `as-group-0.css`, and `as-interactivity.js`.
+        public var externalAssets: Bool
+
         /// Creates a new parts value.
         public init(
             title: String? = nil,
@@ -61,7 +69,8 @@ public enum DocumentAssembler: Sendable {
             componentCSS: String = "",
             bodyHTML: String = "",
             scripts: [String] = [],
-            activeTheme: String? = nil
+            activeTheme: String? = nil,
+            externalAssets: Bool = false
         ) {
             self.title = title
             self.description = description
@@ -72,6 +81,7 @@ public enum DocumentAssembler: Sendable {
             self.bodyHTML = bodyHTML
             self.scripts = scripts
             self.activeTheme = activeTheme
+            self.externalAssets = externalAssets
         }
     }
 
@@ -122,12 +132,18 @@ public enum DocumentAssembler: Sendable {
             html.append("<meta name=\"keywords\" content=\"\(escaped)\">\n")
         }
 
-        if !parts.themeCSS.isEmpty {
-            html.append("<style>\n\(parts.themeCSS)</style>\n")
-        }
-
-        if !parts.componentCSS.isEmpty {
-            html.append("<style>\n\(parts.componentCSS)</style>\n")
+        if parts.externalAssets {
+            html.append("<link rel=\"stylesheet\" href=\"/as-global.css\">\n")
+            if !parts.componentCSS.isEmpty {
+                html.append("<link rel=\"stylesheet\" href=\"/as-group-0.css\">\n")
+            }
+        } else {
+            if !parts.themeCSS.isEmpty {
+                html.append("<style>\n\(parts.themeCSS)</style>\n")
+            }
+            if !parts.componentCSS.isEmpty {
+                html.append("<style>\n\(parts.componentCSS)</style>\n")
+            }
         }
 
         for payload in parts.structuredData {
@@ -138,9 +154,18 @@ public enum DocumentAssembler: Sendable {
         html.append(parts.bodyHTML)
         html.append("\n")
 
-        for script in parts.scripts {
-            html.append(script)
-            html.append("\n")
+        if parts.externalAssets {
+            let hasReactiveScripts = parts.scripts.contains { $0.contains("Score.state") || $0.contains("Score.computed") }
+            if hasReactiveScripts {
+                html.append("<script src=\"/signal-polyfill.js\"></script>\n")
+                html.append("<script src=\"/score-runtime.js\"></script>\n")
+                html.append("<script src=\"/as-interactivity.js\" defer></script>\n")
+            }
+        } else {
+            for script in parts.scripts {
+                html.append(script)
+                html.append("\n")
+            }
         }
 
         html.append("</body>\n</html>\n")

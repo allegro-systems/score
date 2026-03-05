@@ -29,27 +29,16 @@ private struct NamedMinimalTheme: Theme {
     var dark: (any ThemePatch)? { nil }
 }
 
-private struct AppMetadata: Metadata {
-    var site: String? { "TestSite" }
-    var title: String? { nil }
-    var titleSeparator: String { " — " }
-    var description: String? { "Default description" }
-    var keywords: [String] { ["swift"] }
-    var structuredData: [String] { [] }
-}
-
-private struct TitlePatch: MetadataPatch {
-    var site: String? { nil }
-    var title: String? { "Home" }
-    var titleSeparator: String? { nil }
-    var description: String? { nil }
-    var keywords: [String]? { nil }
-    var structuredData: [String]? { nil }
-}
+private let appMetadata = Metadata(
+    site: "TestSite",
+    titleSeparator: " — ",
+    description: "Default description",
+    keywords: ["swift"]
+)
 
 private struct SimplePage: Page {
     static let path = "/"
-    var metadata: (any MetadataPatch)? { TitlePatch() }
+    var metadata: Metadata? { Metadata(title: "Home") }
 
     var body: some Node {
         Heading(.one) { Text(verbatim: "Hello") }
@@ -74,7 +63,7 @@ private struct StyledPage: Page {
 }
 
 @Test func renderPageWithMetadata() {
-    let html = PageRenderer.render(page: SimplePage(), metadata: AppMetadata(), theme: nil)
+    let html = PageRenderer.render(page: SimplePage(), metadata: appMetadata, theme: nil)
     #expect(html.contains("<title>Home — TestSite</title>"))
     #expect(html.contains("Default description"))
 }

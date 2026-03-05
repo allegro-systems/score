@@ -18,14 +18,12 @@ private struct RuntimeHomePage: Page {
     }
 }
 
-private struct RuntimeMetadata: Metadata {
-    var site: String? { "Runtime Site" }
-    var title: String? { nil }
-    var titleSeparator: String { " | " }
-    var description: String? { "Runtime description" }
-    var keywords: [String] { ["runtime", "tests"] }
-    var structuredData: [String] { ["{\"@type\":\"WebPage\"}"] }
-}
+private let runtimeMetadata = Metadata(
+    site: "Runtime Site",
+    description: "Runtime description",
+    keywords: ["runtime", "tests"],
+    structuredData: ["{\"@type\":\"WebPage\"}"]
+)
 
 private struct RuntimeController: Controller {
     let base = "/api"
@@ -67,7 +65,7 @@ private enum RuntimeHandlerError: Error {
 
 private struct RuntimeApp: Application {
     var pages: [any Page] { [RuntimeHomePage()] }
-    var metadata: (any Metadata)? { RuntimeMetadata() }
+    var metadata: Metadata? { runtimeMetadata }
     var controllers: [any Controller] { [RuntimeController()] }
 }
 

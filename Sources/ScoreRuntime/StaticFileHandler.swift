@@ -5,7 +5,7 @@ import Foundation
 /// `StaticFileHandler` reads files from a base directory and determines
 /// their MIME type from the file extension. It rejects paths containing
 /// directory traversal sequences for security.
-enum StaticFileHandler {
+struct StaticFileHandler {
 
     /// Attempts to serve a file at `relativePath` from the given `directory`.
     ///
@@ -15,10 +15,11 @@ enum StaticFileHandler {
     /// - Returns: A tuple of file data and content type, or `nil` if the
     ///   file cannot be served.
     static func serve(relativePath: String, from directory: String) -> (Data, String)? {
-        guard !relativePath.contains("..") else { return nil }
         guard !relativePath.isEmpty else { return nil }
 
-        let fullPath = (directory as NSString).appendingPathComponent(relativePath)
+        let baseURL = URL(fileURLWithPath: directory).standardized
+        let fullPath = baseURL.appendingPathComponent(relativePath).standardized.path
+        guard fullPath.hasPrefix(baseURL.path) else { return nil }
 
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: fullPath, isDirectory: &isDirectory),

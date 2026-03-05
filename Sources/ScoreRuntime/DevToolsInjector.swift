@@ -10,7 +10,24 @@
 ///    `/_score/score-devtools.js` that loads the floating panel UI.
 ///
 /// In production mode, all methods are no-ops and return their inputs unchanged.
-public enum DevToolsInjector: Sendable {
+public struct DevToolsInjector: Sendable {
+
+    private init() {}
+
+    private static func escapeAttribute(_ string: String) -> String {
+        var result = ""
+        result.reserveCapacity(string.count)
+        for char in string {
+            switch char {
+            case "&": result += "&amp;"
+            case "<": result += "&lt;"
+            case ">": result += "&gt;"
+            case "\"": result += "&quot;"
+            default: result.append(char)
+            }
+        }
+        return result
+    }
 
     /// Annotates page body HTML with component data attributes in development mode.
     ///
@@ -41,7 +58,9 @@ public enum DevToolsInjector: Sendable {
         // Find the closing `>` of the first tag.
         guard let closeAngle = bodyHTML[afterOpen...].firstIndex(of: ">") else { return bodyHTML }
 
-        let attrs = " data-score-component=\"\(componentName)\" data-score-file=\"\(sourceFile)\" data-score-line=\"\(sourceLine)\""
+        let escapedName = escapeAttribute(componentName)
+        let escapedFile = escapeAttribute(sourceFile)
+        let attrs = " data-score-component=\"\(escapedName)\" data-score-file=\"\(escapedFile)\" data-score-line=\"\(sourceLine)\""
 
         var result = String(bodyHTML[bodyHTML.startIndex..<closeAngle])
         result.append(attrs)

@@ -51,8 +51,10 @@ public struct RequestContext: Sendable {
             let kv = pair.split(separator: "=", maxSplits: 1)
             guard let key = kv.first else { continue }
             let value = kv.count > 1 ? String(kv[1]) : ""
-            let decodedKey = String(key).removingPercentEncoding ?? String(key)
-            let decodedValue = value.removingPercentEncoding ?? value
+            let rawKey = String(key).replacingOccurrences(of: "+", with: " ")
+            let rawValue = value.replacingOccurrences(of: "+", with: " ")
+            let decodedKey = rawKey.removingPercentEncoding ?? rawKey
+            let decodedValue = rawValue.removingPercentEncoding ?? rawValue
             if result[decodedKey] == nil {
                 result[decodedKey] = decodedValue
             }

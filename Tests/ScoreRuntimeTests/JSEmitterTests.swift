@@ -115,7 +115,7 @@ private struct ActionPage: Page {
 
 @Test func actionPageEmitsFunctionDeclaration() {
     let script = JSEmitter.emit(page: ActionPage(), environment: .development)
-    #expect(script.contains("function increment()"))
+    #expect(script.contains("function increment(event)"))
 }
 
 @Test func computedPageEmitsScoreComputed() {

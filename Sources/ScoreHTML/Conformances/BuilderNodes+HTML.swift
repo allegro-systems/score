@@ -14,19 +14,77 @@ extension TextNode: HTMLRenderable {
     }
 }
 
-/// Renders the wrapped content, injecting a CSS scope class when available.
+/// Renders raw content directly into the output stream without escaping.
+extension RawTextNode: HTMLRenderable {
+    /// Appends the raw content verbatim with no HTML escaping.
+    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
+        output.append(content)
+    }
+}
+
+/// Renders the wrapped content, injecting a CSS scope class and HTML
+/// attributes when available.
 extension ModifiedNode: HTMLRenderable {
     /// Renders the underlying content node wrapped in a scoped `<div>` when
-    /// the renderer's class injector returns a class name for this node's
-    /// modifiers. Otherwise renders the content directly.
+    /// the renderer's class injector returns a class name or HTML attribute
+    /// modifiers are present. Otherwise renders the content directly.
     func renderHTML(into output: inout String, renderer: HTMLRenderer) {
-        if let className = renderer.classInjector?(modifiers) {
-            output.append("<div class=\"\(className)\">")
+        let className = renderer.classInjector?(modifiers)
+        let htmlAttrs = collectHTMLAttributes()
+        let hasEventBindings = modifiers.contains { $0 is EventBindingModifier }
+
+        if className != nil || !htmlAttrs.isEmpty || hasEventBindings {
+            output.append("<div")
+
+            // Inject data-s attribute for event binding targeting.
+            if hasEventBindings {
+                let eventIndex = renderer.context.nextEventIndex()
+                output.append(" data-s=\"\(eventIndex)\"")
+            }
+
+            // Merge class attribute: scoped CSS class + user-supplied classes.
+            var classValue = className ?? ""
+            if let userClasses = htmlAttrs["class"] {
+                if classValue.isEmpty {
+                    classValue = userClasses
+                } else {
+                    classValue += " \(userClasses)"
+                }
+            }
+            if !classValue.isEmpty {
+                output.append(" class=\"\(classValue.attributeEscaped)\"")
+            }
+            // Emit remaining HTML attributes.
+            for (name, value) in htmlAttrs where name != "class" {
+                guard name.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" || $0 == ":" }) else { continue }
+                output.append(" \(name)=\"\(value.attributeEscaped)\"")
+            }
+            output.append(">")
             renderer.write(content, to: &output)
             output.append("</div>")
         } else {
             renderer.write(content, to: &output)
         }
+    }
+
+    /// Collects all HTML attributes from `HTMLAttributeModifier` values in
+    /// this node's modifier array, returning them as a lookup dictionary.
+    ///
+    /// When multiple modifiers set the same attribute, later values win
+    /// (except for `class` which is space-concatenated).
+    private func collectHTMLAttributes() -> [String: String] {
+        var result: [String: String] = [:]
+        for modifier in modifiers {
+            guard let attrMod = modifier as? HTMLAttributeModifier else { continue }
+            for attr in attrMod.attributes {
+                if attr.name == "class", let existing = result["class"] {
+                    result["class"] = existing + " " + attr.value
+                } else {
+                    result[attr.name] = attr.value
+                }
+            }
+        }
+        return result
     }
 }
 

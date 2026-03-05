@@ -36,6 +36,10 @@ extension Input: HTMLRenderable {
         if isRequired { a.append(("required", "")) }
         if isDisabled { a.append(("disabled", "")) }
         if isReadOnly { a.append(("readonly", "")) }
+        if isChecked { a.append(("checked", "")) }
+        if let v = min { a.append(("min", v)) }
+        if let v = max { a.append(("max", v)) }
+        if let v = list { a.append(("list", v)) }
         renderer.voidTag("input", a, to: &output)
     }
 }

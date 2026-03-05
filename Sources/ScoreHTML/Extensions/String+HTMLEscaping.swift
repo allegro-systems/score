@@ -30,6 +30,8 @@ extension String {
             case ">": result += "&gt;"
             case "\"" where context == .attribute:
                 result += "&quot;"
+            case "'" where context == .attribute:
+                result += "&#39;"
             default:
                 result.append(char)
             }
@@ -44,7 +46,7 @@ extension String {
         escaped(for: .text)
     }
 
-    /// A copy of this string with `&`, `<`, `>`, and `"` escaped for safe
+    /// A copy of this string with `&`, `<`, `>`, `"`, and `'` escaped for safe
     /// use inside a double-quoted HTML attribute value.
     package var attributeEscaped: String {
         escaped(for: .attribute)

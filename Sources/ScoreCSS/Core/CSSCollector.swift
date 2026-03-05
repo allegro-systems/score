@@ -113,12 +113,17 @@ public struct CSSCollector: Sendable {
     }
 
     private func scopeClassName(for declarations: [CSSDeclaration]) -> String {
-        var hasher = Hasher()
+        var hash: UInt64 = 14_695_981_039_346_656_037
         for d in declarations {
-            hasher.combine(d.property)
-            hasher.combine(d.value)
+            for byte in d.property.utf8 {
+                hash ^= UInt64(byte)
+                hash &*= 1_099_511_628_211
+            }
+            for byte in d.value.utf8 {
+                hash ^= UInt64(byte)
+                hash &*= 1_099_511_628_211
+            }
         }
-        let hash = UInt(bitPattern: hasher.finalize())
         return "s-\(String(hash, radix: 36))"
     }
 }

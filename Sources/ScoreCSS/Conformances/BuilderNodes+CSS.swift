@@ -12,6 +12,12 @@ extension TextNode: CSSWalkable {
     func walkChildren(collector: inout CSSCollector) {}
 }
 
+/// Leaf node — raw text carries no CSS modifiers.
+extension RawTextNode: CSSWalkable {
+    /// No-op; `RawTextNode` contains no child nodes.
+    func walkChildren(collector: inout CSSCollector) {}
+}
+
 /// Walks all children via parameter pack expansion.
 extension TupleNode: CSSWalkable {
     /// Collects CSS from each child using `repeat each children`.

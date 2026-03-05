@@ -11,7 +11,9 @@ import ScoreCore
 /// let declarations = CSSEmitter.declarations(for: PaddingModifier(16))
 /// // [CSSDeclaration(property: "padding", value: "16px")]
 /// ```
-public enum CSSEmitter {
+public struct CSSEmitter {
+
+    private init() {}
 
     /// Produces CSS declarations for the given modifier value.
     ///

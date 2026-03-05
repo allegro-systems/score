@@ -4,7 +4,7 @@ WERROR ?= true
 SWIFT_WERROR := $(if $(filter-out false,$(WERROR)),-Xswiftc -warnings-as-errors)
 SHELL := /usr/bin/env bash
 
-PRODUCT     ?= Score
+PRODUCT     ?= score
 BINARY_PATH ?= bin
 COVERAGE_MIN ?= 85
 COVERAGE_ENFORCE_TARGETS ?= true
@@ -19,8 +19,9 @@ help:
 	"  release        Build in release mode" \
 	"  test           Run tests ($(CONFIG))" \
 	"  coverage       Run tests with coverage and enforce min $(COVERAGE_MIN)%" \
-	"  ci             Run full local/CI gates (ci-full)" \
-	"  setup-hooks    Install pre-commit hook (runs make ci-full)" \
+	"  ci             Run full local/CI gates" \
+	"  ci-examples    Build all Examples/*/" \
+	"  setup-hooks    Install pre-commit hook (runs make ci)" \
 	"  format         Format (swift format)" \
 	"  lint           Lint (swift format lint)" \
 	"  install        Build release and install to BINARY_PATH (default: bin/)" \
@@ -52,6 +53,18 @@ ci:
 	@$(MAKE) lint
 	@$(MAKE) build WERROR=true
 	@$(MAKE) coverage WERROR=true COVERAGE_MIN=$(COVERAGE_MIN) COVERAGE_ENFORCE_TARGETS=true
+	@$(MAKE) ci-examples
+
+EXAMPLES := $(wildcard Examples/*)
+
+.PHONY: ci-examples
+ci-examples:
+	@set -euo pipefail; \
+	for dir in $(EXAMPLES); do \
+		echo "Building $$dir..."; \
+		(cd "$$dir" && $(SWIFT) build -c $(CONFIG) $(SWIFT_WERROR)); \
+	done; \
+	echo "All examples built successfully."
 
 .PHONY: setup-hooks
 setup-hooks:

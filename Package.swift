@@ -14,13 +14,13 @@ let package = Package(
         .library(name: "ScoreCSS", targets: ["ScoreCSS"]),
         .library(name: "ScoreRouter", targets: ["ScoreRouter"]),
         .library(name: "ScoreRuntime", targets: ["ScoreRuntime"]),
-        .library(name: "ScoreDB", targets: ["ScoreDB"]),
-        .library(name: "ScoreKV", targets: ["ScoreKV"]),
+        .library(name: "ScoreStorage", targets: ["ScoreStorage"]),
         .library(name: "ScoreAuth", targets: ["ScoreAuth"]),
         .library(name: "ScoreContent", targets: ["ScoreContent"]),
         .library(name: "ScoreAssets", targets: ["ScoreAssets"]),
         .library(name: "ScoreUI", targets: ["ScoreUI"]),
         .library(name: "ScoreVendor", targets: ["ScoreVendor"]),
+        .executable(name: "score", targets: ["ScoreCLI"]),
     ],
     dependencies: [
         .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.1.0"),
@@ -30,6 +30,8 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-metrics.git", from: "2.0.0"),
         .package(url: "https://github.com/apple/swift-crypto.git", from: "3.0.0"),
         .package(url: "https://github.com/swiftlang/swift-markdown.git", from: "0.6.0"),
+        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
+        .package(url: "https://github.com/tuist/Noora", from: "0.55.0"),
     ],
     targets: [
         .target(
@@ -63,9 +65,8 @@ let package = Package(
             ],
             resources: [.copy("Resources")]
         ),
-        .target(name: "ScoreDB", dependencies: ["ScoreCore"]),
         .target(
-            name: "ScoreKV",
+            name: "ScoreStorage",
             dependencies: [
                 "ScoreCore",
                 .product(name: "NIOCore", package: "swift-nio"),
@@ -75,7 +76,7 @@ let package = Package(
             name: "ScoreAuth",
             dependencies: [
                 "ScoreCore",
-                "ScoreKV",
+                "ScoreStorage",
                 "ScoreRouter",
                 .product(name: "Crypto", package: "swift-crypto"),
             ]
@@ -90,15 +91,24 @@ let package = Package(
         ),
         .target(name: "ScoreAssets", dependencies: ["ScoreCore"]),
         .target(name: "ScoreUI", dependencies: ["ScoreCore", "ScoreHTML", "ScoreCSS"]),
-        .target(name: "ScoreVendor", dependencies: ["ScoreCore", "ScoreRouter"]),
+        .target(name: "ScoreVendor", dependencies: ["ScoreCore", "ScoreRouter", "ScoreHTML"]),
         .target(
             name: "Score",
             dependencies: [
                 "ScoreCore", "ScoreHTML", "ScoreCSS", "ScoreRouter",
-                "ScoreRuntime", "ScoreDB", "ScoreKV", "ScoreAuth",
+                "ScoreRuntime", "ScoreStorage", "ScoreAuth",
                 "ScoreContent", "ScoreAssets", "ScoreUI", "ScoreVendor",
             ]
         ),
+        .executableTarget(
+            name: "ScoreCLI",
+            dependencies: [
+                "Score",
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                .product(name: "Noora", package: "Noora"),
+            ]
+        ),
+        .testTarget(name: "ScoreCLITests", dependencies: ["ScoreCLI"]),
         .testTarget(name: "ScoreCoreTests", dependencies: ["ScoreCore"]),
         .testTarget(name: "ScoreTests", dependencies: ["Score"]),
         .testTarget(name: "ScoreHTMLTests", dependencies: ["ScoreHTML"]),
@@ -111,5 +121,11 @@ let package = Package(
                 .product(name: "NIOEmbedded", package: "swift-nio"),
             ]
         ),
+        .testTarget(name: "ScoreStorageTests", dependencies: ["ScoreStorage"]),
+        .testTarget(name: "ScoreAuthTests", dependencies: ["ScoreAuth", "ScoreStorage"]),
+        .testTarget(name: "ScoreContentTests", dependencies: ["ScoreContent", "ScoreHTML"]),
+        .testTarget(name: "ScoreAssetsTests", dependencies: ["ScoreAssets"]),
+        .testTarget(name: "ScoreUITests", dependencies: ["ScoreUI", "ScoreHTML"]),
+        .testTarget(name: "ScoreVendorTests", dependencies: ["ScoreVendor", "ScoreHTML"]),
     ]
 )

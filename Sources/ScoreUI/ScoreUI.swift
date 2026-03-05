@@ -1,1 +1,1 @@
-public enum _ScoreUIModule {}
+@_exported import ScoreCore

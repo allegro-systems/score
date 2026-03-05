@@ -297,12 +297,40 @@ public protocol Theme: Sendable {
     /// Theme switching is handled by user-authored JavaScript that sets
     /// the `data-theme` attribute on `<html>`.
     var named: [String: any ThemePatch] { get }
+
+    /// Per-component CSS custom property overrides.
+    ///
+    /// Keys are component token names (e.g. `"card-bg"`, `"button-radius"`)
+    /// and values are CSS expressions. These are emitted as
+    /// `--{key}: {value}` custom properties in the `:root` block,
+    /// overriding the built-in component defaults.
+    ///
+    /// ### Example
+    ///
+    /// ```swift
+    /// var componentStyles: [String: String] {
+    ///     [
+    ///         "card-radius": "16px",
+    ///         "card-shadow": "0 4px 12px oklch(0 0 0 / 0.15)",
+    ///         "button-radius": "999px",  // pill buttons
+    ///     ]
+    /// }
+    /// ```
+    ///
+    /// Component tokens reference base theme tokens by default (e.g.
+    /// `--card-bg` defaults to `var(--color-surface)`), so changing
+    /// `colorRoles["surface"]` automatically updates all components
+    /// that reference it.
+    var componentStyles: [String: String] { get }
 }
 
 extension Theme {
 
     /// Default implementation returns no named variants.
     public var named: [String: any ThemePatch] { [:] }
+
+    /// Default implementation returns no component style overrides.
+    public var componentStyles: [String: String] { [:] }
 }
 
 /// A protocol for partial theme overrides.

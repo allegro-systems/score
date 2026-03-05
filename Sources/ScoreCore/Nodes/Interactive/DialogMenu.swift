@@ -15,7 +15,7 @@
 ///
 /// ```swift
 /// Dialog(open: true) {
-///     Heading(.h2) { "Confirm Deletion" }
+///     Heading(.two) { Text(verbatim: "Confirm Deletion") }
 ///     Paragraph { "Are you sure you want to delete this item?" }
 ///     Button(type: .submit) { "Delete" }
 ///     Button(type: .button) { "Cancel" }

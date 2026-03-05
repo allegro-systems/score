@@ -13,6 +13,13 @@ extension String {
     func normalized() -> String {
         let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return "/" }
-        return trimmed.hasPrefix("/") ? trimmed : "/\(trimmed)"
+        var path = trimmed.hasPrefix("/") ? trimmed : "/\(trimmed)"
+        while path.contains("//") {
+            path = path.replacingOccurrences(of: "//", with: "/")
+        }
+        if path.count > 1, path.hasSuffix("/") {
+            path = String(path.dropLast())
+        }
+        return path
     }
 }

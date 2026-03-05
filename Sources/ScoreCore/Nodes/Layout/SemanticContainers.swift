@@ -120,10 +120,10 @@ public struct Article<Content: Node>: Node {
 ///
 /// ```swift
 /// Header {
-///     Image("logo.png")
+///     Image(src: "logo.png", alt: "Logo")
 ///     Navigation {
-///         Link("Home", href: "/")
-///         Link("About", href: "/about")
+///         Link(to: "/") { Text(verbatim: "Home") }
+///         Link(to: "/about") { Text(verbatim: "About") }
 ///     }
 /// }
 /// ```

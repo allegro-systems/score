@@ -26,21 +26,11 @@ public enum HTTPMethod: String, Sendable {
     /// payload contains sensitive information such as passwords.
     case post
 
-    /// Sends a partial update to an existing resource.
+    /// Sends form data via a dialog submission.
     ///
-    /// Applies only the fields provided, leaving all other fields unchanged.
-    case patch
-
-    /// Replaces an existing resource in its entirety.
-    ///
-    /// All required fields must be supplied; fields omitted from the payload
-    /// are cleared on the server.
-    case put
-
-    /// Deletes the specified resource on the server.
-    ///
-    /// Use for destructive actions such as account deletion or removing a record.
-    case delete
+    /// Only valid for forms nested inside a `<dialog>` element. When submitted,
+    /// the dialog closes and its `returnValue` is set to the button's value.
+    case dialog
 }
 
 /// The MIME type used to encode form data before it is sent to the server.

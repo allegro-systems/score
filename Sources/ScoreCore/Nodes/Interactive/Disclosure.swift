@@ -8,9 +8,10 @@
 /// ### Example
 ///
 /// ```swift
-/// Details {
-///     Summary { "What is Score?" }
-///     Paragraph { "Score is a Swift DSL for building HTML documents." }
+/// Details(summary: {
+///     Summary { Text(verbatim: "What is Score?") }
+/// }) {
+///     Paragraph { Text(verbatim: "Score is a Swift DSL for building HTML documents.") }
 /// }
 /// ```
 ///
@@ -50,18 +51,20 @@ public struct Summary<Content: Node>: Node {
 /// ### Example
 ///
 /// ```swift
-/// Details {
-///     Summary { "System Requirements" }
+/// Details(summary: {
+///     Summary { Text(verbatim: "System Requirements") }
+/// }) {
 ///     UnorderedList {
-///         ListItem { "macOS 13 or later" }
-///         ListItem { "4 GB RAM minimum" }
+///         ListItem { Text(verbatim: "macOS 13 or later") }
+///         ListItem { Text(verbatim: "4 GB RAM minimum") }
 ///     }
 /// }
 ///
 /// // Pre-expanded
-/// Details(open: true) {
-///     Summary { "Release Notes" }
-///     Paragraph { "Version 2.0 introduces Swift 6 concurrency support." }
+/// Details(open: true, summary: {
+///     Summary { Text(verbatim: "Release Notes") }
+/// }) {
+///     Paragraph { Text(verbatim: "Version 2.0 introduces Swift 6 concurrency support.") }
 /// }
 /// ```
 ///

@@ -4,7 +4,7 @@
 /// Score application. Each conforming type provides a static `path` that the
 /// runtime maps to an HTTP GET handler, and a `body` built with `@NodeBuilder`
 /// that describes the complete node tree rendered as the HTML response.
-/// Pages may also provide page-level metadata overrides.
+/// Pages may also override application-level metadata.
 ///
 /// Pages are collected by `Application.pages` and registered with the server
 /// at startup. The runtime renders each page's `body` to HTML whenever a
@@ -38,7 +38,7 @@
 ///
 /// struct AboutPage: Page {
 ///     static let path = "/about"
-///     var metadata: (any MetadataPatch)? { AboutMetadataPatch(title: "About") }
+///     var metadata: Metadata? { Metadata(title: "About") }
 ///
 ///     var body: some Node {
 ///         Heading(.one) { Text(verbatim: "About") }
@@ -52,7 +52,7 @@
 /// A type conforming to `Page` must:
 /// - Declare a `static var path: String` representing the URL this
 ///   page is served at (e.g. `"/"`, `"/about"`, `"/blog/posts"`).
-/// - Optionally declare `var metadata: (any MetadataPatch)?` to patch
+/// - Optionally declare `var metadata: Metadata?` to patch
 ///   application-level metadata.
 /// - Implement `var body: Body { get }` annotated with `@NodeBuilder`, where
 ///   `Body` is any concrete `Node` type, typically expressed as `some Node`.
@@ -82,7 +82,7 @@ public protocol Page: Sendable {
     /// An optional page-level metadata override.
     ///
     /// When `nil`, the page inherits `Application.metadata` unchanged.
-    var metadata: (any MetadataPatch)? { get }
+    var metadata: Metadata? { get }
 
     /// The root node tree that defines the HTML content of this page.
     ///
@@ -99,5 +99,5 @@ extension Page {
     ///
     /// The default implementation returns `nil`, so pages inherit
     /// `Application.metadata` unchanged unless they explicitly override this.
-    public var metadata: (any MetadataPatch)? { nil }
+    public var metadata: Metadata? { nil }
 }

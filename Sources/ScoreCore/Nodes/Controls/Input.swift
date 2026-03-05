@@ -192,6 +192,27 @@ public struct Input: Node {
     /// its value is included in the form submission.
     public let isReadOnly: Bool
 
+    /// A Boolean value indicating whether a checkbox or radio input is initially selected.
+    ///
+    /// When `true`, the rendered `<input>` carries the `checked` attribute.
+    /// Only meaningful for `.checkbox` and `.radio` input types.
+    public let isChecked: Bool
+
+    /// The minimum acceptable value for range, number, date, and time inputs.
+    ///
+    /// Corresponds to the `min` attribute on the HTML `<input>` element.
+    public let min: String?
+
+    /// The maximum acceptable value for range, number, date, and time inputs.
+    ///
+    /// Corresponds to the `max` attribute on the HTML `<input>` element.
+    public let max: String?
+
+    /// The identifier of a `DataList` providing suggested values.
+    ///
+    /// Corresponds to the `list` attribute on the HTML `<input>` element.
+    public let list: String?
+
     /// Creates an input control with the given configuration.
     ///
     /// - Parameters:
@@ -207,6 +228,10 @@ public struct Input: Node {
     ///     submission. Defaults to `false`.
     ///   - readOnly: Whether the field is visible and submitted but not
     ///     editable. Defaults to `false`.
+    ///   - checked: Whether a checkbox or radio is initially selected. Defaults to `false`.
+    ///   - min: The minimum acceptable value. Defaults to `nil`.
+    ///   - max: The maximum acceptable value. Defaults to `nil`.
+    ///   - list: The identifier of a `DataList` providing suggestions. Defaults to `nil`.
     public init(
         type: InputType,
         name: String? = nil,
@@ -215,7 +240,11 @@ public struct Input: Node {
         id: String? = nil,
         required: Bool = false,
         disabled: Bool = false,
-        readOnly: Bool = false
+        readOnly: Bool = false,
+        checked: Bool = false,
+        min: String? = nil,
+        max: String? = nil,
+        list: String? = nil
     ) {
         self.type = type
         self.name = name
@@ -225,6 +254,10 @@ public struct Input: Node {
         self.isRequired = required
         self.isDisabled = disabled
         self.isReadOnly = readOnly
+        self.isChecked = checked
+        self.min = min
+        self.max = max
+        self.list = list
     }
 
     /// This node is rendered directly by the Score runtime and does not have a

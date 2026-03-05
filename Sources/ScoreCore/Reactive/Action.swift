@@ -1,22 +1,23 @@
 /// A property wrapper that marks a closure as a client-side action.
 ///
-/// `Action` identifies a closure that should be emitted as a plain
-/// JavaScript function on the client. During server-side rendering the
-/// wrapped closure is inert — it exists only to be discovered by the
-/// compiler and emitted alongside the component's reactive signals.
+/// `Action` identifies a closure that should be emitted as a JavaScript
+/// function on the client. The ``jsBody`` string is emitted verbatim as
+/// the function body, allowing it to call `.set()` / `.get()` on signals
+/// created from `@State` declarations.
 ///
-/// On the client, the emitted function typically calls `.set()` on one or
-/// more `Signal.State` values to trigger reactive updates.
+/// During server-side rendering the wrapped Swift closure is inert — it
+/// exists only to satisfy the type system. The real implementation lives
+/// in the ``jsBody`` string emitted to the client.
 ///
 /// ### Usage
 ///
 /// ```swift
 /// struct Counter: Component {
 ///     @State var count = 0
-///     @Action var increment = { count += 1 }
+///     @Action(js: "count.set(count.get() + 1)") var increment = {}
 ///
 ///     var body: some Node {
-///         Button("\(count)")
+///         Button { Text(verbatim: "\(count)") }
 ///             .on(.click, "increment")
 ///     }
 /// }
@@ -33,11 +34,33 @@ public struct Action: Sendable {
     /// client the compiler emits an equivalent JavaScript function.
     public var wrappedValue: @Sendable () -> Void
 
-    /// Creates an action with the given closure.
+    /// The JavaScript function body emitted on the client.
     ///
-    /// - Parameter wrappedValue: The closure that will be emitted as a
-    ///   client-side JavaScript function.
+    /// When non-empty, this string is placed inside `function name() { ... }`
+    /// in the emitted script. It may reference state signals by their
+    /// Swift property name (e.g. `count.set(count.get() + 1)`).
+    public let jsBody: String
+
+    /// Creates an action with an empty JavaScript body.
+    ///
+    /// Use this form for actions whose behavior is handled entirely by
+    /// external JS (e.g. the editor runtime) rather than emitted signals.
+    ///
+    /// - Parameter wrappedValue: The inert Swift closure (typically `{}`).
     public init(wrappedValue: @escaping @Sendable () -> Void) {
         self.wrappedValue = wrappedValue
+        self.jsBody = ""
+    }
+
+    /// Creates an action with an explicit JavaScript body.
+    ///
+    /// Usage: `@Action(js: "count.set(count.get() + 1)") var increment = {}`
+    ///
+    /// - Parameters:
+    ///   - wrappedValue: The inert Swift closure (typically `{}`).
+    ///   - js: The JavaScript code emitted as the function body.
+    public init(wrappedValue: @escaping @Sendable () -> Void, js: String) {
+        self.wrappedValue = wrappedValue
+        self.jsBody = js
     }
 }

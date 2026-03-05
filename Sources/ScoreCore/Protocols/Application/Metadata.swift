@@ -1,95 +1,65 @@
-/// A protocol that defines application-level document metadata.
+/// Application and page-level document metadata.
 ///
-/// `Metadata` represents the base metadata payload inherited by pages. Concrete
-/// renderer modules map this payload to output-specific constructs such as HTML
-/// `<title>` and `<meta>` tags.
+/// `Metadata` is a concrete value type used for both application-wide defaults
+/// and page-level overrides. All fields are optional so pages only set what
+/// they need — unset fields inherit the application value at render time.
 ///
-/// Typical uses include:
-/// - Defining global site metadata defaults on `Application`
-/// - Providing keyword and description defaults for all pages
-/// - Supplying structured data payloads for document emitters
-///
-/// ### Example
+/// ### Application-level
 ///
 /// ```swift
-/// struct AppMetadata: Metadata {
-///     var site: String? { "Example" }
-///     var title: String? { nil }
-///     var titleSeparator: String { " | " }
-///     var description: String? { "Static-first Swift web apps." }
-///     var keywords: [String] { ["swift", "score"] }
-///     var structuredData: [String] { [] }
+/// struct MyApp: Application {
+///     var metadata: Metadata? {
+///         Metadata(site: "Acme", description: "Ship faster with Acme.")
+///     }
 /// }
 /// ```
 ///
-/// ### HTML Mapping
+/// ### Page-level override
 ///
-/// Conforming values map to document-level metadata tags and JSON-LD payloads.
-public protocol Metadata: Sendable {
+/// ```swift
+/// struct AboutPage: Page {
+///     static let path = "/about"
+///     var metadata: Metadata? {
+///         Metadata(title: "About", description: "Learn about Acme.")
+///     }
+/// }
+/// ```
+///
+/// At render time, page values take precedence over application values.
+public struct Metadata: Sendable {
 
     /// The optional site name used in title composition.
-    var site: String? { get }
+    public var site: String?
 
     /// The optional document title.
-    ///
-    /// When `nil`, renderer modules may derive a title from page context.
-    var title: String? { get }
+    public var title: String?
 
     /// The separator used when composing page and site titles.
-    var titleSeparator: String { get }
+    public var titleSeparator: String?
 
-    /// The optional default document description.
-    var description: String? { get }
+    /// The optional document description.
+    public var description: String?
 
-    /// The default keyword list.
-    var keywords: [String] { get }
+    /// The keyword list for meta tags.
+    public var keywords: [String]?
 
     /// Structured data payloads represented as JSON strings.
-    ///
-    /// Renderer modules can emit these as JSON-LD script elements.
-    var structuredData: [String] { get }
-}
+    public var structuredData: [String]?
 
-/// A protocol for page-level metadata overrides.
-///
-/// `MetadataPatch` mirrors `Metadata` using optional fields so pages can
-/// selectively override application defaults without redefining the full
-/// metadata payload.
-///
-/// Typical uses include:
-/// - Overriding page title and description on a single route
-/// - Adding route-specific keywords
-/// - Appending page-specific structured-data payloads
-///
-/// ### Example
-///
-/// ```swift
-/// struct AboutMetadataPatch: MetadataPatch {
-///     var title: String? { "About" }
-///     var description: String? { "About our product." }
-/// }
-/// ```
-///
-/// ### HTML Mapping
-///
-/// Patch values map to partial metadata overrides during document rendering.
-public protocol MetadataPatch: Sendable {
-
-    /// Optional site-name override.
-    var site: String? { get }
-
-    /// Optional title override.
-    var title: String? { get }
-
-    /// Optional title-separator override.
-    var titleSeparator: String? { get }
-
-    /// Optional description override.
-    var description: String? { get }
-
-    /// Optional keyword-list override.
-    var keywords: [String]? { get }
-
-    /// Optional structured-data override.
-    var structuredData: [String]? { get }
+    /// Creates a metadata value.
+    public init(
+        site: String? = nil,
+        title: String? = nil,
+        titleSeparator: String? = nil,
+        description: String? = nil,
+        keywords: [String]? = nil,
+        structuredData: [String]? = nil
+    ) {
+        self.site = site
+        self.title = title
+        self.titleSeparator = titleSeparator
+        self.description = description
+        self.keywords = keywords
+        self.structuredData = structuredData
+    }
 }

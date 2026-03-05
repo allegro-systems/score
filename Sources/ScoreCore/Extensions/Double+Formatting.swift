@@ -10,6 +10,11 @@ extension Double {
     /// (1.5).cleanValue   // "1.5"
     /// ```
     public var cleanValue: String {
-        self == rounded() && !isInfinite ? String(Int(self)) : String(self)
+        guard !isNaN && !isInfinite else { return String(self) }
+        guard self == rounded(),
+            self >= Double(Int.min),
+            self <= Double(Int.max)
+        else { return String(self) }
+        return String(Int(self))
     }
 }

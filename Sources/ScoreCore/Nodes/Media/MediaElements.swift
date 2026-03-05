@@ -1,3 +1,47 @@
+/// The category of a text track, corresponding to the HTML `kind` attribute.
+///
+/// ### Example
+///
+/// ```swift
+/// Track(src: "/subs.vtt", kind: .subtitles, label: "English", languageCode: "en")
+/// ```
+public enum TrackKind: String, Sendable {
+
+    /// Subtitles providing a translation of dialogue.
+    case subtitles
+
+    /// Captions describing all audio, including sound effects.
+    case captions
+
+    /// Text descriptions of the video content.
+    case descriptions
+
+    /// Chapter titles for navigation.
+    case chapters
+
+    /// Machine-readable metadata not displayed to the user.
+    case metadata
+}
+
+/// A preload hint for media elements, corresponding to the HTML `preload` attribute.
+///
+/// ### Example
+///
+/// ```swift
+/// Audio(src: "/episode.mp3", preload: .metadata)
+/// ```
+public enum MediaPreload: String, Sendable {
+
+    /// Do not preload any data.
+    case none
+
+    /// Preload only metadata (duration, dimensions, etc.).
+    case metadata
+
+    /// Preload the entire media resource.
+    case auto
+}
+
 /// A node that specifies an alternative media resource for `Picture`, `Audio`,
 /// or `Video` elements.
 ///
@@ -87,10 +131,8 @@ public struct Track: Node {
 
     /// The category of the track, corresponding to the HTML `kind` attribute.
     ///
-    /// Common values are `"subtitles"`, `"captions"`, `"descriptions"`,
-    /// `"chapters"`, and `"metadata"`. When `nil`, the browser defaults to
-    /// `"subtitles"`.
-    public let kind: String?
+    /// When `nil`, the browser defaults to `"subtitles"`.
+    public let kind: TrackKind?
 
     /// A human-readable title for the track, shown in the browser's track
     /// selection UI.
@@ -121,7 +163,7 @@ public struct Track: Node {
     ///     HTML `srclang` attribute. Defaults to `nil`.
     ///   - isDefault: Whether the track is active by default. Defaults to
     ///     `false`.
-    public init(src: String, kind: String? = nil, label: String? = nil, languageCode: String? = nil, isDefault: Bool = false) {
+    public init(src: String, kind: TrackKind? = nil, label: String? = nil, languageCode: String? = nil, isDefault: Bool = false) {
         self.src = src
         self.kind = kind
         self.label = label
@@ -192,9 +234,8 @@ public struct Audio<Content: Node>: Node {
 
     /// A hint to the browser about how much of the audio to preload.
     ///
-    /// Common values are `"none"`, `"metadata"`, and `"auto"`. When `nil`,
-    /// the browser uses its own heuristic.
-    public let preload: String?
+    /// When `nil`, the browser uses its own heuristic.
+    public let preload: MediaPreload?
 
     /// The child node or node tree nested inside the audio element.
     ///

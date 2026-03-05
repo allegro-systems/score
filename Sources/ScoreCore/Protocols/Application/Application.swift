@@ -26,7 +26,7 @@
 ///
 ///     var theme: (any Theme)? { MyTheme(name: "default") }
 ///
-///     var metadata: (any Metadata)? { AppMetadata(title: "My App") }
+///     var metadata: Metadata? { Metadata(title: "My App") }
 ///
 ///     var controllers: [any Controller] {
 ///         [
@@ -36,7 +36,7 @@
 ///     }
 /// }
 /// ```
-public protocol Application {
+public protocol Application: Sendable {
 
     /// The pages served by this application.
     ///
@@ -48,13 +48,19 @@ public protocol Application {
     var theme: (any Theme)? { get }
 
     /// The default document metadata inherited by pages.
-    var metadata: (any Metadata)? { get }
+    var metadata: Metadata? { get }
 
     /// The controllers that provide HTTP request handling for this application.
     ///
     /// Each controller's `base` path and `routes` are registered with the
     /// server's routing table at startup.
     var controllers: [any Controller] { get }
+
+    /// The directory where static site output is written.
+    ///
+    /// The emitter writes rendered HTML, CSS, and JS files into a `static/`
+    /// subdirectory of this path. Defaults to `.build/score`.
+    var outputDirectory: String { get }
 }
 
 extension Application {
@@ -69,11 +75,17 @@ extension Application {
     ///
     /// The default implementation returns `nil`, meaning pages start with no
     /// application-level metadata unless a conforming type provides one.
-    public var metadata: (any Metadata)? { nil }
+    public var metadata: Metadata? { nil }
 
     /// The controllers that provide HTTP request handling for this application.
     ///
     /// The default implementation returns an empty collection, which is
     /// suitable for page-only applications with no controller endpoints.
     public var controllers: [any Controller] { [] }
+
+    /// The directory where static site output is written.
+    ///
+    /// Defaults to `.build/score`. The emitter creates a `static/`
+    /// subdirectory containing rendered HTML, CSS, and JS files.
+    public var outputDirectory: String { ".build/score" }
 }

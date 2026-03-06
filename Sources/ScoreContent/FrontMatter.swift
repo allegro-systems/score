@@ -127,28 +127,33 @@ extension FrontMatter {
     /// - Parameter content: The full content string.
     /// - Returns: The content body without the front matter delimiters and metadata.
     public static func body(from content: String) -> String {
-        let lines = content.components(separatedBy: "\n")
-        guard let firstLine = lines.first,
-            firstLine.trimmingCharacters(in: .whitespaces) == "---"
-        else {
+        guard let endLine = closingDelimiterLine(in: content) else {
             return content
         }
 
-        var endIndex = 0
-        for (index, line) in lines.dropFirst().enumerated() {
-            if line.trimmingCharacters(in: .whitespaces) == "---" {
-                endIndex = index + 2
-                break
-            }
-        }
-
-        guard endIndex > 0 else { return content }
-
-        let bodyLines = Array(lines.dropFirst(endIndex))
+        let lines = content.components(separatedBy: "\n")
+        let bodyLines = Array(lines.dropFirst(endLine + 1))
         let body = bodyLines.joined(separator: "\n")
         if body.hasPrefix("\n") {
             return String(body.dropFirst())
         }
         return body
+    }
+
+    /// Returns the line index of the closing `---` delimiter, or `nil` if no
+    /// valid front matter block exists.
+    private static func closingDelimiterLine(in content: String) -> Int? {
+        let lines = content.components(separatedBy: "\n")
+        guard let firstLine = lines.first,
+            firstLine.trimmingCharacters(in: .whitespaces) == "---"
+        else {
+            return nil
+        }
+        for (index, line) in lines.dropFirst().enumerated() {
+            if line.trimmingCharacters(in: .whitespaces) == "---" {
+                return index + 1
+            }
+        }
+        return nil
     }
 }

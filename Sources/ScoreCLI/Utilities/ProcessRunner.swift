@@ -56,9 +56,27 @@ struct ProcessRunner: Sendable {
 
         try process.run()
 
-        let stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-        let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+        var stdoutData = Data()
+        var stderrData = Data()
 
+        let stdoutHandle = stdoutPipe.fileHandleForReading
+        let stderrHandle = stderrPipe.fileHandleForReading
+
+        let group = DispatchGroup()
+
+        group.enter()
+        DispatchQueue.global().async {
+            stdoutData = stdoutHandle.readDataToEndOfFile()
+            group.leave()
+        }
+
+        group.enter()
+        DispatchQueue.global().async {
+            stderrData = stderrHandle.readDataToEndOfFile()
+            group.leave()
+        }
+
+        group.wait()
         process.waitUntilExit()
 
         return ProcessResult(

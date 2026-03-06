@@ -57,17 +57,17 @@ public struct OptimizedAsset: Sendable {
 ///
 /// `AssetOptimizer` inspects the ``AssetType`` to determine whether
 /// compression is beneficial. Text-based assets (CSS, JS, HTML, etc.)
-/// are compressed using gzip. Binary assets that are already compressed
-/// (PNG, JPEG, WOFF2, etc.) are returned unchanged.
+/// are compressed using zlib deflate. Binary assets that are already
+/// compressed (PNG, JPEG, WOFF2, etc.) are returned unchanged.
 ///
-/// If gzip compression would increase the data size — as can happen with
+/// If compression would increase the data size — as can happen with
 /// very small files — the original data is returned instead.
 public struct AssetOptimizer: Sendable {
 
     /// Creates an asset optimizer with default settings.
     public init() {}
 
-    /// Compresses the given data using gzip if the asset type is compressible.
+    /// Compresses the given data using zlib deflate if the asset type is compressible.
     ///
     /// Returns the original data if the asset type is not compressible or if
     /// compression would increase the data size.

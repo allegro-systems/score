@@ -103,6 +103,56 @@ struct PagesOnlyApp: Application {
     #expect(result == nil)
 }
 
+// MARK: - Wildcard matching
+
+@Test func matchSingleWildcard() {
+    let result = RouteTable.match(pattern: ["files", "*", "info"], request: ["files", "readme", "info"])
+    #expect(result == [:])
+}
+
+@Test func matchWildcardDoesNotCapture() {
+    let result = RouteTable.match(pattern: ["files", "*"], request: ["files", "readme.txt"])
+    #expect(result != nil)
+    #expect(result?.isEmpty == true)
+}
+
+@Test func matchWildcardFailsOnMissing() {
+    let result = RouteTable.match(pattern: ["files", "*"], request: ["files"])
+    #expect(result == nil)
+}
+
+@Test func matchWildcardWithParameter() {
+    let result = RouteTable.match(pattern: [":user", "*", "profile"], request: ["alice", "settings", "profile"])
+    #expect(result == ["user": "alice"])
+}
+
+// MARK: - Catch-all matching
+
+@Test func matchCatchAll() {
+    let result = RouteTable.match(pattern: ["files", "**"], request: ["files", "docs", "readme.md"])
+    #expect(result == ["**": "docs/readme.md"])
+}
+
+@Test func matchCatchAllSingleSegment() {
+    let result = RouteTable.match(pattern: ["files", "**"], request: ["files", "readme.md"])
+    #expect(result == ["**": "readme.md"])
+}
+
+@Test func matchCatchAllRequiresAtLeastOneSegment() {
+    let result = RouteTable.match(pattern: ["files", "**"], request: ["files"])
+    #expect(result == nil)
+}
+
+@Test func matchCatchAllWithPrefix() {
+    let result = RouteTable.match(pattern: ["api", ":version", "**"], request: ["api", "v2", "users", "42", "posts"])
+    #expect(result == ["version": "v2", "**": "users/42/posts"])
+}
+
+@Test func matchCatchAllManySegments() {
+    let result = RouteTable.match(pattern: ["**"], request: ["a", "b", "c", "d"])
+    #expect(result == ["**": "a/b/c/d"])
+}
+
 // MARK: - Route table construction
 
 @Test func tableRegistersPageAsGetRoute() throws {
@@ -233,4 +283,40 @@ struct PagesOnlyApp: Application {
     #expect(throws: RoutingError.self) {
         try table.resolve(method: .get, path: "/anything")
     }
+}
+
+// MARK: - Wildcard route resolution
+
+@Test func resolveWildcardRoute() throws {
+    struct WildcardController: Controller {
+        let base = "/files"
+        var routes: [Route] {
+            [Route(method: .get, path: "*/info")]
+        }
+    }
+    struct WildcardApp: Application {
+        var pages: [any Page] { [] }
+        var controllers: [any Controller] { [WildcardController()] }
+    }
+
+    let table = RouteTable(WildcardApp())
+    let resolved = try table.resolve(method: .get, path: "/files/readme/info")
+    #expect(resolved.parameters.isEmpty)
+}
+
+@Test func resolveCatchAllRoute() throws {
+    struct CatchAllController: Controller {
+        let base = "/docs"
+        var routes: [Route] {
+            [Route(method: .get, path: "**")]
+        }
+    }
+    struct CatchAllApp: Application {
+        var pages: [any Page] { [] }
+        var controllers: [any Controller] { [CatchAllController()] }
+    }
+
+    let table = RouteTable(CatchAllApp())
+    let resolved = try table.resolve(method: .get, path: "/docs/guide/getting-started")
+    #expect(resolved.parameters == ["**": "guide/getting-started"])
 }

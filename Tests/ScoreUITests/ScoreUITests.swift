@@ -67,7 +67,11 @@ import Testing
 
 @Test func checkboxCanBeConstructed() {
     let cb = Checkbox(name: "terms", label: "I accept", value: "yes", checked: true)
-    _ = cb
+    let renderer = HTMLRenderer()
+    let html = renderer.render(cb)
+    #expect(html.contains("terms"))
+    #expect(html.contains("I accept"))
+    #expect(html.contains("checked"))
 }
 
 @Test func commandPaletteCanBeConstructed() {
@@ -142,7 +146,11 @@ import Testing
 
 @Test func paginationCanBeConstructed() {
     let pages = Pagination(currentPage: 3, totalPages: 10, baseURL: "/articles")
-    _ = pages
+    let renderer = HTMLRenderer()
+    let html = renderer.render(pages)
+    #expect(html.contains("/articles"))
+    #expect(html.contains("Previous"))
+    #expect(html.contains("Next"))
 }
 
 @Test func progressBarCanBeConstructed() {
@@ -193,17 +201,28 @@ import Testing
 
 @Test func skeletonCanBeConstructed() {
     let skeleton = Skeleton(width: "200px", height: "16px")
-    _ = skeleton
+    let renderer = HTMLRenderer()
+    let html = renderer.render(skeleton)
+    #expect(html.contains("200px"))
+    #expect(html.contains("16px"))
 }
 
 @Test func sliderCanBeConstructed() {
     let slider = Slider(name: "volume", label: "Volume", min: "0", max: "100", value: "50")
-    _ = slider
+    let renderer = HTMLRenderer()
+    let html = renderer.render(slider)
+    #expect(html.contains("Volume"))
+    #expect(html.contains("volume"))
+    #expect(html.contains("range"))
 }
 
 @Test func switchToggleCanBeConstructed() {
     let toggle = SwitchToggle(name: "darkMode", label: "Dark Mode", isOn: true)
-    _ = toggle
+    let renderer = HTMLRenderer()
+    let html = renderer.render(toggle)
+    #expect(html.contains("Dark Mode"))
+    #expect(html.contains("darkMode"))
+    #expect(html.contains("checked"))
 }
 
 @Test func dataTableCanBeConstructed() {
@@ -876,4 +895,90 @@ import Testing
         let html = renderer.render(Badge(variant) { "Label" })
         #expect(html.contains("Label"))
     }
+}
+
+// MARK: - Drag and drop tests
+
+@Test func dragSourceCanBeConstructed() {
+    let source = DragSource(id: "item-1") {
+        Text(verbatim: "Draggable")
+    }
+    _ = source
+}
+
+@Test func dragSourceWithCustomType() {
+    let source = DragSource(id: "task-42", type: "application/x-task") {
+        Card { CardContent { Text(verbatim: "Task") } }
+    }
+    _ = source
+}
+
+@Test func dragSourceRendersWithDraggableAttribute() {
+    let renderer = HTMLRenderer()
+    let html = renderer.render(
+        DragSource(id: "card-1") {
+            Text(verbatim: "Drag me")
+        }
+    )
+    #expect(html.contains("draggable=\"true\""))
+    #expect(html.contains("Drag me"))
+    #expect(html.contains("data-component=\"drag-source\""))
+    #expect(html.contains("data-drag-id=\"card-1\""))
+}
+
+@Test func dropTargetCanBeConstructed() {
+    let target = DropTarget {
+        Text(verbatim: "Drop here")
+    }
+    _ = target
+}
+
+@Test func dropTargetWithCustomAccept() {
+    let target = DropTarget(accept: "application/x-task") {
+        Stack { Text(verbatim: "Task bin") }
+    }
+    _ = target
+}
+
+@Test func dropTargetRendersWithDataAttributes() {
+    let renderer = HTMLRenderer()
+    let html = renderer.render(
+        DropTarget(accept: "text/plain") {
+            Text(verbatim: "Drop zone")
+        }
+    )
+    #expect(html.contains("Drop zone"))
+    #expect(html.contains("data-component=\"drop-target\""))
+    #expect(html.contains("data-accept-type=\"text/plain\""))
+}
+
+@Test func sortableCanBeConstructed() {
+    let sortable = Sortable {
+        DragSource(id: "a") { Text(verbatim: "First") }
+        DragSource(id: "b") { Text(verbatim: "Second") }
+    }
+    _ = sortable
+}
+
+@Test func sortableWithHorizontalAxis() {
+    let sortable = Sortable(axis: .horizontal) {
+        DragSource(id: "col-1") { Text(verbatim: "Column 1") }
+        DragSource(id: "col-2") { Text(verbatim: "Column 2") }
+    }
+    _ = sortable
+}
+
+@Test func sortableRendersWithDataAttributes() {
+    let renderer = HTMLRenderer()
+    let html = renderer.render(
+        Sortable(axis: .vertical) {
+            DragSource(id: "item-1") { Text(verbatim: "Item 1") }
+            DragSource(id: "item-2") { Text(verbatim: "Item 2") }
+        }
+    )
+    #expect(html.contains("data-component=\"sortable\""))
+    #expect(html.contains("data-axis=\"vertical\""))
+    #expect(html.contains("Item 1"))
+    #expect(html.contains("Item 2"))
+    #expect(html.contains("data-component=\"drag-source\""))
 }

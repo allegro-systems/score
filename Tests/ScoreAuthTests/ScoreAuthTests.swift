@@ -35,6 +35,33 @@ import Testing
     #expect(!a.value.isEmpty)
 }
 
+@Test func csrfTokenConstantTimeEqualMatching() {
+    let token = CSRFToken.generate()
+    let same = CSRFToken(value: token.value)
+    #expect(CSRFToken.constantTimeEqual(token, same))
+}
+
+@Test func csrfTokenConstantTimeEqualMismatch() {
+    let a = CSRFToken.generate()
+    let b = CSRFToken.generate()
+    #expect(!CSRFToken.constantTimeEqual(a, b))
+}
+
+@Test func csrfTokenEqualityUsesConstantTime() {
+    let a = CSRFToken.generate()
+    let b = CSRFToken(value: a.value)
+    #expect(a == b)
+
+    let c = CSRFToken.generate()
+    #expect(a != c)
+}
+
+@Test func csrfTokenConstantTimeEqualDifferentLengths() {
+    let short = CSRFToken(value: "abc")
+    let long = CSRFToken(value: "abcdef")
+    #expect(!CSRFToken.constantTimeEqual(short, long))
+}
+
 @Test func sessionDetectsExpiry() {
     let now = Date()
     let active = Session(
@@ -163,14 +190,19 @@ import Testing
     #expect(validated.userID == "user_1")
 }
 
-@Test func sessionStoreValidateThrowsForMissingToken() async throws {
+@Test func sessionStoreValidateThrowsSessionNotFound() async throws {
     let storage = InMemoryStore()
     let config = AuthConfig()
     let store = SessionStore(storage: storage, config: config)
 
     let fakeToken = Token.generate()
-    await #expect(throws: AuthError.self) {
+    await #expect {
         try await store.validate(token: fakeToken)
+    } throws: { error in
+        guard let authError = error as? AuthError,
+            case .sessionNotFound = authError
+        else { return false }
+        return true
     }
 }
 
@@ -206,8 +238,13 @@ import Testing
     let link = try await store.create(email: "test@example.com")
     _ = try await store.validate(tokenValue: link.token.value)
 
-    await #expect(throws: AuthError.self) {
+    await #expect {
         try await store.validate(tokenValue: link.token.value)
+    } throws: { error in
+        guard let authError = error as? AuthError,
+            case .tokenExpired = authError
+        else { return false }
+        return true
     }
 }
 
@@ -216,8 +253,13 @@ import Testing
     let config = AuthConfig()
     let store = MagicLinkStore(storage: storage, config: config)
 
-    await #expect(throws: AuthError.self) {
+    await #expect {
         try await store.validate(tokenValue: "nonexistent")
+    } throws: { error in
+        guard let authError = error as? AuthError,
+            case .tokenExpired = authError
+        else { return false }
+        return true
     }
 }
 

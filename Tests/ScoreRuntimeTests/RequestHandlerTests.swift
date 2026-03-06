@@ -155,16 +155,16 @@ private func readResponsePart(from channel: NIOAsyncTestingChannel) async throws
         method: NIOHTTP1.HTTPMethod(rawValue: "TRACE"), uri: "/api/echo/fallback"
     )
 
-    #expect(response.status == HTTPResponseStatus.ok)
-    #expect(response.body == "fallback")
+    #expect(response.status == HTTPResponseStatus.methodNotAllowed)
+    #expect(response.body == "Method Not Allowed")
 }
 
 @Test func requestHandlerReturnsInternalServerErrorWhenControllerThrows() async throws {
     let response = try await performRequest(method: NIOHTTP1.HTTPMethod.GET, uri: "/api/boom")
 
     #expect(response.status == HTTPResponseStatus.internalServerError)
-    #expect(response.headers["Content-Type"].first == "text/plain")
-    #expect(response.body == "Internal Server Error")
+    #expect(response.headers["Content-Type"].first == "text/html; charset=utf-8")
+    #expect(response.body.contains("Score Development Error"))
 }
 
 @Test func requestHandlerReturnsPlainOkForRoutesWithoutPageOrHandler() async throws {

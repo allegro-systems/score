@@ -351,8 +351,8 @@ import Testing
                 Image(src: "/hero.jpg", alt: "Hero", width: 640, height: 480, loading: .lazy, decoding: .async)
             }
             FigureCaption { TextNode("Caption") }
-            Audio(src: "/track.mp3", controls: true, autoplay: true, loop: true, muted: true, preload: "metadata") {
-                Track(src: "/track.vtt", kind: "captions", label: "English", languageCode: "en", isDefault: true)
+            Audio(src: "/track.mp3", controls: true, autoplay: true, loop: true, muted: true, preload: .metadata) {
+                Track(src: "/track.vtt", kind: .captions, label: "English", languageCode: "en", isDefault: true)
             }
             Video(
                 src: "/movie.mp4",
@@ -360,7 +360,7 @@ import Testing
                 autoplay: true,
                 loop: true,
                 muted: true,
-                preload: "auto",
+                preload: .auto,
                 poster: "/poster.jpg",
                 width: 1280,
                 height: 720

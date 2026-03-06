@@ -227,22 +227,22 @@ import Testing
     #expect(source.type == "video/webm")
     #expect(source.media == "(min-width: 800px)")
 
-    let track = Track(src: "/captions.vtt", kind: "captions", label: "English", languageCode: "en", isDefault: true)
-    #expect(track.kind == "captions")
+    let track = Track(src: "/captions.vtt", kind: .captions, label: "English", languageCode: "en", isDefault: true)
+    #expect(track.kind == .captions)
     #expect(track.label == "English")
     #expect(track.languageCode == "en")
     #expect(track.isDefault == true)
 
-    let audio = Audio(src: "/audio.mp3", controls: true, autoplay: false, loop: true, muted: true, preload: "metadata") {
+    let audio = Audio(src: "/audio.mp3", controls: true, autoplay: false, loop: true, muted: true, preload: .metadata) {
         Source(src: "/audio.ogg", type: "audio/ogg")
     }
     #expect(audio.src == "/audio.mp3")
     #expect(audio.controls == true)
     #expect(audio.loop == true)
     #expect(audio.muted == true)
-    #expect(audio.preload == "metadata")
+    #expect(audio.preload == .metadata)
 
-    let video = Video(src: "/video.mp4", controls: true, autoplay: false, loop: false, muted: true, preload: "auto", poster: "/poster.jpg", width: 1280, height: 720) {
+    let video = Video(src: "/video.mp4", controls: true, autoplay: false, loop: false, muted: true, preload: .auto, poster: "/poster.jpg", width: 1280, height: 720) {
         Track(src: "/video.vtt")
     }
     #expect(video.src == "/video.mp4")

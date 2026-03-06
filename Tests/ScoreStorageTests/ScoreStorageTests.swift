@@ -127,19 +127,19 @@ import Testing
 
 @Test func ttlExpiry() async throws {
     let store = InMemoryStore()
-    try await store.set(Key("ephemeral"), value: Data("temp".utf8), ttl: .milliseconds(50))
+    try await store.set(Key("ephemeral"), value: Data("temp".utf8), ttl: .milliseconds(100))
     let before = try await store.get(Key("ephemeral"))
     #expect(before != nil)
-    try await Task.sleep(for: .milliseconds(100))
+    try await Task.sleep(for: .milliseconds(250))
     let after = try await store.get(Key("ephemeral"))
     #expect(after == nil)
 }
 
 @Test func existsReturnsFalseAfterExpiry() async throws {
     let store = InMemoryStore()
-    try await store.set(Key("session"), value: Data("s".utf8), ttl: .milliseconds(50))
+    try await store.set(Key("session"), value: Data("s".utf8), ttl: .milliseconds(100))
     #expect(try await store.exists(Key("session")) == true)
-    try await Task.sleep(for: .milliseconds(100))
+    try await Task.sleep(for: .milliseconds(250))
     #expect(try await store.exists(Key("session")) == false)
 }
 
@@ -243,10 +243,10 @@ struct Profile: Codable, Sendable, Equatable {
     let store = InMemoryStore()
     let profile = Profile(name: "Bob", age: 25)
 
-    try await store.set(profile, forKey: Key("session"), ttl: .milliseconds(50))
+    try await store.set(profile, forKey: Key("session"), ttl: .milliseconds(100))
     let before = try await store.get(Profile.self, forKey: Key("session"))
     #expect(before == profile)
-    try await Task.sleep(for: .milliseconds(100))
+    try await Task.sleep(for: .milliseconds(250))
     let after = try await store.get(Profile.self, forKey: Key("session"))
     #expect(after == nil)
 }

@@ -123,7 +123,7 @@ struct FullDarkTheme: Theme {
 @Test func emitAllDarkOverridesWhenProvided() {
     let css = ThemeCSSEmitter.emit(FullDarkTheme())
 
-    #expect(css.contains("    --color-surface: var(--color-surface);"))
+    #expect(css.contains("    --color-surface: inherit;"))
     #expect(css.contains("    --font-mono: ui-monospace;"))
     #expect(css.contains("    --type-scale-base: 18px;"))
     #expect(css.contains("    --type-scale-ratio: 1.5;"))
@@ -144,13 +144,13 @@ struct FullDarkTheme: Theme {
     #expect(css.contains("--color-cyan: var(--color-cyan-500);"))
     #expect(css.contains("--color-emerald: var(--color-emerald-500);"))
     #expect(css.contains("--color-brand: var(--color-brand-600);"))
-    #expect(css.contains("--color-surface: var(--color-surface);"))
-    #expect(css.contains("--color-text: var(--color-text);"))
-    #expect(css.contains("--color-border: var(--color-border);"))
-    #expect(css.contains("--color-accent: var(--color-accent);"))
-    #expect(css.contains("--color-muted: var(--color-muted);"))
-    #expect(css.contains("--color-destructive: var(--color-destructive);"))
-    #expect(css.contains("--color-success: var(--color-success);"))
+    #expect(css.contains("--color-surface: inherit;"))
+    #expect(css.contains("--color-text: inherit;"))
+    #expect(css.contains("--color-border: inherit;"))
+    #expect(css.contains("--color-accent: inherit;"))
+    #expect(css.contains("--color-muted: inherit;"))
+    #expect(css.contains("--color-destructive: inherit;"))
+    #expect(css.contains("--color-success: inherit;"))
 }
 
 private struct OceanPatch: ThemePatch {

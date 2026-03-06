@@ -1,0 +1,156 @@
+import Foundation
+import ScoreCore
+import Testing
+
+@testable import ScoreRuntime
+
+private struct MinimalEmitterTheme: Theme {
+    var name: String? { nil }
+    var colorRoles: [String: ColorToken] { [:] }
+    var customColorRoles: [String: [Int: ColorToken]] { [:] }
+    var fontFamilies: [String: String] { [:] }
+    var typeScaleBase: Double { 16 }
+    var typeScaleRatio: Double { 1.25 }
+    var spacingUnit: Double { 4 }
+    var radiusBase: Double { 4 }
+    var syntaxThemeName: String? { nil }
+    var dark: (any ThemePatch)? { nil }
+}
+
+private struct EmitterHomePage: Page {
+    static let path = "/"
+    var metadata: Metadata? { Metadata(title: "Home") }
+    var body: some Node {
+        Heading(.one) { Text(verbatim: "Welcome") }
+    }
+}
+
+private struct EmitterAboutPage: Page {
+    static let path = "/about"
+    var metadata: Metadata? { Metadata(title: "About") }
+    var body: some Node {
+        Paragraph { Text(verbatim: "About us") }
+    }
+}
+
+private struct EmitterApp: Application {
+    var pages: [any Page] { [EmitterHomePage(), EmitterAboutPage()] }
+    var controllers: [any Controller] { [] }
+    var theme: (any Theme)? { MinimalEmitterTheme() }
+    var metadata: Metadata? { nil }
+    let outputDirectory: String
+}
+
+private struct EmptyEmitterApp: Application {
+    var pages: [any Page] { [] }
+    var controllers: [any Controller] { [] }
+    var theme: (any Theme)? { nil }
+    var metadata: Metadata? { nil }
+    let outputDirectory: String
+}
+
+@Test func emitCreatesOutputDirectory() throws {
+    let tempDir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("score-emitter-test-\(UUID().uuidString)")
+        .path
+    defer { try? FileManager.default.removeItem(atPath: tempDir) }
+
+    let app = EmitterApp(outputDirectory: tempDir)
+    try StaticSiteEmitter.emit(application: app)
+
+    #expect(FileManager.default.fileExists(atPath: "\(tempDir)/static"))
+}
+
+@Test func emitCreatesGlobalCSS() throws {
+    let tempDir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("score-emitter-test-\(UUID().uuidString)")
+        .path
+    defer { try? FileManager.default.removeItem(atPath: tempDir) }
+
+    let app = EmitterApp(outputDirectory: tempDir)
+    try StaticSiteEmitter.emit(application: app)
+
+    let cssPath = "\(tempDir)/static/as-global.css"
+    #expect(FileManager.default.fileExists(atPath: cssPath))
+
+    let css = try String(contentsOfFile: cssPath, encoding: .utf8)
+    #expect(!css.isEmpty)
+}
+
+@Test func emitCreatesIndexHTML() throws {
+    let tempDir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("score-emitter-test-\(UUID().uuidString)")
+        .path
+    defer { try? FileManager.default.removeItem(atPath: tempDir) }
+
+    let app = EmitterApp(outputDirectory: tempDir)
+    try StaticSiteEmitter.emit(application: app)
+
+    let indexPath = "\(tempDir)/static/index.html"
+    #expect(FileManager.default.fileExists(atPath: indexPath))
+
+    let html = try String(contentsOfFile: indexPath, encoding: .utf8)
+    #expect(html.contains("<!DOCTYPE html>"))
+    #expect(html.contains("Welcome"))
+}
+
+@Test func emitCreatesSubdirectoryForNestedPages() throws {
+    let tempDir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("score-emitter-test-\(UUID().uuidString)")
+        .path
+    defer { try? FileManager.default.removeItem(atPath: tempDir) }
+
+    let app = EmitterApp(outputDirectory: tempDir)
+    try StaticSiteEmitter.emit(application: app)
+
+    let aboutPath = "\(tempDir)/static/about/index.html"
+    #expect(FileManager.default.fileExists(atPath: aboutPath))
+
+    let html = try String(contentsOfFile: aboutPath, encoding: .utf8)
+    #expect(html.contains("About us"))
+}
+
+@Test func emitWithNoPages() throws {
+    let tempDir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("score-emitter-test-\(UUID().uuidString)")
+        .path
+    defer { try? FileManager.default.removeItem(atPath: tempDir) }
+
+    let app = EmptyEmitterApp(outputDirectory: tempDir)
+    try StaticSiteEmitter.emit(application: app)
+
+    let cssPath = "\(tempDir)/static/as-global.css"
+    #expect(FileManager.default.fileExists(atPath: cssPath))
+}
+
+@Test func emitGlobalCSSContainsComponentTokens() throws {
+    let tempDir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("score-emitter-test-\(UUID().uuidString)")
+        .path
+    defer { try? FileManager.default.removeItem(atPath: tempDir) }
+
+    let app = EmitterApp(outputDirectory: tempDir)
+    try StaticSiteEmitter.emit(application: app)
+
+    let css = try String(contentsOfFile: "\(tempDir)/static/as-global.css", encoding: .utf8)
+    #expect(css.contains("data-component"))
+}
+
+@Test func emitHTMLReferencesExternalAssets() throws {
+    let tempDir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("score-emitter-test-\(UUID().uuidString)")
+        .path
+    defer { try? FileManager.default.removeItem(atPath: tempDir) }
+
+    let app = EmitterApp(outputDirectory: tempDir)
+    try StaticSiteEmitter.emit(application: app)
+
+    let html = try String(contentsOfFile: "\(tempDir)/static/index.html", encoding: .utf8)
+    #expect(html.contains("as-global.css"))
+}
+
+@Test func missingResourceErrorDescription() {
+    let error = StaticSiteEmitterError.missingResource("signal-polyfill")
+    #expect(error.description.contains("signal-polyfill"))
+    #expect(error.description.contains("Missing bundled resource"))
+}

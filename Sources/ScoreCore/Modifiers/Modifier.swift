@@ -59,14 +59,16 @@ public protocol Modifier: Sendable {
 /// constraints, accessibility attributes, and other decorations to the
 /// rendered output.
 ///
-/// Multiple modifiers can be chained; each call to `.modifier(_:)` appends
-/// a new entry to `modifiers`:
+/// Multiple modifiers can be chained; each call to `.modifier(_:)` wraps
+/// the current node in a new `ModifiedNode` carrying the additional modifier,
+/// creating a nested structure where each level holds a single modifier.
+/// Renderers walk the nesting levels to collect all modifiers in order.
 ///
 /// ```swift
-/// let node = TextNode("Score")
+/// let node = Text(verbatim: "Score")
 ///     .modifier(FontValue(size: 24, weight: .bold))
-///     .modifier(ColorValue(foreground: .accent))
-/// // node.modifiers contains [FontValue(...), ColorValue(...)]
+///     .modifier(ForegroundColorValue(color: .accent))
+/// // Creates: ModifiedNode(content: ModifiedNode(content: Text, modifiers: [FontValue]), modifiers: [ForegroundColorValue])
 /// ```
 ///
 /// - Note: `ModifiedNode` is a primitive node — its `body` property is

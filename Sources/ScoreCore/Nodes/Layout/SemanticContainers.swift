@@ -48,8 +48,8 @@ public struct Main<Content: Node>: Node {
 ///
 /// ```swift
 /// Section {
-///     Heading(.h2) { Text("About Us") }
-///     Text("We build great things.")
+///     Heading(.two) { Text(verbatim: "About Us") }
+///     Text(verbatim: "We build great things.")
 /// }
 /// ```
 ///
@@ -83,8 +83,8 @@ public struct Section<Content: Node>: Node {
 ///
 /// ```swift
 /// Article {
-///     Heading(.h2) { Text("Swift 6 Released") }
-///     Text("Apple announced Swift 6 with strict concurrency checking...")
+///     Heading(.two) { Text(verbatim: "Swift 6 Released") }
+///     Text(verbatim: "Apple announced Swift 6 with strict concurrency checking...")
 /// }
 /// ```
 ///
@@ -161,8 +161,8 @@ public struct Header<Content: Node>: Node {
 ///
 /// ```swift
 /// Footer {
-///     Text("© 2026 Score. All rights reserved.")
-///     Link("Privacy Policy", href: "/privacy")
+///     Text(verbatim: "\u{00A9} 2026 Score. All rights reserved.")
+///     Link(to: "/privacy") { Text(verbatim: "Privacy Policy") }
 /// }
 /// ```
 ///
@@ -197,8 +197,8 @@ public struct Footer<Content: Node>: Node {
 ///
 /// ```swift
 /// Aside {
-///     Heading(.h3) { Text("Related Articles") }
-///     Link("Swift Concurrency Deep Dive", href: "/concurrency")
+///     Heading(.three) { Text(verbatim: "Related Articles") }
+///     Link(to: "/concurrency") { Text(verbatim: "Swift Concurrency Deep Dive") }
 /// }
 /// ```
 ///
@@ -233,9 +233,9 @@ public struct Aside<Content: Node>: Node {
 ///
 /// ```swift
 /// Navigation {
-///     Link("Home", href: "/")
-///     Link("Blog", href: "/blog")
-///     Link("Contact", href: "/contact")
+///     Link(to: "/") { Text(verbatim: "Home") }
+///     Link(to: "/blog") { Text(verbatim: "Blog") }
+///     Link(to: "/contact") { Text(verbatim: "Contact") }
 /// }
 /// ```
 ///
@@ -274,8 +274,8 @@ public struct Navigation<Content: Node>: Node {
 /// Stack {
 ///     if isLoggedIn {
 ///         Group {
-///             Text("Welcome back!")
-///             Link("Dashboard", href: "/dashboard")
+///             Text(verbatim: "Welcome back!")
+///             Link(to: "/dashboard") { Text(verbatim: "Dashboard") }
 ///         }
 ///     }
 /// }

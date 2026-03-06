@@ -6,7 +6,7 @@ import Foundation
 /// carries creation and expiration timestamps. The storage layer
 /// is responsible for enforcing the TTL; the ``isExpired`` property
 /// provides a convenience check against the current wall clock.
-public struct Session: Codable, Sendable {
+public struct Session: Codable, Sendable, Expirable {
 
     /// The unique identifier for this session.
     public let id: String
@@ -22,11 +22,6 @@ public struct Session: Codable, Sendable {
 
     /// The date and time when the session expires.
     public let expiresAt: Date
-
-    /// Whether the session has passed its expiration time.
-    public var isExpired: Bool {
-        Date() >= expiresAt
-    }
 
     /// Creates a new session.
     ///

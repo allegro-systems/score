@@ -5,7 +5,7 @@ import Foundation
 /// Challenges are generated server-side and sent to the client during
 /// both registration and authentication ceremonies. They are bound to
 /// a specific relying party and user, and expire after a short window.
-public struct PasskeyChallenge: Codable, Sendable {
+public struct PasskeyChallenge: Codable, Sendable, Expirable {
 
     /// The Base64-encoded challenge value.
     public let challenge: String
@@ -21,11 +21,6 @@ public struct PasskeyChallenge: Codable, Sendable {
 
     /// The date and time when the challenge expires.
     public let expiresAt: Date
-
-    /// Whether the challenge has passed its expiration time.
-    public var isExpired: Bool {
-        Date() >= expiresAt
-    }
 
     /// Creates a new passkey challenge.
     ///

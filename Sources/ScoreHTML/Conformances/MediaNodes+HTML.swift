@@ -45,7 +45,7 @@ extension Track: HTMLRenderable {
     /// Emits a self-closing `<track>` with `src` and optional `kind`, `label`, `srclang`, and `default`.
     func renderHTML(into output: inout String, renderer: HTMLRenderer) {
         var a: [(String, String)] = [("src", src)]
-        if let v = kind { a.append(("kind", v)) }
+        if let v = kind { a.append(("kind", v.rawValue)) }
         if let v = label { a.append(("label", v)) }
         if let v = languageCode { a.append(("srclang", v)) }
         if isDefault { a.append(("default", "")) }
@@ -63,7 +63,7 @@ extension Audio: HTMLRenderable {
         if autoplay { a.append(("autoplay", "")) }
         if loop { a.append(("loop", "")) }
         if muted { a.append(("muted", "")) }
-        if let v = preload { a.append(("preload", v)) }
+        if let v = preload { a.append(("preload", v.rawValue)) }
         renderer.tag("audio", a, content: content, to: &output)
     }
 }
@@ -78,7 +78,7 @@ extension Video: HTMLRenderable {
         if autoplay { a.append(("autoplay", "")) }
         if loop { a.append(("loop", "")) }
         if muted { a.append(("muted", "")) }
-        if let v = preload { a.append(("preload", v)) }
+        if let v = preload { a.append(("preload", v.rawValue)) }
         if let v = poster { a.append(("poster", v)) }
         if let v = width { a.append(("width", String(v))) }
         if let v = height { a.append(("height", String(v))) }

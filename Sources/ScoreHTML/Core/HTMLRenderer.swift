@@ -107,6 +107,7 @@ public struct HTMLRenderer: Sendable {
     /// - Returns: A string containing the rendered HTML.
     public func render(_ node: some Node) -> String {
         var output = ""
+        output.reserveCapacity(4096)
         write(node, to: &output)
         return output
     }

@@ -30,8 +30,7 @@ extension ModifiedNode: HTMLRenderable {
     /// modifiers are present. Otherwise renders the content directly.
     func renderHTML(into output: inout String, renderer: HTMLRenderer) {
         let className = renderer.classInjector?(modifiers)
-        let htmlAttrs = collectHTMLAttributes()
-        let hasEventBindings = modifiers.contains { $0 is EventBindingModifier }
+        let (htmlAttrs, hasEventBindings) = collectHTMLAttributesAndEvents()
 
         if className != nil || !htmlAttrs.isEmpty || hasEventBindings {
             output.append("<div")
@@ -67,14 +66,18 @@ extension ModifiedNode: HTMLRenderable {
         }
     }
 
-    /// Collects all HTML attributes from `HTMLAttributeModifier` values in
-    /// this node's modifier array, returning them as a lookup dictionary.
+    /// Collects all HTML attributes and detects event bindings in a single
+    /// pass over the modifier array.
     ///
     /// When multiple modifiers set the same attribute, later values win
     /// (except for `class` which is space-concatenated).
-    private func collectHTMLAttributes() -> [String: String] {
+    private func collectHTMLAttributesAndEvents() -> (attributes: [String: String], hasEventBindings: Bool) {
         var result: [String: String] = [:]
+        var hasEvents = false
         for modifier in modifiers {
+            if modifier is EventBindingModifier {
+                hasEvents = true
+            }
             guard let attrMod = modifier as? HTMLAttributeModifier else { continue }
             for attr in attrMod.attributes {
                 if attr.name == "class", let existing = result["class"] {
@@ -84,7 +87,7 @@ extension ModifiedNode: HTMLRenderable {
                 }
             }
         }
-        return result
+        return (result, hasEvents)
     }
 }
 

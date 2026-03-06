@@ -59,6 +59,14 @@ public struct DocumentAssembler: Sendable {
         /// `as-group-0.css`, and `as-interactivity.js`.
         public var externalAssets: Bool
 
+        /// A mapping from original asset filenames to fingerprinted filenames.
+        ///
+        /// When non-empty, external asset references use the fingerprinted
+        /// filenames for cache-busting (e.g. `"as-global.css"` maps to
+        /// `"as-global-a1b2c3d4.css"`). Only used when ``externalAssets``
+        /// is `true`.
+        public var assetManifest: [String: String]
+
         /// Creates a new parts value.
         public init(
             title: String? = nil,
@@ -70,7 +78,8 @@ public struct DocumentAssembler: Sendable {
             bodyHTML: String = "",
             scripts: [String] = [],
             activeTheme: String? = nil,
-            externalAssets: Bool = false
+            externalAssets: Bool = false,
+            assetManifest: [String: String] = [:]
         ) {
             self.title = title
             self.description = description
@@ -82,6 +91,7 @@ public struct DocumentAssembler: Sendable {
             self.scripts = scripts
             self.activeTheme = activeTheme
             self.externalAssets = externalAssets
+            self.assetManifest = assetManifest
         }
     }
 
@@ -133,9 +143,11 @@ public struct DocumentAssembler: Sendable {
         }
 
         if parts.externalAssets {
-            html.append("<link rel=\"stylesheet\" href=\"/as-global.css\">\n")
+            let globalCSS = parts.assetManifest["as-global.css"] ?? "as-global.css"
+            html.append("<link rel=\"stylesheet\" href=\"/\(globalCSS)\">\n")
             if !parts.componentCSS.isEmpty {
-                html.append("<link rel=\"stylesheet\" href=\"/as-group-0.css\">\n")
+                let groupCSS = parts.assetManifest["as-group-0.css"] ?? "as-group-0.css"
+                html.append("<link rel=\"stylesheet\" href=\"/\(groupCSS)\">\n")
             }
         } else {
             if !parts.themeCSS.isEmpty {
@@ -157,9 +169,12 @@ public struct DocumentAssembler: Sendable {
         if parts.externalAssets {
             let hasReactiveScripts = parts.scripts.contains { $0.contains("Score.state") || $0.contains("Score.computed") }
             if hasReactiveScripts {
-                html.append("<script src=\"/signal-polyfill.js\"></script>\n")
-                html.append("<script src=\"/score-runtime.js\"></script>\n")
-                html.append("<script src=\"/as-interactivity.js\" defer></script>\n")
+                let polyfillJS = parts.assetManifest["signal-polyfill.js"] ?? "signal-polyfill.js"
+                let runtimeJS = parts.assetManifest["score-runtime.js"] ?? "score-runtime.js"
+                let interactivityJS = parts.assetManifest["as-interactivity.js"] ?? "as-interactivity.js"
+                html.append("<script src=\"/\(polyfillJS)\"></script>\n")
+                html.append("<script src=\"/\(runtimeJS)\"></script>\n")
+                html.append("<script src=\"/\(interactivityJS)\" defer></script>\n")
             }
         } else {
             for script in parts.scripts {

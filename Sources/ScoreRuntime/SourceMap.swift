@@ -98,11 +98,11 @@ public struct SourceMap: Sendable {
         /// Builds the v3 source map JSON string.
         public func build() -> String {
             let encodedMappings = encodeMappings()
-            let sourcesJSON = sources.map { "\"\(escapeJSON($0))\"" }.joined(separator: ",")
-            let namesJSON = names.map { "\"\(escapeJSON($0))\"" }
+            let sourcesJSON = sources.map { "\"\(SourceMap.escapeJSON($0))\"" }.joined(separator: ",")
+            let namesJSON = names.map { "\"\(SourceMap.escapeJSON($0))\"" }
                 .joined(separator: ",")
 
-            return "{\"version\":3,\"file\":\"\(escapeJSON(file))\","
+            return "{\"version\":3,\"file\":\"\(SourceMap.escapeJSON(file))\","
                 + "\"sources\":[\(sourcesJSON)],"
                 + "\"names\":[\(namesJSON)],"
                 + "\"mappings\":\"\(encodedMappings)\"}"
@@ -139,24 +139,24 @@ public struct SourceMap: Sendable {
                 firstSegmentOnLine = false
 
                 // Field 1: generated column (relative).
-                result.append(vlqEncode(mapping.generatedColumn - previousGeneratedColumn))
+                result.append(SourceMap.vlqEncode(mapping.generatedColumn - previousGeneratedColumn))
                 previousGeneratedColumn = mapping.generatedColumn
 
                 // Field 2: source index (relative).
-                result.append(vlqEncode(mapping.sourceIndex - previousSourceIndex))
+                result.append(SourceMap.vlqEncode(mapping.sourceIndex - previousSourceIndex))
                 previousSourceIndex = mapping.sourceIndex
 
                 // Field 3: source line (relative).
-                result.append(vlqEncode(mapping.sourceLine - previousSourceLine))
+                result.append(SourceMap.vlqEncode(mapping.sourceLine - previousSourceLine))
                 previousSourceLine = mapping.sourceLine
 
                 // Field 4: source column (relative).
-                result.append(vlqEncode(mapping.sourceColumn - previousSourceColumn))
+                result.append(SourceMap.vlqEncode(mapping.sourceColumn - previousSourceColumn))
                 previousSourceColumn = mapping.sourceColumn
 
                 // Field 5: name index (relative), if present.
                 if let nameIdx = mapping.nameIndex {
-                    result.append(vlqEncode(nameIdx - previousNameIndex))
+                    result.append(SourceMap.vlqEncode(nameIdx - previousNameIndex))
                     previousNameIndex = nameIdx
                 }
             }
@@ -194,13 +194,4 @@ public struct SourceMap: Sendable {
             .replacingOccurrences(of: "\r", with: "\\r")
             .replacingOccurrences(of: "\t", with: "\\t")
     }
-}
-
-// Make the static functions accessible from Builder without qualifying.
-private func vlqEncode(_ value: Int) -> String {
-    SourceMap.vlqEncode(value)
-}
-
-private func escapeJSON(_ string: String) -> String {
-    SourceMap.escapeJSON(string)
 }

@@ -30,6 +30,8 @@ final class RequestHandler: ChannelInboundHandler, Sendable {
     /// page rendering in development mode and served under `/_score/maps/`.
     let sourceMaps: SourceMapStore
 
+    private static let maxBodySize = 10 * 1024 * 1024  // 10 MB
+
     // Request accumulation state. Safe because NIO calls channelRead
     // on the same event loop thread for a given channel.
     nonisolated(unsafe) private var requestHead: HTTPRequestHead?
@@ -68,6 +70,12 @@ final class RequestHandler: ChannelInboundHandler, Sendable {
 
         case .body(var buffer):
             bodyBuffer?.writeBuffer(&buffer)
+            if let size = bodyBuffer?.readableBytes, size > Self.maxBodySize {
+                respond(context: context, status: .payloadTooLarge, contentType: "text/plain", body: "Payload Too Large")
+                requestHead = nil
+                bodyBuffer = nil
+                return
+            }
 
         case .end:
             guard let head = requestHead else { return }
@@ -111,9 +119,18 @@ final class RequestHandler: ChannelInboundHandler, Sendable {
 
         // Static file serving — checked before route resolution.
         if let staticDir = staticDirectory, path.hasPrefix("/static/") {
+            guard method == .get || method == .head else {
+                respond(context: context, status: .methodNotAllowed, contentType: "text/plain", body: "Method Not Allowed", extraHeaders: [("Allow", "GET, HEAD")])
+                logRequest(method: head.method, path: path, status: .methodNotAllowed, start: start)
+                return
+            }
             let relativePath = String(path.dropFirst("/static/".count))
             if let (data, contentType) = StaticFileHandler.serve(relativePath: relativePath, from: staticDir) {
-                respondWithData(context: context, status: .ok, contentType: contentType, body: data)
+                let cacheControl =
+                    environment == .development
+                    ? "no-cache"
+                    : "public, max-age=31536000, immutable"
+                respondWithData(context: context, status: .ok, contentType: contentType, body: data, extraHeaders: [("Cache-Control", cacheControl)])
                 logRequest(method: head.method, path: path, status: .ok, start: start)
             } else {
                 respond(context: context, status: .notFound, contentType: "text/plain", body: "Not Found")
@@ -149,13 +166,10 @@ final class RequestHandler: ChannelInboundHandler, Sendable {
                         sourceMaps.store(id: id, json: map)
                     }
                 } catch {
-                    if environment == .development {
-                        let overlay = ErrorOverlay.render(error, path: path, environment: environment)
-                        respond(context: context, status: .internalServerError, contentType: "text/html; charset=utf-8", body: overlay)
-                        logRequest(method: head.method, path: path, status: .internalServerError, start: start)
-                        return
-                    }
-                    throw error
+                    let errorPage = ErrorOverlay.render(error, path: path, environment: environment)
+                    respond(context: context, status: .internalServerError, contentType: "text/html; charset=utf-8", body: errorPage)
+                    logRequest(method: head.method, path: path, status: .internalServerError, start: start)
+                    return
                 }
                 respond(context: context, status: .ok, contentType: "text/html; charset=utf-8", body: html)
                 logRequest(method: head.method, path: path, status: .ok, start: start)
@@ -205,8 +219,9 @@ final class RequestHandler: ChannelInboundHandler, Sendable {
                     case .success(let response):
                         self.respondWithResponse(context: ctx, response: response)
                         self.logRequest(method: methodCopy, path: pathCopy, status: self.nioStatus(from: response.status), start: startCopy)
-                    case .failure:
-                        self.respond(context: ctx, status: .internalServerError, contentType: "text/plain", body: "Internal Server Error")
+                    case .failure(let error):
+                        let errorPage = ErrorOverlay.render(error, path: pathCopy, environment: self.environment)
+                        self.respond(context: ctx, status: .internalServerError, contentType: "text/html; charset=utf-8", body: errorPage)
                         self.logRequest(method: methodCopy, path: pathCopy, status: .internalServerError, start: startCopy)
                     }
                 }
@@ -232,7 +247,8 @@ final class RequestHandler: ChannelInboundHandler, Sendable {
                 logRequest(method: head.method, path: path, status: .methodNotAllowed, start: start)
             }
         } catch {
-            respond(context: context, status: .internalServerError, contentType: "text/plain", body: "Internal Server Error")
+            let errorPage = ErrorOverlay.render(error, path: path, environment: environment)
+            respond(context: context, status: .internalServerError, contentType: "text/html; charset=utf-8", body: errorPage)
             logRequest(method: head.method, path: path, status: .internalServerError, start: start)
         }
     }
@@ -264,13 +280,17 @@ final class RequestHandler: ChannelInboundHandler, Sendable {
         context: ChannelHandlerContext,
         status: HTTPResponseStatus,
         contentType: String,
-        body: Data
+        body: Data,
+        extraHeaders: [(String, String)] = []
     ) {
         var buffer = context.channel.allocator.buffer(capacity: body.count)
         buffer.writeBytes(body)
         var headers = HTTPHeaders()
         headers.add(name: "Content-Type", value: contentType)
         headers.add(name: "Content-Length", value: String(body.count))
+        for (name, value) in extraHeaders {
+            headers.add(name: name, value: value)
+        }
 
         let head = HTTPResponseHead(version: .http1_1, status: status, headers: headers)
         context.write(wrapOutboundOut(.head(head)), promise: nil)
@@ -442,15 +462,25 @@ final class SourceMapStore: Sendable {
     }
 }
 
-/// Uses `nonisolated(unsafe)` storage protected by a lock.
+/// Uses `nonisolated(unsafe)` storage protected by a lock with bounded capacity.
 private final class _SourceMapStorage: Sendable {
+    private static let maxEntries = 100
+
     private let lock = NSLock()
     nonisolated(unsafe) private var maps: [String: String] = [:]
+    nonisolated(unsafe) private var insertionOrder: [String] = []
 
     func set(id: String, json: String) {
         lock.lock()
         defer { lock.unlock() }
+        if maps[id] == nil {
+            insertionOrder.append(id)
+        }
         maps[id] = json
+        while maps.count > Self.maxEntries, let oldest = insertionOrder.first {
+            insertionOrder.removeFirst()
+            maps.removeValue(forKey: oldest)
+        }
     }
 
     func get(id: String) -> String? {

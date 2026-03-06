@@ -33,3 +33,16 @@ public enum RoutingError: Error, Sendable {
         }
     }
 }
+
+extension RoutingError: CustomStringConvertible {
+
+    public var description: String {
+        switch self {
+        case .notFound(let path):
+            return "No route matches path '\(path)'"
+        case .methodNotAllowed(let path, let allowed):
+            let methods = allowed.map(\.rawValue).joined(separator: ", ")
+            return "Method not allowed for path '\(path)' (allowed: \(methods))"
+        }
+    }
+}

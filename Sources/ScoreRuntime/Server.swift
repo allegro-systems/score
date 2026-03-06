@@ -2,6 +2,7 @@ import Logging
 import NIOCore
 import NIOHTTP1
 import NIOPosix
+import NIOWebSocket
 import ScoreCore
 import ScoreRouter
 
@@ -39,6 +40,9 @@ public struct Server: Sendable {
         /// Middleware applied to controller handler requests.
         public var middlewares: [HTTPMiddleware]
 
+        /// WebSocket routes registered on this server.
+        public var webSocketRoutes: [WebSocketRoute]
+
         /// Creates a server configuration.
         ///
         /// - Parameters:
@@ -47,18 +51,21 @@ public struct Server: Sendable {
         ///   - environment: The runtime environment. Defaults to ``Environment/current``.
         ///   - staticDirectory: The static file directory, or `nil`.
         ///   - middlewares: Middleware to apply to controller requests.
+        ///   - webSocketRoutes: WebSocket routes to register. Defaults to empty.
         public init(
             host: String = "127.0.0.1",
             port: Int = 8080,
             environment: Environment = .current,
             staticDirectory: String? = nil,
-            middlewares: [HTTPMiddleware] = []
+            middlewares: [HTTPMiddleware] = [],
+            webSocketRoutes: [WebSocketRoute] = []
         ) {
             self.host = host
             self.port = port
             self.environment = environment
             self.staticDirectory = staticDirectory
             self.middlewares = middlewares
+            self.webSocketRoutes = webSocketRoutes
         }
     }
 
@@ -105,25 +112,57 @@ public struct Server: Sendable {
         let middlewares = self.configuration.middlewares
         let environment = self.configuration.environment
         let logger = self.logger
+        let wsRoutes = self.configuration.webSocketRoutes
+
+        let wsHandlersByPath: [String: any WebSocketHandler] = Dictionary(
+            wsRoutes.map { ($0.path, $0.handler) },
+            uniquingKeysWith: { _, second in second }
+        )
+
+        let upgrader = NIOWebSocketServerUpgrader(
+            shouldUpgrade: { channel, head in
+                if wsHandlersByPath[head.uri] != nil {
+                    return channel.eventLoop.makeSucceededFuture(HTTPHeaders())
+                }
+                return channel.eventLoop.makeSucceededFuture(nil)
+            },
+            upgradePipelineHandler: { channel, head in
+                if let handler = wsHandlersByPath[head.uri] {
+                    return channel.pipeline.addHandler(WebSocketFrameHandler(handler: handler))
+                }
+                return channel.eventLoop.makeSucceededFuture(())
+            }
+        )
 
         let bootstrap = ServerBootstrap(group: group)
             .serverChannelOption(.backlog, value: 256)
             .serverChannelOption(.socketOption(.so_reuseaddr), value: 1)
             .childChannelInitializer { channel in
-                channel.pipeline.configureHTTPServerPipeline().flatMap {
-                    channel.pipeline.addHandler(
-                        RequestHandler(
-                            routeTable: routeTable,
-                            pages: pages,
-                            metadata: metadata,
-                            theme: theme,
-                            staticDirectory: staticDirectory,
-                            outputRoot: outputRoot,
-                            middlewares: middlewares,
-                            environment: environment,
-                            logger: logger
-                        )
+                let httpHandler = RequestHandler(
+                    routeTable: routeTable,
+                    pages: pages,
+                    metadata: metadata,
+                    theme: theme,
+                    staticDirectory: staticDirectory,
+                    outputRoot: outputRoot,
+                    middlewares: middlewares,
+                    environment: environment,
+                    logger: logger
+                )
+
+                if wsRoutes.isEmpty {
+                    return channel.pipeline.configureHTTPServerPipeline().flatMap {
+                        channel.pipeline.addHandler(httpHandler)
+                    }
+                }
+
+                return channel.pipeline.configureHTTPServerPipeline(
+                    withServerUpgrade: (
+                        upgraders: [upgrader] as [any HTTPServerProtocolUpgrader],
+                        completionHandler: { context in }
                     )
+                ).flatMap {
+                    channel.pipeline.addHandler(httpHandler)
                 }
             }
             .childChannelOption(.socketOption(.so_reuseaddr), value: 1)

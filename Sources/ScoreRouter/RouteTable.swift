@@ -4,12 +4,19 @@ import ScoreCore
 /// A compiled lookup table that resolves incoming HTTP requests to route handlers.
 ///
 /// `RouteTable` is built once at startup from an `Application`'s pages and
-/// controllers. It stores a flat array of route entries and performs linear
-/// scanning to match requests — appropriate for the small route counts typical
-/// in Score applications.
+/// controllers. Internally it uses a trie (prefix tree) for O(path-length)
+/// route resolution instead of linear scanning.
 ///
-/// Pages are registered as GET routes before controller routes, giving them
-/// first-match-wins priority.
+/// Pages are registered as GET routes first, followed by controller routes,
+/// giving pages first-match-wins priority.
+///
+/// ### Supported Segment Patterns
+///
+/// - Literal: `"users"` matches exactly `"users"`
+/// - Parameter: `":id"` matches any single segment and captures it
+/// - Wildcard: `"*"` matches any single segment without capturing
+/// - Catch-all: `"**"` matches one or more remaining segments, captured
+///   as a `/`-joined string under the key `"**"`
 ///
 /// ### Example
 ///
@@ -20,7 +27,7 @@ import ScoreCore
 /// ```
 public struct RouteTable: Sendable {
 
-    private let entries: [RouteEntry]
+    private let root: TrieNode
 
     /// Creates a route table from the given application.
     ///
@@ -29,35 +36,37 @@ public struct RouteTable: Sendable {
     /// - Parameter application: The application whose pages and controllers
     ///   define the routing surface.
     public init(_ application: some Application) {
-        var entries: [RouteEntry] = []
+        let root = TrieNode()
 
         for page in application.pages {
             let pattern = type(of: page).path
-            entries.append(
-                RouteEntry(
-                    method: .get,
-                    pattern: pattern,
-                    segments: RouteTable.splitSegments(pattern),
-                    handler: nil,
-                    isPage: true
-                ))
+            let segments = RouteTable.splitSegments(pattern)
+            let entry = RouteEntry(
+                method: .get,
+                pattern: pattern,
+                segments: segments,
+                handler: nil,
+                isPage: true
+            )
+            root.insert(segments: segments, index: 0, entry: entry)
         }
 
         for controller in application.controllers {
             for route in controller.routes {
                 let pattern = RouteTable.combinePaths(controller.base, route.path)
-                entries.append(
-                    RouteEntry(
-                        method: route.method,
-                        pattern: pattern,
-                        segments: RouteTable.splitSegments(pattern),
-                        handler: route.handler,
-                        isPage: false
-                    ))
+                let segments = RouteTable.splitSegments(pattern)
+                let entry = RouteEntry(
+                    method: route.method,
+                    pattern: pattern,
+                    segments: segments,
+                    handler: route.handler,
+                    isPage: false
+                )
+                root.insert(segments: segments, index: 0, entry: entry)
             }
         }
 
-        self.entries = entries
+        self.root = root
     }
 
     /// Resolves an HTTP method and path to a matching route.
@@ -72,14 +81,19 @@ public struct RouteTable: Sendable {
     ///   but not for the given method.
     public func resolve(method: HTTPRequest.Method, path: String) throws -> ResolvedRoute {
         let requestSegments = RouteTable.splitSegments(path)
-        var allowedMethods: [HTTPRequest.Method] = []
+        var matchedEntries: [RouteEntry] = []
+        root.collectEntries(segments: requestSegments, index: 0, results: &matchedEntries)
 
-        for entry in entries {
-            guard let parameters = RouteTable.match(pattern: entry.segments, request: requestSegments) else {
-                continue
-            }
+        guard !matchedEntries.isEmpty else {
+            throw RoutingError.notFound(path: path)
+        }
 
+        for entry in matchedEntries {
             if entry.method == method {
+                let parameters = RouteTable.extractParameters(
+                    pattern: entry.segments,
+                    request: requestSegments
+                )
                 return ResolvedRoute(
                     method: entry.method,
                     pattern: entry.pattern,
@@ -88,14 +102,9 @@ public struct RouteTable: Sendable {
                     isPage: entry.isPage
                 )
             }
-
-            allowedMethods.append(entry.method)
         }
 
-        if allowedMethods.isEmpty {
-            throw RoutingError.notFound(path: path)
-        }
-
+        let allowedMethods = matchedEntries.map(\.method)
         throw RoutingError.methodNotAllowed(path: path, allowed: allowedMethods)
     }
 
@@ -110,20 +119,123 @@ public struct RouteTable: Sendable {
         return combined.isEmpty ? "/" : "/\(combined)"
     }
 
+    /// Checks whether a pattern matches a request and extracts parameters.
+    ///
+    /// Returns `nil` if the request does not match the pattern.
     static func match(pattern: [String], request: [String]) -> [String: String]? {
-        guard pattern.count == request.count else { return nil }
+        var hasCatchAll = false
+        for (i, seg) in pattern.enumerated() {
+            if seg == "**" {
+                hasCatchAll = true
+                guard i < request.count else { return nil }
+                break
+            }
+            guard i < request.count else { return nil }
+            if seg == "*" || seg.hasPrefix(":") { continue }
+            if seg != request[i] { return nil }
+        }
+        if !hasCatchAll && pattern.count != request.count { return nil }
+        return extractParameters(pattern: pattern, request: request)
+    }
 
+    static func extractParameters(pattern: [String], request: [String]) -> [String: String] {
         var parameters: [String: String] = [:]
 
-        for (patternSegment, requestSegment) in zip(pattern, request) {
+        for (i, patternSegment) in pattern.enumerated() {
+            if patternSegment == "**" {
+                guard i < request.count else { break }
+                parameters["**"] = request[i...].joined(separator: "/")
+                return parameters
+            }
+
+            guard i < request.count else { break }
+
             if patternSegment.hasPrefix(":") {
-                let name = String(patternSegment.dropFirst())
-                parameters[name] = requestSegment
-            } else if patternSegment != requestSegment {
-                return nil
+                parameters[String(patternSegment.dropFirst())] = request[i]
             }
         }
 
         return parameters
+    }
+}
+
+/// A node in the routing trie.
+///
+/// Each node represents a path segment position and branches into children
+/// keyed by segment type: literal strings, parameter captures, wildcards,
+/// and catch-all patterns. The trie is built once at startup and only read
+/// during request resolution.
+final class TrieNode: @unchecked Sendable {
+
+    private var literalChildren: [String: TrieNode] = [:]
+    private var paramChild: TrieNode?
+    private var wildcardChild: TrieNode?
+    private var catchAllEntries: [RouteEntry] = []
+    private var entries: [RouteEntry] = []
+
+    init() {}
+
+    func insert(segments: [String], index: Int, entry: RouteEntry) {
+        guard index < segments.count else {
+            entries.append(entry)
+            return
+        }
+
+        let segment = segments[index]
+
+        if segment == "**" {
+            catchAllEntries.append(entry)
+            return
+        }
+
+        if segment == "*" {
+            if wildcardChild == nil {
+                wildcardChild = TrieNode()
+            }
+            wildcardChild!.insert(segments: segments, index: index + 1, entry: entry)
+            return
+        }
+
+        if segment.hasPrefix(":") {
+            if paramChild == nil {
+                paramChild = TrieNode()
+            }
+            paramChild!.insert(segments: segments, index: index + 1, entry: entry)
+            return
+        }
+
+        if literalChildren[segment] == nil {
+            literalChildren[segment] = TrieNode()
+        }
+        literalChildren[segment]!.insert(segments: segments, index: index + 1, entry: entry)
+    }
+
+    func collectEntries(
+        segments: [String],
+        index: Int,
+        results: inout [RouteEntry]
+    ) {
+        if index == segments.count {
+            results.append(contentsOf: entries)
+            return
+        }
+
+        let segment = segments[index]
+
+        if let child = literalChildren[segment] {
+            child.collectEntries(segments: segments, index: index + 1, results: &results)
+        }
+
+        if let child = paramChild {
+            child.collectEntries(segments: segments, index: index + 1, results: &results)
+        }
+
+        if let child = wildcardChild {
+            child.collectEntries(segments: segments, index: index + 1, results: &results)
+        }
+
+        if !catchAllEntries.isEmpty {
+            results.append(contentsOf: catchAllEntries)
+        }
     }
 }

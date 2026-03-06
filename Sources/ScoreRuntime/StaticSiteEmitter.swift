@@ -1,4 +1,5 @@
 import Foundation
+import ScoreAssets
 import ScoreCSS
 import ScoreCore
 import ScoreHTML
@@ -27,6 +28,19 @@ import ScoreHTML
 /// let app = MyApp()
 /// try StaticSiteEmitter.emit(application: app)
 /// ```
+/// Errors thrown by `StaticSiteEmitter` during static site generation.
+public enum StaticSiteEmitterError: Error, CustomStringConvertible {
+    /// A required bundled JS resource could not be found.
+    case missingResource(String)
+
+    public var description: String {
+        switch self {
+        case .missingResource(let name):
+            return "Missing bundled resource '\(name).js' — the Score runtime package may be incomplete"
+        }
+    }
+}
+
 public struct StaticSiteEmitter: Sendable {
 
     private init() {}
@@ -45,19 +59,24 @@ public struct StaticSiteEmitter: Sendable {
 
         let theme = application.theme
         let metadata = application.metadata
+        let fingerprint = environment == .production
 
         let themeCSS = theme.map { ThemeCSSEmitter.emit($0) } ?? ""
         let uiCSS = ThemeCSSEmitter.emitComponentCSS()
         let globalCSS = themeCSS.isEmpty ? uiCSS : themeCSS + "\n" + uiCSS
 
-        try globalCSS.write(toFile: outputRoot + "/as-global.css", atomically: true, encoding: .utf8)
+        var manifest: [String: String] = [:]
+
+        let globalCSSFilename = fingerprintedFilename("as-global.css", content: globalCSS, enabled: fingerprint)
+        try globalCSS.write(toFile: outputRoot + "/\(globalCSSFilename)", atomically: true, encoding: .utf8)
+        manifest["as-global.css"] = globalCSSFilename
 
         var allScopedCSS = ""
         var allJS = ""
         var hasReactivity = false
 
         for page in application.pages {
-            let (html, scopedCSS, js) = renderPage(page, metadata: metadata, theme: theme, environment: environment)
+            let (_, scopedCSS, js) = renderPage(page, metadata: metadata, theme: theme, environment: environment, assetManifest: [:])
 
             if !scopedCSS.isEmpty {
                 allScopedCSS.append(scopedCSS)
@@ -69,6 +88,32 @@ public struct StaticSiteEmitter: Sendable {
                 allJS.append(js)
                 allJS.append("\n")
             }
+        }
+
+        if !allScopedCSS.isEmpty {
+            let groupCSSFilename = fingerprintedFilename("as-group-0.css", content: allScopedCSS, enabled: fingerprint)
+            try allScopedCSS.write(toFile: outputRoot + "/\(groupCSSFilename)", atomically: true, encoding: .utf8)
+            manifest["as-group-0.css"] = groupCSSFilename
+        }
+
+        if hasReactivity {
+            let interactivityFilename = fingerprintedFilename("as-interactivity.js", content: allJS, enabled: fingerprint)
+            try allJS.write(toFile: outputRoot + "/\(interactivityFilename)", atomically: true, encoding: .utf8)
+            manifest["as-interactivity.js"] = interactivityFilename
+
+            let polyfillContent = try readBundleResource("signal-polyfill")
+            let polyfillFilename = fingerprintedFilename("signal-polyfill.js", content: polyfillContent, enabled: fingerprint)
+            try polyfillContent.write(toFile: outputRoot + "/\(polyfillFilename)", atomically: true, encoding: .utf8)
+            manifest["signal-polyfill.js"] = polyfillFilename
+
+            let runtimeContent = try readBundleResource("score-runtime")
+            let runtimeFilename = fingerprintedFilename("score-runtime.js", content: runtimeContent, enabled: fingerprint)
+            try runtimeContent.write(toFile: outputRoot + "/\(runtimeFilename)", atomically: true, encoding: .utf8)
+            manifest["score-runtime.js"] = runtimeFilename
+        }
+
+        for page in application.pages {
+            let (html, _, _) = renderPage(page, metadata: metadata, theme: theme, environment: environment, assetManifest: manifest)
 
             let pagePath = type(of: page).path
             let filePath: String
@@ -82,78 +127,55 @@ public struct StaticSiteEmitter: Sendable {
 
             try html.write(toFile: filePath, atomically: true, encoding: .utf8)
         }
-
-        if !allScopedCSS.isEmpty {
-            try allScopedCSS.write(toFile: outputRoot + "/as-group-0.css", atomically: true, encoding: .utf8)
-        }
-
-        if hasReactivity {
-            try allJS.write(toFile: outputRoot + "/as-interactivity.js", atomically: true, encoding: .utf8)
-            try copyBundleResource("signal-polyfill", to: outputRoot + "/signal-polyfill.js")
-            try copyBundleResource("score-runtime", to: outputRoot + "/score-runtime.js")
-        }
     }
 
     private static func renderPage(
         _ page: some Page,
         metadata: Metadata?,
         theme: (any Theme)?,
-        environment: Environment
+        environment: Environment,
+        assetManifest: [String: String]
     ) -> (html: String, scopedCSS: String, js: String) {
-        let body = page.body
-
-        var collector = CSSCollector()
-        collector.collect(from: body)
-        let rules = collector.collectedRules()
-
-        let classLookup = PageRenderer.buildClassLookup(from: rules)
-        let scopeInjector = JSEmitter.buildScopeInjector()
-        let renderer = HTMLRenderer(
-            classInjector: { modifiers in classLookup(modifiers) },
-            scopeInjector: scopeInjector
+        let result = PageRenderer.runPipeline(
+            page: page,
+            metadata: metadata,
+            theme: theme,
+            environment: environment
         )
-        let bodyHTML = renderer.render(body)
-
-        let scopedCSS = collector.renderStylesheet()
-
-        let emitResult = JSEmitter.emitWithSourceMap(page: page, environment: environment)
 
         var rawJS = ""
-        if !emitResult.script.isEmpty {
-            rawJS = emitResult.script
+        if !result.emitResult.script.isEmpty {
+            rawJS = result.emitResult.script
                 .replacingOccurrences(of: "<script>\n", with: "")
                 .replacingOccurrences(of: "</script>", with: "")
         }
 
-        let patch = page.metadata
-        let title = DocumentAssembler.composeTitle(
-            page: patch?.title ?? metadata?.title,
-            separator: patch?.titleSeparator ?? metadata?.titleSeparator ?? " | ",
-            site: patch?.site ?? metadata?.site
-        )
-
         let parts = DocumentAssembler.Parts(
-            title: title,
-            description: patch?.description ?? metadata?.description,
-            keywords: patch?.keywords ?? metadata?.keywords ?? [],
-            structuredData: patch?.structuredData ?? metadata?.structuredData ?? [],
+            title: result.title,
+            description: result.description,
+            keywords: result.keywords,
+            structuredData: result.structuredData,
             themeCSS: "",
-            componentCSS: scopedCSS,
-            bodyHTML: bodyHTML,
-            scripts: emitResult.script.isEmpty ? [] : [emitResult.script],
-            activeTheme: theme?.name,
-            externalAssets: true
+            componentCSS: result.componentCSS,
+            bodyHTML: result.bodyHTML,
+            scripts: result.emitResult.script.isEmpty ? [] : [result.emitResult.script],
+            activeTheme: result.activeTheme,
+            externalAssets: true,
+            assetManifest: assetManifest
         )
 
-        return (DocumentAssembler.assemble(parts), scopedCSS, rawJS)
+        return (DocumentAssembler.assemble(parts), result.componentCSS, rawJS)
     }
 
-    private static func copyBundleResource(_ name: String, to destination: String) throws {
-        guard let url = Bundle.module.url(forResource: name, withExtension: "js"),
-            let contents = try? String(contentsOf: url, encoding: .utf8)
-        else {
-            return
+    private static func readBundleResource(_ name: String) throws -> String {
+        guard let url = Bundle.module.url(forResource: name, withExtension: "js") else {
+            throw StaticSiteEmitterError.missingResource(name)
         }
-        try contents.write(toFile: destination, atomically: true, encoding: .utf8)
+        return try String(contentsOf: url, encoding: .utf8)
+    }
+
+    private static func fingerprintedFilename(_ original: String, content: String, enabled: Bool) -> String {
+        guard enabled else { return original }
+        return AssetFingerprint.fingerprintedName(original: original, data: Data(content.utf8))
     }
 }

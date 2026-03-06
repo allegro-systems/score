@@ -30,21 +30,28 @@ public struct PageRenderer: Sendable {
 
     private init() {}
 
-    /// Renders a page into a complete HTML document.
-    ///
-    /// - Parameters:
-    ///   - page: The page to render.
-    ///   - metadata: The application-level metadata, if any.
-    ///   - theme: The application theme, if any.
-    ///   - environment: The build environment, used to control JS emission.
-    ///     Defaults to ``Environment/current``.
-    /// - Returns: A complete HTML document string.
-    public static func render(
+    /// Intermediate result from the shared rendering pipeline.
+    struct PipelineResult: Sendable {
+        let bodyHTML: String
+        let componentCSS: String
+        let themeCSS: String
+        let uiCSS: String
+        let emitResult: JSEmitter.EmitResult
+        let scripts: [String]
+        let title: String?
+        let description: String?
+        let keywords: [String]
+        let structuredData: [String]
+        let activeTheme: String?
+    }
+
+    /// Shared rendering pipeline used by all render entry points.
+    static func runPipeline(
         page: some Page,
         metadata: Metadata?,
         theme: (any Theme)?,
-        environment: Environment = .current
-    ) -> String {
+        environment: Environment
+    ) -> PipelineResult {
         let body = page.body
 
         var collector = CSSCollector()
@@ -71,7 +78,6 @@ public struct PageRenderer: Sendable {
             scripts.append(emitResult.script)
         }
 
-        // Inject editor scripts when TextEditor is present.
         if bodyHTML.contains("data-component=\"editor\"") {
             scripts.append("<script src=\"/_score/score-editor.js\"></script>")
             scripts.append("<script src=\"/_score/score-lsp.js\"></script>")
@@ -86,16 +92,48 @@ public struct PageRenderer: Sendable {
 
         let combinedThemeCSS = themeCSS.isEmpty ? uiCSS : themeCSS + "\n" + uiCSS
 
-        let parts = DocumentAssembler.Parts(
+        return PipelineResult(
+            bodyHTML: bodyHTML,
+            componentCSS: componentCSS,
+            themeCSS: combinedThemeCSS,
+            uiCSS: uiCSS,
+            emitResult: emitResult,
+            scripts: scripts,
             title: title,
             description: patch?.description ?? metadata?.description,
             keywords: patch?.keywords ?? metadata?.keywords ?? [],
             structuredData: patch?.structuredData ?? metadata?.structuredData ?? [],
-            themeCSS: combinedThemeCSS,
-            componentCSS: componentCSS,
-            bodyHTML: bodyHTML,
-            scripts: scripts,
             activeTheme: theme?.name
+        )
+    }
+
+    /// Renders a page into a complete HTML document.
+    ///
+    /// - Parameters:
+    ///   - page: The page to render.
+    ///   - metadata: The application-level metadata, if any.
+    ///   - theme: The application theme, if any.
+    ///   - environment: The build environment, used to control JS emission.
+    ///     Defaults to ``Environment/current``.
+    /// - Returns: A complete HTML document string.
+    public static func render(
+        page: some Page,
+        metadata: Metadata?,
+        theme: (any Theme)?,
+        environment: Environment = .current
+    ) -> String {
+        let result = runPipeline(page: page, metadata: metadata, theme: theme, environment: environment)
+
+        let parts = DocumentAssembler.Parts(
+            title: result.title,
+            description: result.description,
+            keywords: result.keywords,
+            structuredData: result.structuredData,
+            themeCSS: result.themeCSS,
+            componentCSS: result.componentCSS,
+            bodyHTML: result.bodyHTML,
+            scripts: result.scripts,
+            activeTheme: result.activeTheme
         )
 
         return DocumentAssembler.assemble(parts)
@@ -132,33 +170,11 @@ public struct PageRenderer: Sendable {
         theme: (any Theme)?,
         environment: Environment = .current
     ) throws -> RenderResult {
-        let body = page.body
+        let result = runPipeline(page: page, metadata: metadata, theme: theme, environment: environment)
 
-        var collector = CSSCollector()
-        collector.collect(from: body)
-        let rules = collector.collectedRules()
+        var bodyHTML = result.bodyHTML
+        var scripts = result.scripts
 
-        let classLookup = buildClassLookup(from: rules)
-        let scopeInjector = JSEmitter.buildScopeInjector()
-        let renderer = HTMLRenderer(
-            classInjector: { modifiers in classLookup(modifiers) },
-            scopeInjector: scopeInjector
-        )
-        var bodyHTML = renderer.render(body)
-
-        let componentCSS = collector.renderStylesheet()
-        let themeCSS = theme.map { ThemeCSSEmitter.emit($0) } ?? ""
-        let uiCSS = ThemeCSSEmitter.emitComponentCSS()
-
-        let emitResult = JSEmitter.emitWithSourceMap(page: page, environment: environment)
-        var scripts: [String] = []
-        if !emitResult.script.isEmpty {
-            scripts.append("<script src=\"/_score/signal-polyfill.js\"></script>")
-            scripts.append("<script src=\"/_score/score-runtime.js\"></script>")
-            scripts.append(emitResult.script)
-        }
-
-        // Dev tools injection.
         let componentName = String(describing: type(of: page))
         bodyHTML = DevToolsInjector.annotateComponent(
             bodyHTML: bodyHTML,
@@ -184,37 +200,22 @@ public struct PageRenderer: Sendable {
             scripts.append(devToolsScript)
         }
 
-        // Inject editor scripts when TextEditor is present.
-        if bodyHTML.contains("data-component=\"editor\"") {
-            scripts.append("<script src=\"/_score/score-editor.js\"></script>")
-            scripts.append("<script src=\"/_score/score-lsp.js\"></script>")
-        }
-
-        let patch = page.metadata
-        let title = DocumentAssembler.composeTitle(
-            page: patch?.title ?? metadata?.title,
-            separator: patch?.titleSeparator ?? metadata?.titleSeparator ?? " | ",
-            site: patch?.site ?? metadata?.site
-        )
-
-        let combinedThemeCSS = themeCSS.isEmpty ? uiCSS : themeCSS + "\n" + uiCSS
-
         let parts = DocumentAssembler.Parts(
-            title: title,
-            description: patch?.description ?? metadata?.description,
-            keywords: patch?.keywords ?? metadata?.keywords ?? [],
-            structuredData: patch?.structuredData ?? metadata?.structuredData ?? [],
-            themeCSS: combinedThemeCSS,
-            componentCSS: componentCSS,
+            title: result.title,
+            description: result.description,
+            keywords: result.keywords,
+            structuredData: result.structuredData,
+            themeCSS: result.themeCSS,
+            componentCSS: result.componentCSS,
             bodyHTML: bodyHTML,
             scripts: scripts,
-            activeTheme: theme?.name
+            activeTheme: result.activeTheme
         )
 
         return RenderResult(
             html: DocumentAssembler.assemble(parts),
-            sourceMap: emitResult.sourceMap,
-            scriptID: emitResult.scriptID
+            sourceMap: result.emitResult.sourceMap,
+            scriptID: result.emitResult.scriptID
         )
     }
 
@@ -234,12 +235,17 @@ public struct PageRenderer: Sendable {
             }
             guard !declarations.isEmpty else { return nil }
 
-            var hasher = Hasher()
+            var hash: UInt64 = 14_695_981_039_346_656_037
             for d in declarations {
-                hasher.combine(d.property)
-                hasher.combine(d.value)
+                for byte in d.property.utf8 {
+                    hash ^= UInt64(byte)
+                    hash &*= 1_099_511_628_211
+                }
+                for byte in d.value.utf8 {
+                    hash ^= UInt64(byte)
+                    hash &*= 1_099_511_628_211
+                }
             }
-            let hash = UInt(bitPattern: hasher.finalize())
             let className = "s-\(String(hash, radix: 36))"
             return frozenMapping[className]
         }

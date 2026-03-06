@@ -82,10 +82,13 @@ public actor InMemoryStore: Store {
         let writes = await txn.writes
         let deletes = await txn.deletes
 
-        for (key, data) in writes {
-            entries[key] = Entry(data: data, expiresAt: nil)
+        for write in writes {
+            let expiresAt: ContinuousClock.Instant? =
+                write.ttl.map { ContinuousClock.now.advanced(by: $0) }
+                ?? entries[write.key]?.expiresAt
+            entries[write.key] = Entry(data: write.data, expiresAt: expiresAt)
             globalVersion += 1
-            versions[key] = globalVersion
+            versions[write.key] = globalVersion
         }
 
         for key in deletes {
@@ -157,7 +160,7 @@ actor InMemoryTransaction: Transaction {
 
     private let snapshot: [Key: InMemoryStore.Entry]
     var readKeys: Set<Key> = []
-    var writes: [(Key, Data)] = []
+    var writes: [(key: Key, data: Data, ttl: Duration?)] = []
     var deletes: Set<Key> = []
 
     init(snapshot: [Key: InMemoryStore.Entry]) {
@@ -173,8 +176,8 @@ actor InMemoryTransaction: Transaction {
         return entry.data
     }
 
-    func set(_ key: Key, value: Data) async throws {
-        writes.append((key, value))
+    func set(_ key: Key, value: Data, ttl: Duration?) async throws {
+        writes.append((key: key, data: value, ttl: ttl))
     }
 
     func delete(_ key: Key) async throws {

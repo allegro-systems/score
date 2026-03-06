@@ -484,9 +484,18 @@ protocol _JSWalkable {
     func walkChildrenForScopes(scopes: inout [JSEmitter.ComponentScope])
 }
 
-/// Default scope-walking for domain nodes: uses Mirror to find child
+/// Default implementations for domain nodes: uses Mirror to find child
 /// `Node` properties (named "content", "summary", etc.) and recurses.
 extension _JSWalkable {
+    func walkChildrenForJS(bindings: inout [JSEmitter.EventBinding], index: inout Int) {
+        let mirror = Mirror(reflecting: self)
+        for child in mirror.children {
+            if let node = child.value as? any Node {
+                JSEmitter.extractEventsFromChild(node, bindings: &bindings, index: &index)
+            }
+        }
+    }
+
     func walkChildrenForScopes(scopes: inout [JSEmitter.ComponentScope]) {
         let mirror = Mirror(reflecting: self)
         for child in mirror.children {

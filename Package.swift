@@ -20,6 +20,11 @@ let package = Package(
         .library(name: "ScoreAssets", targets: ["ScoreAssets"]),
         .library(name: "ScoreUI", targets: ["ScoreUI"]),
         .library(name: "ScoreVendor", targets: ["ScoreVendor"]),
+        .library(name: "ScoreData", targets: ["ScoreData"]),
+        .library(name: "ScorePayments", targets: ["ScorePayments"]),
+        .library(name: "ScoreTesting", targets: ["ScoreTesting"]),
+        .library(name: "ScoreLogger", targets: ["ScoreLogger"]),
+        .library(name: "ScorePlatform", targets: ["ScorePlatform"]),
         .executable(name: "score", targets: ["ScoreCLI"]),
     ],
     dependencies: [
@@ -56,9 +61,11 @@ let package = Package(
                 "ScoreHTML",
                 "ScoreCSS",
                 "ScoreRouter",
+                "ScoreAssets",
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOPosix", package: "swift-nio"),
                 .product(name: "NIOHTTP1", package: "swift-nio"),
+                .product(name: "NIOWebSocket", package: "swift-nio"),
                 .product(name: "HTTPTypes", package: "swift-http-types"),
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "Metrics", package: "swift-metrics"),
@@ -78,6 +85,7 @@ let package = Package(
                 "ScoreCore",
                 "ScoreStorage",
                 "ScoreRouter",
+                "ScoreRuntime",
                 .product(name: "Crypto", package: "swift-crypto"),
             ]
         ),
@@ -92,12 +100,30 @@ let package = Package(
         .target(name: "ScoreAssets", dependencies: ["ScoreCore"]),
         .target(name: "ScoreUI", dependencies: ["ScoreCore", "ScoreHTML", "ScoreCSS"]),
         .target(name: "ScoreVendor", dependencies: ["ScoreCore", "ScoreRouter", "ScoreHTML"]),
+        .target(name: "ScoreData", dependencies: ["ScoreCore"]),
+        .target(name: "ScorePayments", dependencies: ["ScoreCore"]),
+        .target(
+            name: "ScoreTesting",
+            dependencies: [
+                "ScoreCore",
+                "ScoreHTML",
+            ]
+        ),
+        .target(
+            name: "ScoreLogger",
+            dependencies: [
+                .product(name: "Logging", package: "swift-log"),
+            ]
+        ),
+        .target(name: "ScorePlatform"),
         .target(
             name: "Score",
             dependencies: [
                 "ScoreCore", "ScoreHTML", "ScoreCSS", "ScoreRouter",
                 "ScoreRuntime", "ScoreStorage", "ScoreAuth",
                 "ScoreContent", "ScoreAssets", "ScoreUI", "ScoreVendor",
+                "ScoreData", "ScorePayments", "ScoreTesting",
+                "ScoreLogger", "ScorePlatform",
             ]
         ),
         .executableTarget(

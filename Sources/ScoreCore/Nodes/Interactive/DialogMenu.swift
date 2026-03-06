@@ -16,9 +16,9 @@
 /// ```swift
 /// Dialog(open: true) {
 ///     Heading(.two) { Text(verbatim: "Confirm Deletion") }
-///     Paragraph { "Are you sure you want to delete this item?" }
-///     Button(type: .submit) { "Delete" }
-///     Button(type: .button) { "Cancel" }
+///     Paragraph { Text(verbatim: "Are you sure you want to delete this item?") }
+///     Button(type: .submit) { Text(verbatim: "Delete") }
+///     Button(type: .button) { Text(verbatim: "Cancel") }
 /// }
 /// ```
 ///

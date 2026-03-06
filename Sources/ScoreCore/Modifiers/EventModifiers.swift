@@ -45,6 +45,27 @@ public struct DOMEvent: Sendable, Hashable {
 
     /// The element has lost focus.
     public static let blur = DOMEvent("blur")
+
+    /// A drag operation has started on the element.
+    public static let dragstart = DOMEvent("dragstart")
+
+    /// The element is being dragged.
+    public static let drag = DOMEvent("drag")
+
+    /// A drag operation has ended.
+    public static let dragend = DOMEvent("dragend")
+
+    /// A dragged element has entered a valid drop target.
+    public static let dragenter = DOMEvent("dragenter")
+
+    /// A dragged element is over a valid drop target.
+    public static let dragover = DOMEvent("dragover")
+
+    /// A dragged element has left a valid drop target.
+    public static let dragleave = DOMEvent("dragleave")
+
+    /// An element is dropped on a valid drop target.
+    public static let drop = DOMEvent("drop")
 }
 
 /// A modifier that binds a DOM event to a named handler function.

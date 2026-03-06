@@ -102,7 +102,7 @@ public struct Source: Node {
 ///
 /// `Track` renders as the HTML `<track>` element. Common uses include
 /// subtitles, captions, chapter markers, and metadata cues. At least one
-/// `Track` with `kind: "captions"` or `kind: "subtitles"` should be provided
+/// `Track` with `kind: .captions` or `kind: .subtitles` should be provided
 /// for video content to meet accessibility requirements.
 ///
 /// ### Example
@@ -111,14 +111,14 @@ public struct Source: Node {
 /// Video(src: "/videos/keynote.mp4") {
 ///     Track(
 ///         src: "/tracks/keynote-en.vtt",
-///         kind: "subtitles",
+///         kind: .subtitles,
 ///         label: "English",
 ///         languageCode: "en",
 ///         isDefault: true
 ///     )
 ///     Track(
 ///         src: "/tracks/keynote-fr.vtt",
-///         kind: "subtitles",
+///         kind: .subtitles,
 ///         label: "Français",
 ///         languageCode: "fr"
 ///     )
@@ -195,7 +195,7 @@ public struct Track: Node {
 /// Audio(controls: true) {
 ///     Source(src: "/audio/episode.ogg", type: "audio/ogg")
 ///     Source(src: "/audio/episode.mp3", type: "audio/mpeg")
-///     Track(src: "/tracks/episode-en.vtt", kind: "captions", label: "English", languageCode: "en", isDefault: true)
+///     Track(src: "/tracks/episode-en.vtt", kind: .captions, label: "English", languageCode: "en", isDefault: true)
 /// }
 /// ```
 ///
@@ -252,11 +252,11 @@ public struct Audio<Content: Node>: Node {
     ///     `false`.
     ///   - loop: Whether playback loops continuously. Defaults to `false`.
     ///   - muted: Whether audio output is silenced. Defaults to `false`.
-    ///   - preload: A preload hint string. Defaults to `nil`.
+    ///   - preload: A preload hint for the browser. Defaults to `nil`.
     ///   - content: A `@NodeBuilder` closure providing child `Source` and
     ///     `Track` nodes. Defaults to an `EmptyNode`.
     public init(
-        src: String? = nil, controls: Bool = true, autoplay: Bool = false, loop: Bool = false, muted: Bool = false, preload: String? = nil,
+        src: String? = nil, controls: Bool = true, autoplay: Bool = false, loop: Bool = false, muted: Bool = false, preload: MediaPreload? = nil,
         @NodeBuilder content: () -> Content = { EmptyNode() }
     ) {
         self.src = src
@@ -297,7 +297,7 @@ public struct Audio<Content: Node>: Node {
 /// Video(controls: true, width: 1920, height: 1080) {
 ///     Source(src: "/videos/keynote.webm", type: "video/webm")
 ///     Source(src: "/videos/keynote.mp4",  type: "video/mp4")
-///     Track(src: "/tracks/keynote-en.vtt", kind: "subtitles", label: "English", languageCode: "en", isDefault: true)
+///     Track(src: "/tracks/keynote-en.vtt", kind: .subtitles, label: "English", languageCode: "en", isDefault: true)
 /// }
 /// ```
 ///
@@ -334,9 +334,8 @@ public struct Video<Content: Node>: Node {
 
     /// A hint to the browser about how much of the video to preload.
     ///
-    /// Common values are `"none"`, `"metadata"`, and `"auto"`. When `nil`,
-    /// the browser uses its own heuristic.
-    public let preload: String?
+    /// When `nil`, the browser uses its own heuristic.
+    public let preload: MediaPreload?
 
     /// The URL of an image to display before the user plays the video.
     ///
@@ -371,7 +370,7 @@ public struct Video<Content: Node>: Node {
     ///     `false`.
     ///   - loop: Whether playback loops continuously. Defaults to `false`.
     ///   - muted: Whether audio output is silenced. Defaults to `false`.
-    ///   - preload: A preload hint string. Defaults to `nil`.
+    ///   - preload: A preload hint for the browser. Defaults to `nil`.
     ///   - poster: URL of a poster image displayed before playback. Defaults
     ///     to `nil`.
     ///   - width: The display width in CSS pixels. Defaults to `nil`.
@@ -379,7 +378,7 @@ public struct Video<Content: Node>: Node {
     ///   - content: A `@NodeBuilder` closure providing child `Source` and
     ///     `Track` nodes. Defaults to an `EmptyNode`.
     public init(
-        src: String? = nil, controls: Bool = true, autoplay: Bool = false, loop: Bool = false, muted: Bool = false, preload: String? = nil, poster: String? = nil,
+        src: String? = nil, controls: Bool = true, autoplay: Bool = false, loop: Bool = false, muted: Bool = false, preload: MediaPreload? = nil, poster: String? = nil,
         width: Int? = nil, height: Int? = nil, @NodeBuilder content: () -> Content = { EmptyNode() }
     ) {
         self.src = src

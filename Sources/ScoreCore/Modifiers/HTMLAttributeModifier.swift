@@ -53,10 +53,10 @@ extension Node {
 
     /// Attaches multiple HTML attributes to this node.
     ///
-    /// - Parameter attrs: An array of name-value pairs to attach.
+    /// - Parameter attributes: An array of name-value pairs to attach.
     /// - Returns: A `ModifiedNode` with the HTML attribute modifier applied.
-    public func htmlAttributes(_ attrs: [(String, String)]) -> ModifiedNode<Self> {
-        modifier(HTMLAttributeModifier(attributes: attrs.map { (name: $0.0, value: $0.1) }))
+    public func htmlAttributes(_ attributes: [(String, String)]) -> ModifiedNode<Self> {
+        modifier(HTMLAttributeModifier(attributes: attributes.map { (name: $0.0, value: $0.1) }))
     }
 
     /// Attaches a `data-*` attribute to this node.
@@ -66,7 +66,7 @@ extension Node {
     /// ### Example
     ///
     /// ```swift
-    /// Button { Text(verbatim: "Delete") }
+    /// Button { "Delete" }
     ///     .dataAttribute("variant", "destructive")
     /// // Renders: data-variant="destructive"
     /// ```

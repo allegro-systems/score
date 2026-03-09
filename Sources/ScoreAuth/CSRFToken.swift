@@ -17,11 +17,11 @@ public struct CSRFToken: Sendable, Codable {
         self.value = value
     }
 
-    /// Generates a new cryptographically random CSRF token.
+    /// Makes a new cryptographically random CSRF token.
     ///
     /// - Returns: A new CSRF token backed by 32 random bytes.
-    public static func generate() -> CSRFToken {
-        let token = Token.generate(byteCount: 32)
+    public static func make() -> CSRFToken {
+        let token = Token.make(byteCount: 32)
         return CSRFToken(value: token.value)
     }
 

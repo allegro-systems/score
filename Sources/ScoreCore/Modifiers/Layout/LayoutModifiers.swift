@@ -178,7 +178,7 @@ public struct FlexModifier: ModifierValue {
     /// Whether flex items can wrap onto multiple lines.
     ///
     /// When `true`, maps to CSS `flex-wrap: wrap`. When `false`, maps to `flex-wrap: nowrap`.
-    public let wrap: Bool
+    public let wraps: Bool
 
     /// Creates a flex modifier.
     ///
@@ -187,19 +187,19 @@ public struct FlexModifier: ModifierValue {
     ///   - gap: The gap between items in points. Defaults to `nil`.
     ///   - align: The cross-axis alignment for all items. Defaults to `nil`.
     ///   - justify: The main-axis distribution of items. Defaults to `nil`.
-    ///   - wrap: Whether items wrap onto multiple lines. Defaults to `false`.
+    ///   - wraps: Whether items wrap onto multiple lines. Defaults to `false`.
     public init(
         _ direction: FlexDirection,
         gap: Double? = nil,
         align: FlexAlign? = nil,
         justify: FlexJustify? = nil,
-        wrap: Bool = false
+        wraps: Bool = false
     ) {
         self.direction = direction
         self.gap = gap
         self.align = align
         self.justify = justify
-        self.wrap = wrap
+        self.wraps = wraps
     }
 }
 
@@ -317,16 +317,16 @@ extension Node {
     ///   - gap: The gap between items in points. Defaults to `nil`.
     ///   - align: The cross-axis alignment for all items. Defaults to `nil`.
     ///   - justify: The main-axis distribution of items. Defaults to `nil`.
-    ///   - wrap: Whether items wrap onto multiple lines. Defaults to `false`.
+    ///   - wraps: Whether items wrap onto multiple lines. Defaults to `false`.
     /// - Returns: A modified node configured as a flex container.
     public func flex(
         _ direction: FlexDirection,
         gap: Double? = nil,
         align: FlexAlign? = nil,
         justify: FlexJustify? = nil,
-        wrap: Bool = false
+        wraps: Bool = false
     ) -> ModifiedNode<Self> {
-        let mod = FlexModifier(direction, gap: gap, align: align, justify: justify, wrap: wrap)
+        let mod = FlexModifier(direction, gap: gap, align: align, justify: justify, wraps: wraps)
         return ModifiedNode(content: self, modifiers: [mod])
     }
 

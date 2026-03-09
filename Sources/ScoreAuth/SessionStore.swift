@@ -36,7 +36,7 @@ public struct SessionStore: Sendable {
     /// - Returns: The newly created session.
     /// - Throws: ``StorageError`` if the session cannot be persisted.
     public func create(userID: String) async throws -> Session {
-        let token = Token.generate()
+        let token = Token.make()
         let now = Date()
         let components = config.sessionTTL.components
         let ttlInterval = Double(components.seconds) + Double(components.attoseconds) / 1e18
@@ -57,7 +57,7 @@ public struct SessionStore: Sendable {
     /// - Parameter token: The bearer token to look up.
     /// - Returns: The session, or `nil` if not found.
     /// - Throws: ``StorageError`` if the storage layer fails.
-    public func get(token: Token) async throws -> Session? {
+    public func session(for token: Token) async throws -> Session? {
         try await storage.get(Session.self, forKey: storageKey(for: token))
     }
 
@@ -67,7 +67,7 @@ public struct SessionStore: Sendable {
     /// - Returns: The valid session.
     /// - Throws: ``AuthError/sessionNotFound(_:)`` or ``AuthError/sessionExpired``.
     public func validate(token: Token) async throws -> Session {
-        guard let session = try await get(token: token) else {
+        guard let session = try await session(for: token) else {
             throw AuthError.sessionNotFound("***")
         }
         guard !session.isExpired else {

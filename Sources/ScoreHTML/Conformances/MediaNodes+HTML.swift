@@ -47,10 +47,10 @@ extension Audio: HTMLContainerElement {
     var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = []
         if let v = src { a.append(("src", v)) }
-        if controls { a.append(("controls", "")) }
-        if autoplay { a.append(("autoplay", "")) }
-        if loop { a.append(("loop", "")) }
-        if muted { a.append(("muted", "")) }
+        if showsControls { a.append(("controls", "")) }
+        if autoplays { a.append(("autoplay", "")) }
+        if loops { a.append(("loop", "")) }
+        if isMuted { a.append(("muted", "")) }
         if let v = preload { a.append(("preload", v.rawValue)) }
         return a
     }
@@ -61,10 +61,10 @@ extension Video: HTMLContainerElement {
     var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = []
         if let v = src { a.append(("src", v)) }
-        if controls { a.append(("controls", "")) }
-        if autoplay { a.append(("autoplay", "")) }
-        if loop { a.append(("loop", "")) }
-        if muted { a.append(("muted", "")) }
+        if showsControls { a.append(("controls", "")) }
+        if autoplays { a.append(("autoplay", "")) }
+        if loops { a.append(("loop", "")) }
+        if isMuted { a.append(("muted", "")) }
         if let v = preload { a.append(("preload", v.rawValue)) }
         if let v = poster { a.append(("poster", v)) }
         if let v = width { a.append(("width", String(v))) }

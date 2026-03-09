@@ -65,7 +65,7 @@ public protocol Modifier: Sendable {
 /// Renderers walk the nesting levels to collect all modifiers in order.
 ///
 /// ```swift
-/// let node = Text(verbatim: "Score")
+/// let node = Text { "Score" }
 ///     .modifier(FontValue(size: 24, weight: .bold))
 ///     .modifier(ForegroundColorValue(color: .accent))
 /// // Creates: ModifiedNode(content: ModifiedNode(content: Text, modifiers: [FontValue]), modifiers: [ForegroundColorValue])
@@ -98,6 +98,40 @@ public struct ModifiedNode<Content: Node>: Node {
     /// `ModifiedNode` is a primitive node. Accessing `body` triggers a fatal
     /// error and is only declared to satisfy the `Node` protocol requirement.
     public var body: Never { fatalError() }
+
+    /// Flattens a chain of nested `ModifiedNode` wrappers into a single
+    /// combined modifier array and the innermost non-modified content node.
+    ///
+    /// When modifiers are chained (e.g. `.padding(8).background(.red)`),
+    /// each call wraps in a new `ModifiedNode`. This method walks inward,
+    /// collecting all modifiers in application order.
+    ///
+    /// - Returns: A tuple of all collected modifiers (outermost first) and
+    ///   the innermost content node.
+    public func flattenedChain() -> (modifiers: [any ModifierValue], innerContent: any Node) {
+        var allModifiers = modifiers
+        var current: any Node = content
+        while let inner = current as? any ModifierChainLinkable {
+            allModifiers.append(contentsOf: inner.chainModifiers)
+            current = inner.chainContent
+        }
+        return (allModifiers, current)
+    }
+}
+
+/// A node that can be walked as part of a modifier chain, enabling
+/// `flattenedChain()` to traverse nested `ModifiedNode` wrappers
+/// without knowing their generic parameter.
+public protocol ModifierChainLinkable {
+    /// The modifier values at this level of the chain.
+    var chainModifiers: [any ModifierValue] { get }
+    /// The content node wrapped by this level of the chain.
+    var chainContent: any Node { get }
+}
+
+extension ModifiedNode: ModifierChainLinkable {
+    public var chainModifiers: [any ModifierValue] { modifiers }
+    public var chainContent: any Node { content }
 }
 
 /// A marker protocol for values that carry modifier data.

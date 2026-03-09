@@ -35,7 +35,7 @@ public struct MagicLinkStore: Sendable {
     /// - Returns: The newly created magic link.
     /// - Throws: ``StorageError`` if the token cannot be persisted.
     public func create(email: String) async throws -> MagicLink {
-        let token = Token.generate()
+        let token = Token.make()
         let now = Date()
         let components = config.magicLinkTTL.components
         let ttlInterval = Double(components.seconds) + Double(components.attoseconds) / 1e18

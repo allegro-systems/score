@@ -17,7 +17,7 @@ private struct ReactivePage: Page {
 
     var body: some Node {
         Button { Text(verbatim: "\(count)") }
-            .on(.click, "increment")
+            .on(.click, action: "increment")
     }
 }
 
@@ -44,11 +44,12 @@ private struct ComputedPage: Page {
 private struct ActionPage: Page {
     static let path = "/action"
     @State var count = 0
-    @Action var increment = {}
+
+    @Action func increment() {}
 
     var body: some Node {
         Button { Text(verbatim: "Go") }
-            .on(.click, "increment")
+            .on(.click, action: "increment")
     }
 }
 
@@ -151,7 +152,7 @@ private struct ConditionalEventPage: Page {
     @State var show = true
     var body: some Node {
         if show {
-            Text(verbatim: "shown").on(.click, "go")
+            Text(verbatim: "shown").on(.click, action: "go")
         } else {
             Text(verbatim: "hidden")
         }
@@ -170,7 +171,7 @@ private struct OptionalEventPage: Page {
     @State var show = true
     var body: some Node {
         if show {
-            Text(verbatim: "shown").on(.click, "go")
+            Text(verbatim: "shown").on(.click, action: "go")
         }
     }
 }
@@ -186,7 +187,7 @@ private struct ForEachEventPage: Page {
     static let path = "/foreach-event"
     var body: some Node {
         ForEachNode([1, 2, 3]) { i in
-            Text(verbatim: "\(i)").on(.click, "go")
+            Text(verbatim: "\(i)").on(.click, action: "go")
         }
     }
 }

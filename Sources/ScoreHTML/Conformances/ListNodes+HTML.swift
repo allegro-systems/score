@@ -9,7 +9,7 @@ extension OrderedList: HTMLContainerElement {
     var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = []
         if let v = start { a.append(("start", String(v))) }
-        if reversed { a.append(("reversed", "")) }
+        if isReversed { a.append(("reversed", "")) }
         return a
     }
 }

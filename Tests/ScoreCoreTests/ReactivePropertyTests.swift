@@ -28,9 +28,9 @@ import Testing
     #expect(compute.wrappedValue == 42)
 }
 
-@Test func actionCreatesSuccessfully() {
-    let action = Action(wrappedValue: {})
-    action.wrappedValue()
+@Test func actionDescriptorCreatesSuccessfully() {
+    let descriptor = ActionDescriptor(name: "toggle")
+    #expect(descriptor.name == "toggle")
 }
 
 @Test func domEventStoresName() {
@@ -61,7 +61,7 @@ import Testing
 }
 
 @Test func nodeOnExtensionCreatesModifiedNode() {
-    let node = TextNode("Click me").on(.click, "doSomething")
+    let node = TextNode("Click me").on(.click, action: "doSomething")
     #expect(node.modifiers.count == 1)
 
     let binding = node.modifiers[0] as? EventBindingModifier
@@ -71,8 +71,8 @@ import Testing
 
 @Test func multipleEventBindingsAccumulate() {
     let node = TextNode("Input")
-        .on(.focus, "handleFocus")
-        .on(.blur, "handleBlur")
+        .on(.focus, action: "handleFocus")
+        .on(.blur, action: "handleBlur")
     #expect(node.modifiers.count == 1)
 
     let outer = node.modifiers[0] as? EventBindingModifier

@@ -477,7 +477,7 @@ import Testing
     #expect(font.contains(CSSDeclaration(property: "color", value: "var(--color-text)")))
 
     let textStyle = CSSEmitter.declarations(
-        for: TextStyleModifier(
+        for: FontModifier(
             align: .justify,
             transform: .uppercase,
             decoration: .underline,

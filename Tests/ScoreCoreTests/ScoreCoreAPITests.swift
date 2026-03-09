@@ -3,7 +3,7 @@ import Testing
 @testable import ScoreCore
 
 @Test func typographyModifiersStoreConfiguredValues() {
-    let styled = TextNode("title").textStyle(
+    let styled = TextNode("title").font(
         align: .justify,
         transform: .uppercase,
         decoration: .lineThrough,
@@ -17,7 +17,7 @@ import Testing
         indent: 8
     )
 
-    let style = styled.modifiers.first as? TextStyleModifier
+    let style = styled.modifiers.first as? FontModifier
     #expect(style?.align == .justify)
     #expect(style?.transform == .uppercase)
     #expect(style?.decoration == .lineThrough)

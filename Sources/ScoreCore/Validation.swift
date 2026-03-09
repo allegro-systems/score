@@ -131,7 +131,7 @@ public struct Validated<Value: Sendable>: Sendable {
     public var wrappedValue: Value
 
     /// The validation rules applied to this value.
-    public let rules: [any _AnyStringValidationRule]
+    public let rules: [any StringValidating]
 
     /// The field name used in error reporting.
     public let fieldName: String
@@ -151,7 +151,7 @@ public struct Validated<Value: Sendable>: Sendable {
     public init(
         wrappedValue: Value,
         fieldName: String = "",
-        rules: [any _AnyStringValidationRule]
+        rules: [any StringValidating]
     ) {
         self.wrappedValue = wrappedValue
         self.fieldName = fieldName
@@ -162,7 +162,7 @@ public struct Validated<Value: Sendable>: Sendable {
     ///
     /// - Returns: An array of ``ValidationResult`` values, one per rule.
     public func validate() -> [ValidationResult] where Value == String {
-        rules.map { $0.validateString(wrappedValue) }
+        rules.map { $0.validate(wrappedValue) }
     }
 
     /// Runs all validation rules and collects errors into a ``ValidationErrors`` collection.
@@ -171,7 +171,7 @@ public struct Validated<Value: Sendable>: Sendable {
     public func validateWithErrors() -> ValidationErrors where Value == String {
         var validationErrors = ValidationErrors()
         for rule in rules {
-            let result = rule.validateString(wrappedValue)
+            let result = rule.validate(wrappedValue)
             if case .invalid(let message) = result {
                 validationErrors.add(field: fieldName, message: message)
             }
@@ -184,10 +184,10 @@ public struct Validated<Value: Sendable>: Sendable {
 ///
 /// This protocol enables heterogeneous collections of validation rules
 /// by erasing the associated type to `String`.
-public protocol _AnyStringValidationRule: Sendable {
+public protocol StringValidating: Sendable {
 
     /// Validates a string value.
-    func validateString(_ value: String) -> ValidationResult
+    func validate(_ value: String) -> ValidationResult
 
     /// Optional client-side JavaScript expression.
     var clientScript: String? { get }
@@ -197,7 +197,7 @@ public protocol _AnyStringValidationRule: Sendable {
 }
 
 /// Validates that a string is not empty.
-public struct Required: ValidationRule, _AnyStringValidationRule {
+public struct Required: ValidationRule, StringValidating {
 
     public let errorMessage: String
 
@@ -214,17 +214,13 @@ public struct Required: ValidationRule, _AnyStringValidationRule {
             : .valid
     }
 
-    public func validateString(_ value: String) -> ValidationResult {
-        validate(value)
-    }
-
     public var clientScript: String? {
         "v => v.trim().length > 0"
     }
 }
 
 /// Validates that a string meets a minimum length.
-public struct MinLength: ValidationRule, _AnyStringValidationRule {
+public struct MinLength: ValidationRule, StringValidating {
 
     /// The minimum number of characters required.
     public let minimum: Int
@@ -244,17 +240,13 @@ public struct MinLength: ValidationRule, _AnyStringValidationRule {
         value.count >= minimum ? .valid : .invalid(errorMessage)
     }
 
-    public func validateString(_ value: String) -> ValidationResult {
-        validate(value)
-    }
-
     public var clientScript: String? {
         "v => v.length >= \(minimum)"
     }
 }
 
 /// Validates that a string does not exceed a maximum length.
-public struct MaxLength: ValidationRule, _AnyStringValidationRule {
+public struct MaxLength: ValidationRule, StringValidating {
 
     /// The maximum number of characters allowed.
     public let maximum: Int
@@ -274,17 +266,13 @@ public struct MaxLength: ValidationRule, _AnyStringValidationRule {
         value.count <= maximum ? .valid : .invalid(errorMessage)
     }
 
-    public func validateString(_ value: String) -> ValidationResult {
-        validate(value)
-    }
-
     public var clientScript: String? {
         "v => v.length <= \(maximum)"
     }
 }
 
 /// Validates that a string matches a regular expression pattern.
-public struct PatternRule: ValidationRule, _AnyStringValidationRule {
+public struct PatternRule: ValidationRule, StringValidating {
 
     /// The regular expression pattern to match.
     public let pattern: String
@@ -308,17 +296,13 @@ public struct PatternRule: ValidationRule, _AnyStringValidationRule {
         return regex.firstMatch(in: value, range: range) != nil ? .valid : .invalid(errorMessage)
     }
 
-    public func validateString(_ value: String) -> ValidationResult {
-        validate(value)
-    }
-
     public var clientScript: String? {
         "v => /\(pattern)/.test(v)"
     }
 }
 
 /// Validates that a string is a well-formed email address.
-public struct EmailRule: ValidationRule, _AnyStringValidationRule {
+public struct EmailRule: ValidationRule, StringValidating {
 
     public let errorMessage: String
 
@@ -336,10 +320,6 @@ public struct EmailRule: ValidationRule, _AnyStringValidationRule {
         }
         let range = NSRange(value.startIndex..., in: value)
         return regex.firstMatch(in: value, range: range) != nil ? .valid : .invalid(errorMessage)
-    }
-
-    public func validateString(_ value: String) -> ValidationResult {
-        validate(value)
     }
 
     public var clientScript: String? {
@@ -363,13 +343,13 @@ public struct FormValidator: Sendable {
     /// - Returns: A ``ValidationErrors`` containing any failures.
     public static func validate(
         fields: [String: String],
-        rules: [String: [any _AnyStringValidationRule]]
+        rules: [String: [any StringValidating]]
     ) -> ValidationErrors {
         var errors = ValidationErrors()
         for (fieldName, fieldRules) in rules {
             let value = fields[fieldName] ?? ""
             for rule in fieldRules {
-                let result = rule.validateString(value)
+                let result = rule.validate(value)
                 if case .invalid(let message) = result {
                     errors.add(field: fieldName, message: message)
                 }
@@ -386,15 +366,15 @@ public struct FormValidator: Sendable {
     /// - Returns: An HTML attribute string containing `data-validate-*` attributes.
     public static func clientAttributes(
         fieldName: String,
-        rules: [any _AnyStringValidationRule]
+        rules: [any StringValidating]
     ) -> String {
-        var attrs: [String] = []
+        var attributes: [String] = []
         for (index, rule) in rules.enumerated() {
             if let script = rule.clientScript {
-                attrs.append("data-validate-\(index)=\"\(script)\"")
+                attributes.append("data-validate-\(index)=\"\(script)\"")
             }
-            attrs.append("data-validate-msg-\(index)=\"\(rule.errorMessage)\"")
+            attributes.append("data-validate-msg-\(index)=\"\(rule.errorMessage)\"")
         }
-        return attrs.joined(separator: " ")
+        return attributes.joined(separator: " ")
     }
 }

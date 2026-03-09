@@ -1,1 +1,1 @@
-public enum _ScoreAssetsModule {}
+public enum ScoreAssetsModule {}

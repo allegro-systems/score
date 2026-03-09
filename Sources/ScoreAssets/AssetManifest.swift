@@ -22,7 +22,7 @@ public struct AssetManifest: Sendable {
         self.entries = entries
     }
 
-    /// Builds a manifest by scanning a directory recursively.
+    /// Makes a manifest by scanning a directory recursively.
     ///
     /// Every regular file found under `directory` is read, fingerprinted, and
     /// added to the manifest. The logical path stored as the key is the file's
@@ -32,7 +32,7 @@ public struct AssetManifest: Sendable {
     /// - Returns: A populated ``AssetManifest``.
     /// - Throws: An error if the directory cannot be enumerated or a file
     ///   cannot be read.
-    public static func build(from directory: String) throws -> AssetManifest {
+    public static func make(from directory: String) throws -> AssetManifest {
         let fileManager = FileManager.default
         let directoryURL = URL(fileURLWithPath: directory, isDirectory: true)
 

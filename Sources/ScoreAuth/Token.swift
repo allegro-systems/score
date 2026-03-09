@@ -8,7 +8,7 @@ import Foundation
 /// identifiers for sessions and magic links.
 ///
 /// ```swift
-/// let token = Token.generate()
+/// let token = Token.make()
 /// print(token.value) // e.g. "dGhpcyBpcyBhIHRva2Vu..."
 /// ```
 public struct Token: Sendable, Hashable, Codable {
@@ -23,11 +23,11 @@ public struct Token: Sendable, Hashable, Codable {
         self.value = value
     }
 
-    /// Generates a new cryptographically random token.
+    /// Makes a new cryptographically random token.
     ///
     /// - Parameter byteCount: The number of random bytes to use. Defaults to `32`.
     /// - Returns: A new token whose value is URL-safe Base64-encoded.
-    public static func generate(byteCount: Int = 32) -> Token {
+    public static func make(byteCount: Int = 32) -> Token {
         precondition(byteCount > 0, "byteCount must be positive")
         let key = SymmetricKey(size: .init(bitCount: byteCount * 8))
         let encoded = key.withUnsafeBytes { Data($0) }.base64EncodedString()

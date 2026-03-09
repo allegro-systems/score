@@ -17,7 +17,7 @@ private struct LayoutContainerPage: Page {
                     }
                 }
             }
-        }.on(.click, "go")
+        }.on(.click, action: "go")
     }
 }
 
@@ -38,7 +38,7 @@ private struct ContentContainerPage: Page {
             Code { Text(verbatim: "c") }
             Small { Text(verbatim: "sm") }
             Mark { Text(verbatim: "m") }
-        }.on(.click, "go")
+        }.on(.click, action: "go")
         Paragraph { Text(verbatim: "p") }
         Preformatted { Text(verbatim: "pre") }
         Blockquote { Text(verbatim: "bq") }
@@ -63,7 +63,7 @@ private struct FormControlPage: Page {
             Fieldset {
                 Legend { Text(verbatim: "legend") }
                 Input(type: .text)
-            }.on(.submit, "go")
+            }.on(.submit, action: "go")
             Select {
                 Option(value: "a") { Text(verbatim: "A") }
             }
@@ -83,7 +83,7 @@ private struct ListContainerPage: Page {
     static let path = "/list-containers"
     var body: some Node {
         UnorderedList {
-            ListItem { Text(verbatim: "a") }.on(.click, "go")
+            ListItem { Text(verbatim: "a") }.on(.click, action: "go")
         }
         OrderedList {
             ListItem { Text(verbatim: "b") }
@@ -113,7 +113,7 @@ private struct TableContainerPage: Page {
                 TableRow { TableHeaderCell { Text(verbatim: "th") } }
             }
             TableBody {
-                TableRow { TableCell { Text(verbatim: "td") }.on(.click, "go") }
+                TableRow { TableCell { Text(verbatim: "td") }.on(.click, action: "go") }
             }
             TableFooter {
                 TableRow { TableCell { Text(verbatim: "tf") } }
@@ -136,7 +136,7 @@ private struct MediaInteractivePage: Page {
         Figure {
             Image(src: "/i.png", alt: "img")
             FigureCaption { Text(verbatim: "cap") }
-        }.on(.click, "go")
+        }.on(.click, action: "go")
         Link(to: "/about") { Text(verbatim: "link") }
     }
 }
@@ -166,7 +166,7 @@ private struct DoubleStatePage: Page {
 
 private struct InnerEventComponent: Component {
     var body: some Node {
-        Text(verbatim: "inner").on(.click, "handleInner")
+        Text(verbatim: "inner").on(.click, action: "handleInner")
     }
 }
 
@@ -190,7 +190,7 @@ private struct EventOnlyPage: Page {
     static let path = "/event-only"
     var body: some Node {
         Button { Text(verbatim: "click me") }
-            .on(.click, "doSomething")
+            .on(.click, action: "doSomething")
     }
 }
 
@@ -205,7 +205,7 @@ private struct EventOnlyPage: Page {
 private struct ExtendedFormControlPage: Page {
     static let path = "/extended-form-controls"
     var body: some Node {
-        Label(for: "qty") { Text(verbatim: "Qty") }.on(.click, "go")
+        Label(for: "qty") { Text(verbatim: "Qty") }.on(.click, action: "go")
         Select {
             OptionGroup(label: "Group A") {
                 Option(value: "a") { Text(verbatim: "A") }
@@ -234,7 +234,7 @@ private struct InteractiveNodePage: Page {
     var body: some Node {
         Dialog {
             Text(verbatim: "dialog content")
-        }.on(.click, "openDialog")
+        }.on(.click, action: "openDialog")
         Menu {
             Button { Text(verbatim: "action") }
         }
@@ -259,7 +259,7 @@ private struct MediaNodePage: Page {
         Audio(src: "/a.mp3") {
             Source(src: "/a.ogg", type: "audio/ogg")
             Track(src: "/a.vtt")
-        }.on(.click, "go")
+        }.on(.click, action: "go")
         Video(src: "/v.mp4") {
             Source(src: "/v.webm", type: "video/webm")
         }

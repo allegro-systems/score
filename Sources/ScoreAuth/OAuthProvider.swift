@@ -151,7 +151,7 @@ public struct OAuthConfig: Sendable {
 ///
 /// ```swift
 /// let provider = OAuthProvider(config: .github(clientID: "...", clientSecret: "...", redirectURI: "..."))
-/// let (url, state, verifier) = provider.authorizationURL()
+/// let (url, state, verifier) = try provider.authorizationURL()
 /// // Redirect user to url, then handle callback:
 /// let tokens = try await provider.exchangeCode("auth_code", codeVerifier: verifier)
 /// ```
@@ -171,12 +171,15 @@ public struct OAuthProvider: Sendable {
     /// - Returns: A tuple of the authorization URL, the state parameter for
     ///   CSRF protection, and the PKCE code verifier to use when exchanging
     ///   the authorization code.
-    public func authorizationURL() -> (url: String, state: String, codeVerifier: String) {
-        let state = generateRandomString(length: 32)
-        let codeVerifier = generateRandomString(length: 64)
+    /// - Throws: ``OAuthError/invalidConfiguration`` if the authorize URL is malformed.
+    public func authorizationURL() throws -> (url: String, state: String, codeVerifier: String) {
+        let state = makeRandomString(length: 32)
+        let codeVerifier = makeRandomString(length: 64)
         let codeChallenge = computeCodeChallenge(codeVerifier)
 
-        var components = URLComponents(string: config.authorizeURL)!
+        guard var components = URLComponents(string: config.authorizeURL) else {
+            throw OAuthError.invalidConfiguration
+        }
         components.queryItems = [
             URLQueryItem(name: "client_id", value: config.clientID),
             URLQueryItem(name: "redirect_uri", value: config.redirectURI),
@@ -187,7 +190,11 @@ public struct OAuthProvider: Sendable {
             URLQueryItem(name: "code_challenge_method", value: "S256"),
         ]
 
-        return (url: components.url!.absoluteString, state: state, codeVerifier: codeVerifier)
+        guard let url = components.url else {
+            throw OAuthError.invalidConfiguration
+        }
+
+        return (url: url.absoluteString, state: state, codeVerifier: codeVerifier)
     }
 
     /// Exchanges an authorization code for access and refresh tokens.
@@ -196,11 +203,14 @@ public struct OAuthProvider: Sendable {
     ///   - code: The authorization code from the callback.
     ///   - codeVerifier: The PKCE code verifier from ``authorizationURL()``.
     /// - Returns: The token response.
+    /// - Throws: ``OAuthError/invalidConfiguration`` if the token URL is malformed, or a network/decoding error.
     public func exchangeCode(
         _ code: String,
         codeVerifier: String
     ) async throws -> OAuthTokenResponse {
-        let url = URL(string: config.tokenURL)!
+        guard let url = URL(string: config.tokenURL) else {
+            throw OAuthError.invalidConfiguration
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
@@ -227,12 +237,15 @@ public struct OAuthProvider: Sendable {
     ///
     /// - Parameter accessToken: The OAuth access token.
     /// - Returns: The user info as a dictionary.
+    /// - Throws: ``OAuthError`` if user info is not supported, the URL is malformed, or the response is invalid.
     public func fetchUserInfo(accessToken: String) async throws -> [String: Any] {
         guard let userInfoURL = config.userInfoURL else {
             throw OAuthError.userInfoNotSupported
         }
 
-        let url = URL(string: userInfoURL)!
+        guard let url = URL(string: userInfoURL) else {
+            throw OAuthError.invalidConfiguration
+        }
         var request = URLRequest(url: url)
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
@@ -244,7 +257,7 @@ public struct OAuthProvider: Sendable {
         return json
     }
 
-    private func generateRandomString(length: Int) -> String {
+    private func makeRandomString(length: Int) -> String {
         let key = SymmetricKey(size: .init(bitCount: length * 8))
         return key.withUnsafeBytes { Data($0) }.base64EncodedString()
             .replacingOccurrences(of: "+", with: "-")
@@ -291,6 +304,9 @@ public struct OAuthTokenResponse: Sendable, Codable {
 
 /// Errors from OAuth operations.
 public enum OAuthError: Error, Sendable {
+
+    /// A configured URL (authorize, token, or user-info) is malformed.
+    case invalidConfiguration
 
     /// The provider does not support user info queries.
     case userInfoNotSupported

@@ -5,23 +5,23 @@ import Testing
 @testable import ScoreStorage
 
 @Test func tokenGeneratesUniqueValues() {
-    let a = Token.generate()
-    let b = Token.generate()
+    let a = Token.make()
+    let b = Token.make()
     #expect(a != b)
     #expect(!a.value.isEmpty)
     #expect(!b.value.isEmpty)
 }
 
 @Test func tokenGeneratesExpectedLength() {
-    let token = Token.generate(byteCount: 16)
+    let token = Token.make(byteCount: 16)
     #expect(!token.value.isEmpty)
-    let longToken = Token.generate(byteCount: 64)
+    let longToken = Token.make(byteCount: 64)
     #expect(longToken.value.count > token.value.count)
 }
 
 @Test func tokenIsURLSafe() {
     for _ in 0..<10 {
-        let token = Token.generate()
+        let token = Token.make()
         #expect(!token.value.contains("+"))
         #expect(!token.value.contains("/"))
         #expect(!token.value.contains("="))
@@ -29,30 +29,30 @@ import Testing
 }
 
 @Test func csrfTokenGeneratesUniqueValues() {
-    let a = CSRFToken.generate()
-    let b = CSRFToken.generate()
+    let a = CSRFToken.make()
+    let b = CSRFToken.make()
     #expect(a != b)
     #expect(!a.value.isEmpty)
 }
 
 @Test func csrfTokenConstantTimeEqualMatching() {
-    let token = CSRFToken.generate()
+    let token = CSRFToken.make()
     let same = CSRFToken(value: token.value)
     #expect(CSRFToken.constantTimeEqual(token, same))
 }
 
 @Test func csrfTokenConstantTimeEqualMismatch() {
-    let a = CSRFToken.generate()
-    let b = CSRFToken.generate()
+    let a = CSRFToken.make()
+    let b = CSRFToken.make()
     #expect(!CSRFToken.constantTimeEqual(a, b))
 }
 
 @Test func csrfTokenEqualityUsesConstantTime() {
-    let a = CSRFToken.generate()
+    let a = CSRFToken.make()
     let b = CSRFToken(value: a.value)
     #expect(a == b)
 
-    let c = CSRFToken.generate()
+    let c = CSRFToken.make()
     #expect(a != c)
 }
 
@@ -67,7 +67,7 @@ import Testing
     let active = Session(
         id: "s1",
         userID: "u1",
-        token: Token.generate(),
+        token: Token.make(),
         createdAt: now,
         expiresAt: now.addingTimeInterval(3600)
     )
@@ -76,7 +76,7 @@ import Testing
     let expired = Session(
         id: "s2",
         userID: "u1",
-        token: Token.generate(),
+        token: Token.make(),
         createdAt: now.addingTimeInterval(-7200),
         expiresAt: now.addingTimeInterval(-3600)
     )
@@ -86,7 +86,7 @@ import Testing
 @Test func magicLinkDetectsExpiry() {
     let now = Date()
     let active = MagicLink(
-        token: Token.generate(),
+        token: Token.make(),
         email: "user@example.com",
         createdAt: now,
         expiresAt: now.addingTimeInterval(600)
@@ -94,7 +94,7 @@ import Testing
     #expect(!active.isExpired)
 
     let expired = MagicLink(
-        token: Token.generate(),
+        token: Token.make(),
         email: "user@example.com",
         createdAt: now.addingTimeInterval(-1200),
         expiresAt: now.addingTimeInterval(-600)
@@ -174,7 +174,7 @@ import Testing
     #expect(!session.token.value.isEmpty)
     #expect(!session.isExpired)
 
-    let fetched = try await store.get(token: session.token)
+    let fetched = try await store.session(for: session.token)
     #expect(fetched != nil)
     #expect(fetched?.userID == "user_42")
     #expect(fetched?.id == session.id)
@@ -195,7 +195,7 @@ import Testing
     let config = AuthConfig()
     let store = SessionStore(storage: storage, config: config)
 
-    let fakeToken = Token.generate()
+    let fakeToken = Token.make()
     await #expect {
         try await store.validate(token: fakeToken)
     } throws: { error in
@@ -213,7 +213,7 @@ import Testing
 
     let session = try await store.create(userID: "user_99")
     try await store.delete(token: session.token)
-    let fetched = try await store.get(token: session.token)
+    let fetched = try await store.session(for: session.token)
     #expect(fetched == nil)
 }
 

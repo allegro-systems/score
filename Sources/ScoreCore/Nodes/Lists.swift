@@ -70,7 +70,7 @@ public struct OrderedList<Content: Node>: Node {
     /// items) instead of upward.
     ///
     /// When `true`, renders the HTML `reversed` attribute.
-    public let reversed: Bool
+    public let isReversed: Bool
 
     /// The ``ListItem`` children that make up the numbered entries.
     public let content: Content
@@ -80,12 +80,12 @@ public struct OrderedList<Content: Node>: Node {
     /// - Parameters:
     ///   - start: The starting number for the list. Defaults to `nil` (starts
     ///     at 1).
-    ///   - reversed: When `true`, numbers descend rather than ascend. Defaults
-    ///     to `false`.
+    ///   - isReversed: When `true`, numbers descend rather than ascend.
+    ///     Defaults to `false`.
     ///   - content: A node builder closure providing ``ListItem`` children.
-    public init(start: Int? = nil, reversed: Bool = false, @NodeBuilder content: () -> Content) {
+    public init(start: Int? = nil, isReversed: Bool = false, @NodeBuilder content: () -> Content) {
         self.start = start
-        self.reversed = reversed
+        self.isReversed = isReversed
         self.content = content()
     }
 

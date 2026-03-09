@@ -51,6 +51,7 @@ public struct JWTProvider: Sendable {
     ///   - claims: The claims dictionary. Values must be JSON-serializable strings.
     ///   - expiry: Override the default expiry duration.
     /// - Returns: The signed JWT string.
+    /// - Throws: An error if JSON serialization fails.
     public func sign(
         claims: [String: String],
         expiry: Duration? = nil
@@ -92,6 +93,7 @@ public struct JWTProvider: Sendable {
     ///
     /// - Parameter token: The JWT string to verify.
     /// - Returns: The verified claims as a ``JWTClaims`` value.
+    /// - Throws: ``JWTError`` if the token is malformed, expired, or has an invalid signature.
     public func verify(_ token: String) throws -> JWTClaims {
         let parts = token.split(separator: ".")
         guard parts.count == 3 else {
@@ -139,13 +141,14 @@ public struct JWTProvider: Sendable {
         return JWTClaims(values: claims)
     }
 
-    /// Generates a signed refresh token.
+    /// Makes a signed refresh token.
     ///
     /// - Parameters:
     ///   - subject: The subject identifier.
     ///   - expiry: Refresh token expiry. Defaults to 30 days.
     /// - Returns: The signed refresh token JWT.
-    public func generateRefreshToken(
+    /// - Throws: An error if signing fails.
+    public func makeRefreshToken(
         subject: String,
         expiry: Duration = .seconds(2_592_000)
     ) throws -> String {
@@ -172,7 +175,8 @@ public struct JWTProvider: Sendable {
     }
 
     private func base64URLDecode(_ string: String) -> Data? {
-        var base64 = string
+        var base64 =
+            string
             .replacingOccurrences(of: "-", with: "+")
             .replacingOccurrences(of: "_", with: "/")
         let padding = (4 - base64.count % 4) % 4

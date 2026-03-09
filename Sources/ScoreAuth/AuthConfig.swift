@@ -26,7 +26,7 @@ public struct AuthConfig: Sendable {
     public var cookieName: String
 
     /// Whether the session cookie requires a secure (HTTPS) connection.
-    public var cookieSecure: Bool
+    public var isCookieSecure: Bool
 
     /// The `SameSite` policy applied to the session cookie.
     public var cookieSameSite: SameSitePolicy
@@ -39,7 +39,7 @@ public struct AuthConfig: Sendable {
     ///   - csrfTTL: CSRF token lifetime. Defaults to 1 hour.
     ///   - rateLimit: Rate limiting policy. Defaults to 5 attempts per 15 minutes.
     ///   - cookieName: Cookie name. Defaults to `"score_session"`.
-    ///   - cookieSecure: Require HTTPS. Defaults to `true`.
+    ///   - isCookieSecure: Require HTTPS. Defaults to `true`.
     ///   - cookieSameSite: SameSite policy. Defaults to `.lax`.
     public init(
         sessionTTL: Duration = .seconds(86400),
@@ -47,7 +47,7 @@ public struct AuthConfig: Sendable {
         csrfTTL: Duration = .seconds(3600),
         rateLimit: RateLimit = RateLimit(),
         cookieName: String = "score_session",
-        cookieSecure: Bool = true,
+        isCookieSecure: Bool = true,
         cookieSameSite: SameSitePolicy = .lax
     ) {
         self.sessionTTL = sessionTTL
@@ -55,7 +55,7 @@ public struct AuthConfig: Sendable {
         self.csrfTTL = csrfTTL
         self.rateLimit = rateLimit
         self.cookieName = cookieName
-        self.cookieSecure = cookieSecure
+        self.isCookieSecure = isCookieSecure
         self.cookieSameSite = cookieSameSite
     }
 

@@ -47,7 +47,7 @@ public struct AccessibilityModifier: ModifierValue {
     /// that should not be navigable by screen readers.
     ///
     /// This does not affect visual visibility.
-    public let hidden: Bool?
+    public let isHidden: Bool?
 
     /// Declares the semantic role of the element.
     ///
@@ -66,15 +66,15 @@ public struct AccessibilityModifier: ModifierValue {
     ///
     /// - Parameters:
     ///   - label: Optional accessibility description.
-    ///   - hidden: Whether the element is excluded from accessibility tools.
+    ///   - isHidden: Whether the element is excluded from accessibility tools.
     ///   - role: Optional semantic role identifier.
     public init(
         label: String? = nil,
-        hidden: Bool? = nil,
+        isHidden: Bool? = nil,
         role: String? = nil
     ) {
         self.label = label
-        self.hidden = hidden
+        self.isHidden = isHidden
         self.role = role
     }
 }
@@ -96,7 +96,7 @@ extension Node {
     ///     .accessibility(hidden: true)
     ///
     /// Stack {
-    ///     Link(to: "/") { Text(verbatim: "Home") }
+    ///     Link(to: "/") { "Home" }
     /// }
     /// .accessibility(role: "navigation")
     /// ```
@@ -111,9 +111,9 @@ extension Node {
     /// - Returns: A `ModifiedNode` with the accessibility modifier applied.
     public func accessibility(
         label: String? = nil,
-        hidden: Bool? = nil,
+        hidden isHidden: Bool? = nil,
         role: String? = nil
     ) -> ModifiedNode<Self> {
-        ModifiedNode(content: self, modifiers: [AccessibilityModifier(label: label, hidden: hidden, role: role)])
+        ModifiedNode(content: self, modifiers: [AccessibilityModifier(label: label, isHidden: isHidden, role: role)])
     }
 }

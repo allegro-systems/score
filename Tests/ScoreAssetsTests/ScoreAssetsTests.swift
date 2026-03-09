@@ -337,7 +337,7 @@ private func realPath(_ url: URL) -> String {
     #expect(fromFile.count == 8)
 }
 
-// MARK: - AssetManifest.build(from:)
+// MARK: - AssetManifest.make(from:)
 
 @Test func manifestBuildFromDirectory() throws {
     let tmp = FileManager.default.temporaryDirectory
@@ -351,7 +351,7 @@ private func realPath(_ url: URL) -> String {
     try Data([0x89, 0x50, 0x4E, 0x47]).write(
         to: URL(fileURLWithPath: dirPath + "/logo.png"))
 
-    let manifest = try AssetManifest.build(from: dirPath)
+    let manifest = try AssetManifest.make(from: dirPath)
     #expect(manifest.resolve("main.css") != "main.css")
     #expect(manifest.resolve("main.css").hasPrefix("main-"))
     #expect(manifest.resolve("main.css").hasSuffix(".css"))
@@ -370,7 +370,7 @@ private func realPath(_ url: URL) -> String {
     try Data("h1 {}".utf8).write(
         to: URL(fileURLWithPath: dirPath + "/css/style.css"))
 
-    let manifest = try AssetManifest.build(from: dirPath)
+    let manifest = try AssetManifest.make(from: dirPath)
     let resolved = manifest.resolve("css/style.css")
     #expect(resolved.hasPrefix("css/style-"))
     #expect(resolved.hasSuffix(".css"))
@@ -382,6 +382,6 @@ private func realPath(_ url: URL) -> String {
     try FileManager.default.createDirectory(at: dirURL, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: dirURL) }
 
-    let manifest = try AssetManifest.build(from: dirURL.path)
+    let manifest = try AssetManifest.make(from: dirURL.path)
     #expect(manifest.resolve("anything.css") == "anything.css")
 }

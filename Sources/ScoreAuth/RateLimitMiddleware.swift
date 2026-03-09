@@ -38,9 +38,10 @@ public struct RateLimitMiddleware: Sendable {
         store: some Store,
         identifierExtractor: (@Sendable (RequestContext) -> String)? = nil
     ) -> HTTPMiddleware {
-        let extractor: @Sendable (RequestContext) -> String = identifierExtractor ?? { request in
-            request.headers["x-forwarded-for"] ?? request.headers["x-real-ip"] ?? "unknown"
-        }
+        let extractor: @Sendable (RequestContext) -> String =
+            identifierExtractor ?? { request in
+                request.headers["x-forwarded-for"] ?? request.headers["x-real-ip"] ?? "unknown"
+            }
 
         return HTTPMiddleware { request, next in
             let identifier = extractor(request)

@@ -213,24 +213,24 @@ public struct Audio<Content: Node>: Node {
     ///
     /// Corresponds to the boolean `controls` attribute. Set to `false` only
     /// when providing a fully custom playback UI.
-    public let controls: Bool
+    public let showsControls: Bool
 
     /// Whether playback should begin automatically when the page loads.
     ///
-    /// Most browsers suppress audible autoplay; combine with `muted: true`
+    /// Most browsers suppress audible autoplay; combine with `isMuted: true`
     /// for background audio.
-    public let autoplay: Bool
+    public let autoplays: Bool
 
     /// Whether the audio should restart from the beginning after it ends.
     ///
     /// Corresponds to the boolean `loop` attribute.
-    public let loop: Bool
+    public let loops: Bool
 
     /// Whether the audio output should be silenced.
     ///
     /// Setting this to `true` allows autoplay to succeed in browsers that
     /// block audible autoplay.
-    public let muted: Bool
+    public let isMuted: Bool
 
     /// A hint to the browser about how much of the audio to preload.
     ///
@@ -245,25 +245,24 @@ public struct Audio<Content: Node>: Node {
     /// Creates an audio node.
     ///
     /// - Parameters:
-    ///   - src: The URL of the audio resource. Defaults to `nil`.
-    ///   - controls: Whether to show built-in browser controls. Defaults to
-    ///     `true`.
-    ///   - autoplay: Whether playback starts automatically. Defaults to
+    ///   - showsControls: Whether to show built-in browser controls. Defaults
+    ///     to `true`.
+    ///   - autoplays: Whether playback starts automatically. Defaults to
     ///     `false`.
-    ///   - loop: Whether playback loops continuously. Defaults to `false`.
-    ///   - muted: Whether audio output is silenced. Defaults to `false`.
+    ///   - loops: Whether playback loops continuously. Defaults to `false`.
+    ///   - isMuted: Whether audio output is silenced. Defaults to `false`.
     ///   - preload: A preload hint for the browser. Defaults to `nil`.
     ///   - content: A `@NodeBuilder` closure providing child `Source` and
     ///     `Track` nodes. Defaults to an `EmptyNode`.
     public init(
-        src: String? = nil, controls: Bool = true, autoplay: Bool = false, loop: Bool = false, muted: Bool = false, preload: MediaPreload? = nil,
+        src: String? = nil, showsControls: Bool = true, autoplays: Bool = false, loops: Bool = false, isMuted: Bool = false, preload: MediaPreload? = nil,
         @NodeBuilder content: () -> Content = { EmptyNode() }
     ) {
         self.src = src
-        self.controls = controls
-        self.autoplay = autoplay
-        self.loop = loop
-        self.muted = muted
+        self.showsControls = showsControls
+        self.autoplays = autoplays
+        self.loops = loops
+        self.isMuted = isMuted
         self.preload = preload
         self.content = content()
     }
@@ -315,22 +314,22 @@ public struct Video<Content: Node>: Node {
     ///
     /// Corresponds to the boolean `controls` attribute. Set to `false` only
     /// when providing a fully custom playback UI.
-    public let controls: Bool
+    public let showsControls: Bool
 
     /// Whether playback should begin automatically when the page loads.
     ///
     /// Most browsers require the video to also be muted for autoplay to succeed.
-    public let autoplay: Bool
+    public let autoplays: Bool
 
     /// Whether the video should restart from the beginning after it ends.
     ///
     /// Corresponds to the boolean `loop` attribute.
-    public let loop: Bool
+    public let loops: Bool
 
     /// Whether the audio track of the video should be silenced.
     ///
     /// Required by most browsers to allow autoplaying video.
-    public let muted: Bool
+    public let isMuted: Bool
 
     /// A hint to the browser about how much of the video to preload.
     ///
@@ -364,12 +363,12 @@ public struct Video<Content: Node>: Node {
     ///
     /// - Parameters:
     ///   - src: The URL of the video resource. Defaults to `nil`.
-    ///   - controls: Whether to show built-in browser controls. Defaults to
-    ///     `true`.
-    ///   - autoplay: Whether playback starts automatically. Defaults to
+    ///   - showsControls: Whether to show built-in browser controls. Defaults
+    ///     to `true`.
+    ///   - autoplays: Whether playback starts automatically. Defaults to
     ///     `false`.
-    ///   - loop: Whether playback loops continuously. Defaults to `false`.
-    ///   - muted: Whether audio output is silenced. Defaults to `false`.
+    ///   - loops: Whether playback loops continuously. Defaults to `false`.
+    ///   - isMuted: Whether audio output is silenced. Defaults to `false`.
     ///   - preload: A preload hint for the browser. Defaults to `nil`.
     ///   - poster: URL of a poster image displayed before playback. Defaults
     ///     to `nil`.
@@ -378,14 +377,14 @@ public struct Video<Content: Node>: Node {
     ///   - content: A `@NodeBuilder` closure providing child `Source` and
     ///     `Track` nodes. Defaults to an `EmptyNode`.
     public init(
-        src: String? = nil, controls: Bool = true, autoplay: Bool = false, loop: Bool = false, muted: Bool = false, preload: MediaPreload? = nil, poster: String? = nil,
+        src: String? = nil, showsControls: Bool = true, autoplays: Bool = false, loops: Bool = false, isMuted: Bool = false, preload: MediaPreload? = nil, poster: String? = nil,
         width: Int? = nil, height: Int? = nil, @NodeBuilder content: () -> Content = { EmptyNode() }
     ) {
         self.src = src
-        self.controls = controls
-        self.autoplay = autoplay
-        self.loop = loop
-        self.muted = muted
+        self.showsControls = showsControls
+        self.autoplays = autoplays
+        self.loops = loops
+        self.isMuted = isMuted
         self.preload = preload
         self.poster = poster
         self.width = width

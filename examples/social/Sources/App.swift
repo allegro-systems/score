@@ -16,6 +16,14 @@ struct SocialApp: Application {
         ]
     }
 
+    var metadata: Metadata? {
+        Metadata(
+            site: "Social",
+            description: "A social feed application built with Score.",
+            keywords: ["score", "swift", "social", "web"]
+        )
+    }
+
     static func main() async throws {
         try await SocialApp().run()
     }

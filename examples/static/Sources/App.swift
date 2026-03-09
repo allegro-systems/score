@@ -39,7 +39,11 @@ struct SiteTheme: Theme {
     }
     var customColorRoles: [String: [Int: ColorToken]] { [:] }
     var fontFamilies: [String: String] {
-        ["sans": "system-ui, -apple-system, sans-serif", "mono": "ui-monospace, Menlo, monospace"]
+        [
+            "sans": "system-ui, -apple-system, sans-serif",
+            "serif": "ui-serif, Georgia, Cambria, \"Times New Roman\", Times, serif",
+            "mono": "ui-monospace, Menlo, monospace",
+        ]
     }
     var typeScaleBase: Double { 16 }
     var typeScaleRatio: Double { 1.25 }

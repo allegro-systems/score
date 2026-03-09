@@ -29,6 +29,7 @@ public struct DefaultTheme: Theme, Sendable {
     public var fontFamilies: [String: String] {
         [
             "sans": "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif",
+            "serif": "ui-serif, Georgia, Cambria, \"Times New Roman\", Times, serif",
             "mono": "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
         ]
     }
@@ -59,11 +60,4 @@ struct DefaultDarkPatch: ThemePatch, Sendable {
             "success": .oklch(0.7, 0.17, 145),
         ]
     }
-    var customColorRoles: [String: [Int: ColorToken]]? { nil }
-    var fontFamilies: [String: String]? { nil }
-    var typeScaleBase: Double? { nil }
-    var typeScaleRatio: Double? { nil }
-    var spacingUnit: Double? { nil }
-    var radiusBase: Double? { nil }
-    var syntaxThemeName: String? { nil }
 }

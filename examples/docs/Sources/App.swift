@@ -38,7 +38,11 @@ struct DocsTheme: Theme {
     }
     var customColorRoles: [String: [Int: ColorToken]] { [:] }
     var fontFamilies: [String: String] {
-        ["sans": "system-ui, -apple-system, sans-serif", "mono": "ui-monospace, Menlo, monospace"]
+        [
+            "sans": "system-ui, -apple-system, sans-serif",
+            "serif": "ui-serif, Georgia, Cambria, \"Times New Roman\", Times, serif",
+            "mono": "ui-monospace, Menlo, monospace",
+        ]
     }
     var typeScaleBase: Double { 16 }
     var typeScaleRatio: Double { 1.25 }
@@ -65,13 +69,6 @@ struct DarkThemePatch: ThemePatch {
             "muted": .oklch(0.60, 0.02, 250),
         ]
     }
-    var customColorRoles: [String: [Int: ColorToken]]? { nil }
-    var fontFamilies: [String: String]? { nil }
-    var typeScaleBase: Double? { nil }
-    var typeScaleRatio: Double? { nil }
-    var spacingUnit: Double? { nil }
-    var radiusBase: Double? { nil }
-    var syntaxThemeName: String? { nil }
 }
 
 struct OceanThemePatch: ThemePatch {
@@ -82,13 +79,6 @@ struct OceanThemePatch: ThemePatch {
             "accent": .oklch(0.60, 0.15, 200),
         ]
     }
-    var customColorRoles: [String: [Int: ColorToken]]? { nil }
-    var fontFamilies: [String: String]? { nil }
-    var typeScaleBase: Double? { nil }
-    var typeScaleRatio: Double? { nil }
-    var spacingUnit: Double? { nil }
-    var radiusBase: Double? { nil }
-    var syntaxThemeName: String? { nil }
 }
 
 struct ForestThemePatch: ThemePatch {
@@ -99,11 +89,4 @@ struct ForestThemePatch: ThemePatch {
             "accent": .oklch(0.55, 0.14, 145),
         ]
     }
-    var customColorRoles: [String: [Int: ColorToken]]? { nil }
-    var fontFamilies: [String: String]? { nil }
-    var typeScaleBase: Double? { nil }
-    var typeScaleRatio: Double? { nil }
-    var spacingUnit: Double? { nil }
-    var radiusBase: Double? { nil }
-    var syntaxThemeName: String? { nil }
 }

@@ -331,6 +331,29 @@ extension Theme {
 
     /// Default implementation returns no component style overrides.
     public var componentStyles: [String: String] { [:] }
+
+    // MARK: - Typed Color Role Accessors
+
+    /// The resolved surface color from the theme's color roles.
+    public var surface: ColorToken { colorRoles["surface"] ?? .surface }
+
+    /// The resolved text color from the theme's color roles.
+    public var textColor: ColorToken { colorRoles["text"] ?? .text }
+
+    /// The resolved border color from the theme's color roles.
+    public var borderColor: ColorToken { colorRoles["border"] ?? .border }
+
+    /// The resolved accent color from the theme's color roles.
+    public var accentColor: ColorToken { colorRoles["accent"] ?? .accent }
+
+    /// The resolved muted color from the theme's color roles.
+    public var mutedColor: ColorToken { colorRoles["muted"] ?? .muted }
+
+    /// The resolved destructive color from the theme's color roles.
+    public var destructiveColor: ColorToken { colorRoles["destructive"] ?? .destructive }
+
+    /// The resolved success color from the theme's color roles.
+    public var successColor: ColorToken { colorRoles["success"] ?? .success }
 }
 
 /// A protocol for partial theme overrides.
@@ -381,4 +404,31 @@ public protocol ThemePatch: Sendable {
 
     /// Optional syntax-theme identifier override.
     var syntaxThemeName: String? { get }
+}
+
+extension ThemePatch {
+
+    /// Default implementation returns no color-role overrides.
+    public var colorRoles: [String: ColorToken]? { nil }
+
+    /// Default implementation returns no custom color-scale overrides.
+    public var customColorRoles: [String: [Int: ColorToken]]? { nil }
+
+    /// Default implementation returns no font-family overrides.
+    public var fontFamilies: [String: String]? { nil }
+
+    /// Default implementation returns no type-scale base override.
+    public var typeScaleBase: Double? { nil }
+
+    /// Default implementation returns no type-scale ratio override.
+    public var typeScaleRatio: Double? { nil }
+
+    /// Default implementation returns no spacing-unit override.
+    public var spacingUnit: Double? { nil }
+
+    /// Default implementation returns no radius-base override.
+    public var radiusBase: Double? { nil }
+
+    /// Default implementation returns no syntax-theme override.
+    public var syntaxThemeName: String? { nil }
 }

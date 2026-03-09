@@ -29,6 +29,14 @@ public struct ContentCollection: Sendable {
 
         /// The content body with front matter stripped.
         public let body: String
+
+        /// Creates a content item.
+        public init(slug: String, filename: String, frontMatter: FrontMatter?, body: String) {
+            self.slug = slug
+            self.filename = filename
+            self.frontMatter = frontMatter
+            self.body = body
+        }
     }
 
     /// All items in the collection, in the order they were loaded.
@@ -42,18 +50,21 @@ public struct ContentCollection: Sendable {
     /// - Parameter items: The content items to include.
     public init(items: [Item]) {
         self.items = items
-        var idx: [String: Item] = [:]
+        var indexMap: [String: Item] = [:]
         for item in items {
-            idx[item.slug] = item
+            indexMap[item.slug] = item
         }
-        self.index = idx
+        self.index = indexMap
     }
 
     /// Creates a content collection by loading all matching files from a
     /// directory.
     ///
+    /// Both absolute and relative paths are accepted. Relative paths are
+    /// resolved against the current working directory.
+    ///
     /// - Parameters:
-    ///   - directory: The absolute path to the content directory.
+    ///   - directory: The path to the content directory.
     ///   - fileExtension: The file extension filter. Defaults to `"md"`.
     /// - Throws: An error if the directory cannot be read.
     public init(directory: String, fileExtension: String = "md") throws {
@@ -68,6 +79,23 @@ public struct ContentCollection: Sendable {
             )
         }
         self.init(items: mapped)
+    }
+
+    /// Creates a content collection by loading all matching files from a
+    /// directory, returning an empty collection on failure.
+    ///
+    /// Both absolute and relative paths are accepted. Relative paths are
+    /// resolved against the current working directory.
+    ///
+    /// - Parameters:
+    ///   - directory: The path to the content directory.
+    ///   - fileExtension: The file extension filter. Defaults to `"md"`.
+    public init(loading directory: String, fileExtension: String = "md") {
+        if let collection = try? ContentCollection(directory: directory, fileExtension: fileExtension) {
+            self = collection
+        } else {
+            self.init(items: [])
+        }
     }
 
     /// The number of items in the collection.

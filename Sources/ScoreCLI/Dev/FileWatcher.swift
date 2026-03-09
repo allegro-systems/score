@@ -44,20 +44,20 @@ final class FileWatcher: Sendable {
     ///
     /// - Parameter onChange: Called with the list of changed file paths.
     func watch(onChange: @escaping @Sendable ([String]) -> Void) async {
-        var snapshot = buildSnapshot()
+        var snapshot = self.snapshot()
 
         while !Task.isCancelled {
             try? await Task.sleep(for: .seconds(interval))
             guard !Task.isCancelled else { break }
 
-            let current = buildSnapshot()
+            let current = self.snapshot()
             let changed = diff(old: snapshot, new: current)
 
             if !changed.isEmpty {
                 try? await Task.sleep(for: .seconds(debounce))
                 guard !Task.isCancelled else { break }
 
-                let final = buildSnapshot()
+                let final = self.snapshot()
                 let finalChanged = diff(old: snapshot, new: final)
                 snapshot = final
 
@@ -68,10 +68,10 @@ final class FileWatcher: Sendable {
         }
     }
 
-    /// Builds a snapshot of file modification times.
+    /// Returns a snapshot of file modification times.
     ///
     /// Visible for testing via the internal access level.
-    func buildSnapshot() -> [String: Date] {
+    func snapshot() -> [String: Date] {
         var snapshot: [String: Date] = [:]
         let fm = FileManager.default
 

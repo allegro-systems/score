@@ -19,7 +19,7 @@ extension TableStyleModifier: CSSRepresentable {
         var result: [CSSDeclaration] = []
         if let v = layout { result.append(.init(property: "table-layout", value: v.rawValue)) }
         if let v = borderCollapse { result.append(.init(property: "border-collapse", value: v.rawValue)) }
-        if let v = borderSpacing { result.append(.init(property: "border-spacing", value: CSSEmitter.px(v))) }
+        if let v = borderSpacing { result.append(.init(property: "border-spacing", value: CSSEmitter.pixels(v))) }
         if let v = captionSide { result.append(.init(property: "caption-side", value: v.rawValue)) }
         return result
     }

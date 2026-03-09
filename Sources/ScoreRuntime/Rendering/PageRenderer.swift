@@ -1,18 +1,35 @@
-import ScoreCore
 import ScoreCSS
+import ScoreCore
 import ScoreHTML
+
+/// The result of rendering a page, containing both the HTML document
+/// and the extracted component CSS for external file serving.
+public struct RenderResult: Sendable {
+    /// The complete HTML document string.
+    public let html: String
+    /// The component-scoped CSS extracted from the page's node tree.
+    public let componentCSS: String
+}
 
 /// Renders a `Page` to a complete HTML document string.
 public struct PageRenderer: Sendable {
 
     private init() {}
 
-    /// Renders a page with optional application metadata and theme.
+    /// Renders a page with optional application metadata, theme, and CSS links.
+    ///
+    /// - Parameters:
+    ///   - page: The page to render.
+    ///   - appMeta: Application-level metadata.
+    ///   - theme: The active theme.
+    ///   - cssLinks: External CSS file paths to link in `<head>`.
+    /// - Returns: A `RenderResult` containing the HTML and extracted component CSS.
     public static func render(
         page: some Page,
         metadata appMeta: (any Metadata)?,
-        theme: (any Theme)?
-    ) -> String {
+        theme: (any Theme)?,
+        cssLinks: [String] = []
+    ) -> RenderResult {
         let pageMeta = page.metadata
 
         // Compose title
@@ -30,29 +47,34 @@ public struct PageRenderer: Sendable {
         var collector = CSSCollector()
         let classMap = buildClassMap(page: page, collector: &collector)
 
-        let renderer = HTMLRenderer(classInjector: { modifiers in
+        var renderer = HTMLRenderer(classInjector: { modifiers in
             classMap.className(for: modifiers)
         })
+        renderer.componentClassInjector = { node in
+            if node is any Component || node is any Page {
+                return CSSNaming.className(from: String(describing: type(of: node)))
+            }
+            return nil
+        }
         let bodyHTML = renderer.render(page.body)
 
         // Component CSS
         let componentCSS = collector.renderStylesheet()
-
-        // Theme CSS
-        let themeCSS: String? = theme.map { ThemeCSSEmitter.emit($0) }
 
         let parts = DocumentAssembler.Parts(
             title: title,
             description: description,
             keywords: keywords,
             bodyHTML: bodyHTML,
-            themeCSS: themeCSS,
-            componentCSS: componentCSS.isEmpty ? nil : componentCSS,
+            cssLinks: cssLinks,
             structuredData: structuredData,
             activeTheme: theme?.name
         )
 
-        return DocumentAssembler.assemble(parts)
+        return RenderResult(
+            html: DocumentAssembler.assemble(parts),
+            componentCSS: componentCSS
+        )
     }
 
     private static func buildClassMap(

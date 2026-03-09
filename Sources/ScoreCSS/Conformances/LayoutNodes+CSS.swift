@@ -1,11 +1,27 @@
 import ScoreCore
 
-extension Stack: CSSContainerNode {}
-extension Main: CSSContainerNode {}
-extension Section: CSSContainerNode {}
-extension Article: CSSContainerNode {}
-extension Header: CSSContainerNode {}
-extension Footer: CSSContainerNode {}
-extension Aside: CSSContainerNode {}
-extension Navigation: CSSContainerNode {}
+extension Stack: CSSContainerNode {
+    var htmlTag: String? { "div" }
+}
+extension Main: CSSContainerNode {
+    var htmlTag: String? { "main" }
+}
+extension Section: CSSContainerNode {
+    var htmlTag: String? { "section" }
+}
+extension Article: CSSContainerNode {
+    var htmlTag: String? { "article" }
+}
+extension Header: CSSContainerNode {
+    var htmlTag: String? { "header" }
+}
+extension Footer: CSSContainerNode {
+    var htmlTag: String? { "footer" }
+}
+extension Aside: CSSContainerNode {
+    var htmlTag: String? { "aside" }
+}
+extension Navigation: CSSContainerNode {
+    var htmlTag: String? { "nav" }
+}
 extension Group: CSSContainerNode {}

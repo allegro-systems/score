@@ -20,66 +20,74 @@ public struct StaticSiteEmitter: Sendable {
 
     private init() {}
 
-    /// Renders all pages and writes them, along with global CSS, to the
+    /// Renders all pages and writes them, along with external CSS files, to the
     /// application's output directory.
+    ///
+    /// The output directory is wiped clean before each emission so stale
+    /// files from previous builds never linger.
     public static func emit(application: some Application) throws {
         let outputDir = application.outputDirectory
-        let staticDir = "\(outputDir)/static"
+        let fm = FileManager.default
 
-        try FileManager.default.createDirectory(
-            atPath: staticDir,
-            withIntermediateDirectories: true
-        )
+        // Clean previous output
+        if fm.fileExists(atPath: outputDir) {
+            try fm.removeItem(atPath: outputDir)
+        }
+        try fm.createDirectory(atPath: outputDir, withIntermediateDirectories: true)
 
-        // Emit global CSS (theme + component tokens)
-        let themeCSS = application.theme.map { ThemeCSSEmitter.emit($0) } ?? ""
-        let componentCSS = emitComponentTokens()
-        let globalCSS = themeCSS + componentCSS
+        // Create styles directory
+        let stylesDir = "\(outputDir)/styles"
+        try fm.createDirectory(atPath: stylesDir, withIntermediateDirectories: true)
+
+        // Emit global CSS (theme tokens)
+        let globalCSS = application.theme.map { ThemeCSSEmitter.emit($0) } ?? ""
         try globalCSS.write(
-            toFile: "\(staticDir)/as-global.css",
+            toFile: "\(outputDir)/global.css",
             atomically: true,
             encoding: .utf8
         )
 
-        // Emit pages
+        // Emit pages with per-page CSS files
         for page in application.pages {
-            let pagePath = type(of: page).path
-            let html = PageRenderer.render(
+            let pagePath = page.path
+            let cssName = RequestHandler.cssFileName(for: pagePath)
+            let cssLinks = ["/global.css", "/styles/\(cssName).css"]
+
+            let result = PageRenderer.render(
                 page: page,
                 metadata: application.metadata,
-                theme: application.theme
+                theme: application.theme,
+                cssLinks: cssLinks
             )
 
-            // Inject external CSS reference
-            let htmlWithCSS = injectCSSLink(into: html)
+            // Write per-page component CSS
+            if !result.componentCSS.isEmpty {
+                try result.componentCSS.write(
+                    toFile: "\(stylesDir)/\(cssName).css",
+                    atomically: true,
+                    encoding: .utf8
+                )
+            }
 
-            let filePath = outputFilePath(for: pagePath, in: staticDir)
+            // Write HTML
+            let filePath = outputFilePath(for: pagePath, in: outputDir)
             let dirPath = (filePath as NSString).deletingLastPathComponent
-            try FileManager.default.createDirectory(
-                atPath: dirPath,
-                withIntermediateDirectories: true
-            )
-            try htmlWithCSS.write(toFile: filePath, atomically: true, encoding: .utf8)
+            try fm.createDirectory(atPath: dirPath, withIntermediateDirectories: true)
+            try result.html.write(toFile: filePath, atomically: true, encoding: .utf8)
         }
     }
 
-    private static func emitComponentTokens() -> String {
-        // Emit standard data-component CSS custom properties
-        return "\n[data-component] {\n  /* Component token defaults */\n}\n"
-    }
-
-    private static func injectCSSLink(into html: String) -> String {
-        html.replacingOccurrences(
-            of: "</head>",
-            with: "<link rel=\"stylesheet\" href=\"as-global.css\">\n</head>"
-        )
-    }
-
-    private static func outputFilePath(for pagePath: String, in staticDir: String) -> String {
+    /// Maps a page path to a file path.
+    ///
+    /// - `/` → `index.html`
+    /// - `/404` → `404.html`
+    /// - `/docs/score` → `docs/score.html`
+    /// - `/docs/score/application` → `docs/score/application.html`
+    private static func outputFilePath(for pagePath: String, in outputDir: String) -> String {
         if pagePath == "/" {
-            return "\(staticDir)/index.html"
+            return "\(outputDir)/index.html"
         }
         let trimmed = pagePath.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        return "\(staticDir)/\(trimmed)/index.html"
+        return "\(outputDir)/\(trimmed).html"
     }
 }

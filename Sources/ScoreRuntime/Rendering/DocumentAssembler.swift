@@ -9,8 +9,7 @@ public struct DocumentAssembler: Sendable {
         public var description: String?
         public var keywords: [String]?
         public var bodyHTML: String?
-        public var themeCSS: String?
-        public var componentCSS: String?
+        public var cssLinks: [String]
         public var structuredData: [String]?
         public var scripts: [String]?
         public var activeTheme: String?
@@ -20,8 +19,7 @@ public struct DocumentAssembler: Sendable {
             description: String? = nil,
             keywords: [String]? = nil,
             bodyHTML: String? = nil,
-            themeCSS: String? = nil,
-            componentCSS: String? = nil,
+            cssLinks: [String] = [],
             structuredData: [String]? = nil,
             scripts: [String]? = nil,
             activeTheme: String? = nil
@@ -30,8 +28,7 @@ public struct DocumentAssembler: Sendable {
             self.description = description
             self.keywords = keywords
             self.bodyHTML = bodyHTML
-            self.themeCSS = themeCSS
-            self.componentCSS = componentCSS
+            self.cssLinks = cssLinks
             self.structuredData = structuredData
             self.scripts = scripts
             self.activeTheme = activeTheme
@@ -47,9 +44,9 @@ public struct DocumentAssembler: Sendable {
         site: String?
     ) -> String? {
         switch (page, site) {
-        case let (p?, s?): return "\(p)\(separator)\(s)"
-        case let (p?, nil): return p
-        case let (nil, s?): return s
+        case (let p?, let s?): return "\(p)\(separator)\(s)"
+        case (let p?, nil): return p
+        case (nil, let s?): return s
         case (nil, nil): return nil
         }
     }
@@ -80,11 +77,8 @@ public struct DocumentAssembler: Sendable {
             let escaped = keywords.map(\.htmlEscaped).joined(separator: ", ")
             html.append("<meta name=\"keywords\" content=\"\(escaped)\">\n")
         }
-        if let themeCSS = parts.themeCSS {
-            html.append("<style>\n\(themeCSS)</style>\n")
-        }
-        if let componentCSS = parts.componentCSS, !componentCSS.isEmpty {
-            html.append("<style>\n\(componentCSS)</style>\n")
+        for link in parts.cssLinks {
+            html.append("<link rel=\"stylesheet\" href=\"\(link)\">\n")
         }
         if let structuredData = parts.structuredData {
             for data in structuredData {

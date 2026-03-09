@@ -192,7 +192,7 @@ final class TrieNode: @unchecked Sendable {
             if wildcardChild == nil {
                 wildcardChild = TrieNode()
             }
-            wildcardChild!.insert(segments: segments, index: index + 1, entry: entry)
+            wildcardChild?.insert(segments: segments, index: index + 1, entry: entry)
             return
         }
 
@@ -200,14 +200,14 @@ final class TrieNode: @unchecked Sendable {
             if paramChild == nil {
                 paramChild = TrieNode()
             }
-            paramChild!.insert(segments: segments, index: index + 1, entry: entry)
+            paramChild?.insert(segments: segments, index: index + 1, entry: entry)
             return
         }
 
         if literalChildren[segment] == nil {
             literalChildren[segment] = TrieNode()
         }
-        literalChildren[segment]!.insert(segments: segments, index: index + 1, entry: entry)
+        literalChildren[segment]?.insert(segments: segments, index: index + 1, entry: entry)
     }
 
     func collectEntries(

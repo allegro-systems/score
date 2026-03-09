@@ -30,6 +30,7 @@ struct InitCommand: AsyncParsableCommand {
             message: "Configuring project as \(projectName)"
         ) { _ in
             try ProjectNameRewriter().rewrite(at: destination, projectName: projectName)
+            try SwiftFormatConfig.write(to: destination)
         }
 
         noora.success(

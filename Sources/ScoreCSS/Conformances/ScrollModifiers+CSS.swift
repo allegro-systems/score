@@ -12,7 +12,7 @@ extension ScrollBehaviorModifier: CSSRepresentable {
 extension ScrollMarginModifier: CSSRepresentable {
     /// Converts this modifier into one or more CSS declarations.
     func cssDeclarations() -> [CSSDeclaration] {
-        [.init(property: "scroll-margin", value: CSSEmitter.px(value))]
+        [.init(property: "scroll-margin", value: CSSEmitter.pixels(value))]
     }
 }
 
@@ -20,7 +20,7 @@ extension ScrollMarginModifier: CSSRepresentable {
 extension ScrollPaddingModifier: CSSRepresentable {
     /// Converts this modifier into one or more CSS declarations.
     func cssDeclarations() -> [CSSDeclaration] {
-        [.init(property: "scroll-padding", value: CSSEmitter.px(value))]
+        [.init(property: "scroll-padding", value: CSSEmitter.pixels(value))]
     }
 }
 

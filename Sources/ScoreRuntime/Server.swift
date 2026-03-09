@@ -1,6 +1,6 @@
 import NIOCore
-import NIOPosix
 import NIOHTTP1
+import NIOPosix
 import ScoreCore
 import ScoreRouter
 
@@ -34,5 +34,45 @@ public struct Server: Sendable {
     ) {
         self.application = application
         self.configuration = configuration
+    }
+
+    /// Starts the server and begins accepting connections.
+    ///
+    /// Boots the NIO event loop, binds to the configured host and port,
+    /// registers all pages and controller routes, and serves until the
+    /// process is terminated.
+    public func run() async throws {
+        let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
+        defer { group.shutdownGracefully { _ in } }
+
+        let routeTable = RouteTable(application)
+        let pages = Dictionary(
+            uniqueKeysWithValues: application.pages.map { ($0.path, $0) }
+        )
+
+        let bootstrap = ServerBootstrap(group: group)
+            .serverChannelOption(.backlog, value: 256)
+            .serverChannelOption(.socketOption(.so_reuseaddr), value: 1)
+            .childChannelInitializer { channel in
+                channel.pipeline.configureHTTPServerPipeline().flatMap {
+                    channel.pipeline.addHandler(
+                        RequestHandler(
+                            routeTable: routeTable,
+                            pages: pages,
+                            metadata: self.application.metadata,
+                            theme: self.application.theme
+                        )
+                    )
+                }
+            }
+            .childChannelOption(.socketOption(.so_reuseaddr), value: 1)
+            .childChannelOption(.maxMessagesPerRead, value: 1)
+
+        let channel = try await bootstrap.bind(
+            host: configuration.host,
+            port: configuration.port
+        ).get()
+
+        try await channel.closeFuture.get()
     }
 }

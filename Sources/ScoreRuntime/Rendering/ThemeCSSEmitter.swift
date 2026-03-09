@@ -41,12 +41,12 @@ public struct ThemeCSSEmitter: Sendable {
         }
 
         // Typography scale
-        css.append("  --type-scale-base: \(cleanPx(theme.typeScaleBase));\n")
-        css.append("  --type-scale-ratio: \(cleanNum(theme.typeScaleRatio));\n")
+        css.append("  --type-scale-base: \(cleanedPixelValue(theme.typeScaleBase));\n")
+        css.append("  --type-scale-ratio: \(cleanedNumber(theme.typeScaleRatio));\n")
 
         // Spacing and radius
-        css.append("  --spacing-unit: \(cleanPx(theme.spacingUnit));\n")
-        css.append("  --radius-base: \(cleanPx(theme.radiusBase));\n")
+        css.append("  --spacing-unit: \(cleanedPixelValue(theme.spacingUnit));\n")
+        css.append("  --radius-base: \(cleanedPixelValue(theme.radiusBase));\n")
 
         // Component styles
         for (key, value) in theme.componentStyles.sorted(by: { $0.key < $1.key }) {
@@ -70,23 +70,23 @@ public struct ThemeCSSEmitter: Sendable {
             }
         }
         if let base = patch.typeScaleBase {
-            css.append("\(indent)--type-scale-base: \(cleanPx(base));\n")
+            css.append("\(indent)--type-scale-base: \(cleanedPixelValue(base));\n")
         }
         if let ratio = patch.typeScaleRatio {
-            css.append("\(indent)--type-scale-ratio: \(cleanNum(ratio));\n")
+            css.append("\(indent)--type-scale-ratio: \(cleanedNumber(ratio));\n")
         }
         if let spacing = patch.spacingUnit {
-            css.append("\(indent)--spacing-unit: \(cleanPx(spacing));\n")
+            css.append("\(indent)--spacing-unit: \(cleanedPixelValue(spacing));\n")
         }
         if let radius = patch.radiusBase {
-            css.append("\(indent)--radius-base: \(cleanPx(radius));\n")
+            css.append("\(indent)--radius-base: \(cleanedPixelValue(radius));\n")
         }
     }
 
     private static func cssValue(for token: ColorToken) -> String {
         switch token {
         case .oklch(let l, let c, let h):
-            return "oklch(\(cleanNum(l)) \(cleanNum(c)) \(cleanNum(h)))"
+            return "oklch(\(cleanedNumber(l)) \(cleanedNumber(c)) \(cleanedNumber(h)))"
         case .surface: return "inherit"
         case .text: return "inherit"
         case .border: return "inherit"
@@ -107,13 +107,13 @@ public struct ThemeCSSEmitter: Sendable {
         }
     }
 
-    private static func cleanPx(_ value: Double) -> String {
+    private static func cleanedPixelValue(_ value: Double) -> String {
         value.truncatingRemainder(dividingBy: 1) == 0
             ? "\(Int(value))px"
             : "\(value)px"
     }
 
-    private static func cleanNum(_ value: Double) -> String {
+    private static func cleanedNumber(_ value: Double) -> String {
         value.truncatingRemainder(dividingBy: 1) == 0
             ? "\(Int(value))"
             : "\(value)"

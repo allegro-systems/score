@@ -326,6 +326,15 @@ public protocol Theme: Sendable {
 
 extension Theme {
 
+    /// Default implementation returns an empty custom color scale map.
+    public var customColorRoles: [String: [Int: ColorToken]] { [:] }
+
+    /// Default implementation returns `nil`, meaning no syntax theme override.
+    public var syntaxThemeName: String? { nil }
+
+    /// Default implementation returns `nil`, meaning no dark-mode patch.
+    public var dark: (any ThemePatch)? { nil }
+
     /// Default implementation returns no named variants.
     public var named: [String: any ThemePatch] { [:] }
 

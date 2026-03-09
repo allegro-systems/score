@@ -39,10 +39,17 @@ struct DevCommand: AsyncParsableCommand {
 private nonisolated(unsafe) var _devRunnerServerProcess: LockedValue<Process?>?
 
 private func _devRunnerSignalHandler(_: Int32) {
-    _devRunnerServerProcess?.withLock { process in
-        if let process, process.isRunning {
-            process.terminate()
-            process.waitUntilExit()
+    let pid = _devRunnerServerProcess?.withLock { $0?.processIdentifier } ?? 0
+    if pid > 0 {
+        // Send SIGTERM for graceful NIO shutdown.
+        kill(pid, SIGTERM)
+        // Wait briefly, then force-kill if still alive.
+        usleep(500_000)
+        // Check if process is still running (waitpid with WNOHANG).
+        var status: Int32 = 0
+        if waitpid(pid, &status, WNOHANG) == 0 {
+            kill(pid, SIGKILL)
+            waitpid(pid, &status, 0)
         }
     }
     exit(0)
@@ -87,6 +94,7 @@ final class DevRunner: Sendable {
         }
 
         startServer(executable: executable)
+        printStatusBlock(icon: "✔", style: .success, message: "Server running on \(serverURL)")
 
         let watcher = FileWatcher(
             directories: watchDirectories(),
@@ -96,27 +104,26 @@ final class DevRunner: Sendable {
         await watcher.watch { [self] changed in
             let count = changed.count
             let label = count == 1 ? "1 file changed" : "\(count) files changed"
-            noora.info(.alert("\(label), rebuilding..."))
+            self.replaceStatusBlock(icon: "i", style: .info, message: "\(label), rebuilding...")
 
             self.stopServer()
 
             do {
                 let result = try SwiftToolchain.build(release: false, in: self.directory)
-                if result.success {
+                if result.succeeded {
                     self.startServer(executable: executable)
+                    self.replaceStatusBlock(icon: "✔", style: .success, message: "Server running on \(self.serverURL)")
                 } else {
                     let errors = result.errors.filter { $0.severity == .error }
                     if errors.isEmpty {
-                        noora.error(.alert("Rebuild failed", takeaways: ["Check terminal output for details"]))
+                        self.replaceStatusBlock(icon: "⨯", style: .error, message: "Rebuild failed — check terminal output for details")
                     } else {
-                        let takeaways = errors.prefix(5).map {
-                            TerminalText("\($0.file):\($0.line) — \($0.message)")
-                        }
-                        noora.error(.alert("Rebuild failed", takeaways: takeaways))
+                        let detail = errors.prefix(3).map { "\($0.file):\($0.line) — \($0.message)" }.joined(separator: "\n")
+                        self.replaceStatusBlock(icon: "⨯", style: .error, message: "Rebuild failed\n\(detail)")
                     }
                 }
             } catch {
-                noora.error(.alert("Rebuild failed", takeaways: ["\(error)"]))
+                self.replaceStatusBlock(icon: "⨯", style: .error, message: "Rebuild failed — \(error)")
             }
         }
     }
@@ -136,7 +143,7 @@ final class DevRunner: Sendable {
                 }
                 resultBox.withLock { $0 = buildResult }
 
-                if !buildResult.success {
+                if !buildResult.succeeded {
                     throw CLIError.processFailure(command: "swift build", exitCode: 1, stderr: "")
                 }
             }
@@ -190,6 +197,38 @@ final class DevRunner: Sendable {
             candidates
             .map { "\(directory)/\($0)" }
             .filter { fm.fileExists(atPath: $0) }
+    }
+
+    private var serverURL: String {
+        "http://127.0.0.1:\(port)"
+    }
+
+    private let statusLineCount = LockedValue<Int>(0)
+
+    enum StatusStyle {
+        case info, success, error
+    }
+
+    private func printStatusBlock(icon: String, style: StatusStyle, message: String) {
+        let styledIcon: String
+        switch style {
+        case .info: styledIcon = "\u{1B}[36m\(icon)\u{1B}[0m"
+        case .success: styledIcon = "\u{1B}[32m\(icon)\u{1B}[0m"
+        case .error: styledIcon = "\u{1B}[31m\(icon)\u{1B}[0m"
+        }
+        let output = "  \(styledIcon) \(message)"
+        print(output)
+        let lineCount = output.components(separatedBy: "\n").count
+        statusLineCount.withLock { $0 = lineCount }
+    }
+
+    private func replaceStatusBlock(icon: String, style: StatusStyle, message: String) {
+        let previousCount = statusLineCount.withLock { $0 }
+        if previousCount > 0 {
+            let moveUp = String(repeating: "\u{1B}[1A\u{1B}[2K", count: previousCount)
+            print(moveUp, terminator: "\r")
+        }
+        printStatusBlock(icon: icon, style: style, message: message)
     }
 
     private func installSignalHandler() {

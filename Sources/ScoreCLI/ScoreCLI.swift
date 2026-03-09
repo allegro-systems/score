@@ -1,7 +1,7 @@
 import ArgumentParser
 
 @main
-struct ScoreCLI: ParsableCommand {
+struct ScoreCLI: AsyncParsableCommand {
 
     static let configuration = CommandConfiguration(
         commandName: "score",

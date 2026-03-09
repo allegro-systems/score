@@ -2,3 +2,4 @@
 @_exported import ScoreCore
 @_exported import ScoreHTML
 @_exported import ScoreRouter
+@_exported import ScoreStorage

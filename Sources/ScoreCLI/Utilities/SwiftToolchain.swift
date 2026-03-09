@@ -41,7 +41,7 @@ struct SwiftToolchain: Sendable {
         let diagnostics = CompilerDiagnostic.parse(result.stderr)
 
         return BuildResult(
-            success: result.succeeded,
+            succeeded: result.succeeded,
             output: result.stdout + result.stderr,
             errors: diagnostics
         )
@@ -80,7 +80,7 @@ struct SwiftToolchain: Sendable {
         let diagnostics = CompilerDiagnostic.parse(output)
 
         return BuildResult(
-            success: exitCode == 0,
+            succeeded: exitCode == 0,
             output: output,
             errors: diagnostics
         )
@@ -174,7 +174,7 @@ struct SwiftToolchain: Sendable {
 /// The result of a Swift build operation.
 struct BuildResult: Sendable {
     /// Whether the build succeeded.
-    let success: Bool
+    let succeeded: Bool
 
     /// The combined stdout and stderr output.
     let output: String

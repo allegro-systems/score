@@ -28,7 +28,7 @@ public struct CSSCollector: Sendable {
     /// A rule set mapping a generated scope class name to its declarations.
     public struct Rule: Sendable, Hashable {
 
-        /// The generated CSS class name for this scope (e.g. `"s-a1b2c3"`).
+        /// The generated CSS class name for this scope (e.g. `"s0"`).
         public let className: String
 
         /// The CSS declarations that form this rule's body.
@@ -37,6 +37,7 @@ public struct CSSCollector: Sendable {
 
     private var rules: [String: Rule] = [:]
     private var order: [String] = []
+    private var nextIndex: Int = 0
 
     /// Creates an empty collector.
     public init() {}
@@ -70,8 +71,8 @@ public struct CSSCollector: Sendable {
     /// - Returns: A complete CSS stylesheet string.
     public func renderStylesheet() -> String {
         var output = ""
-        for className in order {
-            guard let rule = rules[className] else { continue }
+        for fingerprint in order {
+            guard let rule = rules[fingerprint] else { continue }
             output.append(".\(rule.className) {\n")
             for declaration in rule.declarations {
                 output.append("  \(declaration.render());\n")
@@ -84,7 +85,7 @@ public struct CSSCollector: Sendable {
     // MARK: - Tree Walking
 
     private mutating func walk(_ node: some Node) {
-        if let modified = node as? any _NodeContainingModifiers {
+        if let modified = node as? any ModifierContaining {
             registerModifiers(modified.modifiers)
             modified.collectChildCSS(into: &self)
             return
@@ -105,14 +106,17 @@ public struct CSSCollector: Sendable {
         }
         guard !declarations.isEmpty else { return }
 
-        let className = scopeClassName(for: declarations)
-        if rules[className] == nil {
-            rules[className] = Rule(className: className, declarations: declarations)
-            order.append(className)
+        let fingerprint = declarationFingerprint(for: declarations)
+        if rules[fingerprint] == nil {
+            let className = "s\(nextIndex)"
+            nextIndex += 1
+            rules[fingerprint] = Rule(className: className, declarations: declarations)
+            order.append(fingerprint)
         }
     }
 
-    private func scopeClassName(for declarations: [CSSDeclaration]) -> String {
+    /// FNV-1a hash of declaration content, used as deduplication key only.
+    private func declarationFingerprint(for declarations: [CSSDeclaration]) -> String {
         var hash: UInt64 = 14_695_981_039_346_656_037
         for d in declarations {
             for byte in d.property.utf8 {
@@ -124,21 +128,26 @@ public struct CSSCollector: Sendable {
                 hash &*= 1_099_511_628_211
             }
         }
-        return "s-\(String(hash, radix: 36))"
+        return String(hash, radix: 36)
     }
 }
 
-// MARK: - _NodeContainingModifiers
+// MARK: - ModifierContaining
 
-/// Internal protocol that allows `CSSCollector` to detect and descend into
-/// `ModifiedNode` without triggering the "some types are only permitted in
-/// properties, subscripts, and functions" compiler error.
-protocol _NodeContainingModifiers {
+/// A node that contains modifier values and can expose its children
+/// for CSS collection.
+///
+/// `CSSCollector` uses this to detect and descend into `ModifiedNode`
+/// without triggering generic type constraints at the call site.
+protocol ModifierContaining {
     var modifiers: [any ModifierValue] { get }
+    /// The inner content node, type-erased for chain flattening.
+    var innerContent: any Node { get }
     func collectChildCSS(into collector: inout CSSCollector)
 }
 
-extension ModifiedNode: _NodeContainingModifiers {
+extension ModifiedNode: ModifierContaining {
+    var innerContent: any Node { content }
     func collectChildCSS(into collector: inout CSSCollector) {
         collector.collect(from: content)
     }
@@ -152,7 +161,14 @@ extension ModifiedNode: _NodeContainingModifiers {
 /// `CSSWalkable` so that `CSSCollector` can traverse them without calling
 /// `body`, which would trap at runtime for primitive nodes.
 protocol CSSWalkable {
+    /// The HTML tag this node renders as, used for CSS nesting selectors.
+    /// Returns `nil` for nodes that don't emit a tag (e.g. `Group`, `Text`).
+    var htmlTag: String? { get }
     func walkChildren(collector: inout CSSCollector)
+}
+
+extension CSSWalkable {
+    var htmlTag: String? { nil }
 }
 
 // MARK: - CSSContainerNode

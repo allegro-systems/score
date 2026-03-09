@@ -1,25 +1,18 @@
 import ScoreCore
 
-/// Enables CSS emission for `FontModifier` modifiers.
 extension FontModifier: CSSRepresentable {
-    /// Converts this modifier into one or more CSS declarations.
     func cssDeclarations() -> [CSSDeclaration] {
         var result: [CSSDeclaration] = []
-        if let v = family { result.append(.init(property: "font-family", value: v.cssValue)) }
-        if let v = size { result.append(.init(property: "font-size", value: CSSEmitter.px(v))) }
-        if let v = weight { result.append(.init(property: "font-weight", value: v.cssValue)) }
-        if let v = tracking { result.append(.init(property: "letter-spacing", value: CSSEmitter.px(v))) }
-        if let v = lineHeight { result.append(.init(property: "line-height", value: CSSEmitter.num(v))) }
-        if let v = color { result.append(.init(property: "color", value: v.cssValue)) }
-        return result
-    }
-}
 
-/// Enables CSS emission for `TextStyleModifier` modifiers.
-extension TextStyleModifier: CSSRepresentable {
-    /// Converts this modifier into one or more CSS declarations.
-    func cssDeclarations() -> [CSSDeclaration] {
-        var result: [CSSDeclaration] = []
+        // Font properties
+        if let v = family { result.append(.init(property: "font-family", value: v.cssValue)) }
+        if let v = size { result.append(.init(property: "font-size", value: CSSEmitter.pixels(v))) }
+        if let v = weight { result.append(.init(property: "font-weight", value: v.cssValue)) }
+        if let v = tracking { result.append(.init(property: "letter-spacing", value: CSSEmitter.pixels(v))) }
+        if let v = lineHeight { result.append(.init(property: "line-height", value: CSSEmitter.number(v))) }
+        if let v = color { result.append(.init(property: "color", value: v.cssValue)) }
+
+        // Text style properties
         if let v = align { result.append(.init(property: "text-align", value: v.rawValue)) }
         if let v = transform { result.append(.init(property: "text-transform", value: v.rawValue)) }
         if let v = decoration { result.append(.init(property: "text-decoration", value: v.rawValue)) }
@@ -35,7 +28,8 @@ extension TextStyleModifier: CSSRepresentable {
             result.append(.init(property: "-webkit-line-clamp", value: String(v)))
             result.append(.init(property: "overflow", value: "hidden"))
         }
-        if let v = indent { result.append(.init(property: "text-indent", value: CSSEmitter.px(v))) }
+        if let v = indent { result.append(.init(property: "text-indent", value: CSSEmitter.pixels(v))) }
+
         return result
     }
 }

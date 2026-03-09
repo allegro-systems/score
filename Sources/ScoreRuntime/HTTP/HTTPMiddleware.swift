@@ -6,17 +6,19 @@
 public struct HTTPMiddleware: Sendable {
 
     /// The middleware handler closure.
-    public let handler: @Sendable (
-        RequestContext,
-        @Sendable (RequestContext) async throws -> Response
-    ) async throws -> Response
-
-    /// Creates a middleware with the given handler.
-    public init(
-        handler: @escaping @Sendable (
+    public let handler:
+        @Sendable (
             RequestContext,
             @Sendable (RequestContext) async throws -> Response
         ) async throws -> Response
+
+    /// Creates a middleware with the given handler.
+    public init(
+        handler:
+            @escaping @Sendable (
+                RequestContext,
+                @Sendable (RequestContext) async throws -> Response
+            ) async throws -> Response
     ) {
         self.handler = handler
     }

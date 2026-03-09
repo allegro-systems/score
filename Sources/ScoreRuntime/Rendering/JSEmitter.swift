@@ -15,10 +15,9 @@ public struct JSEmitter: Sendable {
         public let name: String
     }
 
-    /// Information about an `@Action` property extracted via Mirror.
+    /// Information about an `@Action` function extracted via Mirror.
     public struct ActionInfo: Sendable {
         public let name: String
-        public let jsBody: String
     }
 
     /// Information about an event binding extracted from a node tree.
@@ -36,14 +35,15 @@ public struct JSEmitter: Sendable {
         let mirror = Mirror(reflecting: page)
         var states: [StateInfo] = []
         for child in mirror.children {
-            guard let marker = child.value as? any _StateMarker else { continue }
+            guard let marker = child.value as? any StateIdentifying else { continue }
             let name = cleanLabel(child.label)
             let initialValue = formatInitialValue(child.value)
-            states.append(StateInfo(
-                name: name,
-                initialValue: initialValue,
-                effect: marker.stateJSEffect
-            ))
+            states.append(
+                StateInfo(
+                    name: name,
+                    initialValue: initialValue,
+                    effect: marker.stateJSEffect
+                ))
         }
         return states
     }
@@ -53,22 +53,22 @@ public struct JSEmitter: Sendable {
         let mirror = Mirror(reflecting: page)
         var computeds: [ComputedInfo] = []
         for child in mirror.children {
-            guard child.value is any _ComputedMarker else { continue }
+            guard child.value is any ComputedIdentifying else { continue }
             computeds.append(ComputedInfo(name: cleanLabel(child.label)))
         }
         return computeds
     }
 
-    /// Extracts all `@Action` properties from a page instance.
+    /// Extracts all `@Action` functions from a page instance.
+    ///
+    /// The `@Action` macro generates `_action_<name>` peer properties of type
+    /// `ActionDescriptor`. This method finds them via Mirror reflection.
     public static func extractActions(from page: some Page) -> [ActionInfo] {
         let mirror = Mirror(reflecting: page)
         var actions: [ActionInfo] = []
         for child in mirror.children {
-            guard let action = child.value as? Action else { continue }
-            actions.append(ActionInfo(
-                name: cleanLabel(child.label),
-                jsBody: action.jsBody
-            ))
+            guard let descriptor = child.value as? ActionDescriptor else { continue }
+            actions.append(ActionInfo(name: descriptor.name))
         }
         return actions
     }
@@ -108,7 +108,7 @@ public struct JSEmitter: Sendable {
 
         // Action function declarations
         for action in actions {
-            js.append("function \(action.name)(event) { \(action.jsBody) }\n")
+            js.append("function \(action.name)(event) {}\n")
         }
 
         // Event bindings
@@ -155,22 +155,23 @@ public struct JSEmitter: Sendable {
 
     static func walkForEvents(_ node: some Node, into bindings: inout [EventBinding]) {
         // Check for modified node with event bindings
-        if let modified = node as? any _ModifiedNodeAccess {
-            for modifier in modified._modifiers {
+        if let modified = node as? any ModifiedNodeAccessible {
+            for modifier in modified.accessibleModifiers {
                 if let eventMod = modifier as? EventBindingModifier {
-                    bindings.append(EventBinding(
-                        event: eventMod.event.name,
-                        handler: eventMod.handler
-                    ))
+                    bindings.append(
+                        EventBinding(
+                            event: eventMod.event.name,
+                            handler: eventMod.handler
+                        ))
                 }
             }
-            modified._walkContent(into: &bindings)
+            modified.walkContent(into: &bindings)
             return
         }
 
         // Walk primitive node types
-        if let walkable = node as? any _JSEventWalkable {
-            walkable._walkForJSEvents(into: &bindings)
+        if let walkable = node as? any JSEventWalkable {
+            walkable.walkForJSEvents(into: &bindings)
             return
         }
 
@@ -184,32 +185,32 @@ public struct JSEmitter: Sendable {
 // MARK: - Internal Protocols for Walking
 
 /// Internal protocol for accessing ModifiedNode's modifiers and content.
-protocol _ModifiedNodeAccess {
-    var _modifiers: [any ModifierValue] { get }
-    func _walkContent(into bindings: inout [JSEmitter.EventBinding])
+protocol ModifiedNodeAccessible {
+    var accessibleModifiers: [any ModifierValue] { get }
+    func walkContent(into bindings: inout [JSEmitter.EventBinding])
 }
 
-extension ModifiedNode: _ModifiedNodeAccess {
-    var _modifiers: [any ModifierValue] { modifiers }
-    func _walkContent(into bindings: inout [JSEmitter.EventBinding]) {
+extension ModifiedNode: ModifiedNodeAccessible {
+    var accessibleModifiers: [any ModifierValue] { modifiers }
+    func walkContent(into bindings: inout [JSEmitter.EventBinding]) {
         JSEmitter.walkForEvents(content, into: &bindings)
     }
 }
 
 /// Internal protocol for primitive nodes to walk their children for event bindings.
-protocol _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding])
+protocol JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding])
 }
 
 // Builder nodes
-extension TupleNode: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {
+extension TupleNode: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {
         repeat JSEmitter.walkForEvents(each children, into: &bindings)
     }
 }
 
-extension ConditionalNode: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {
+extension ConditionalNode: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {
         switch storage {
         case .first(let node): JSEmitter.walkForEvents(node, into: &bindings)
         case .second(let node): JSEmitter.walkForEvents(node, into: &bindings)
@@ -217,237 +218,237 @@ extension ConditionalNode: _JSEventWalkable {
     }
 }
 
-extension OptionalNode: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {
+extension OptionalNode: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {
         if let node = wrapped { JSEmitter.walkForEvents(node, into: &bindings) }
     }
 }
 
-extension ForEachNode: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {
+extension ForEachNode: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {
         for item in data { JSEmitter.walkForEvents(content(item), into: &bindings) }
     }
 }
 
-extension ArrayNode: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {
+extension ArrayNode: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {
         for child in children { JSEmitter.walkForEvents(child, into: &bindings) }
     }
 }
 
-extension EmptyNode: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {}
+extension EmptyNode: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {}
 }
 
-extension TextNode: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {}
+extension TextNode: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {}
 }
 
-extension RawTextNode: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {}
+extension RawTextNode: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {}
 }
 
 // Container domain nodes — walk content
-extension Heading: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Heading: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Paragraph: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Paragraph: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Text: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Text: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Strong: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Strong: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Emphasis: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Emphasis: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Small: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Small: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Mark: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Mark: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Code: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Code: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Preformatted: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Preformatted: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Blockquote: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Blockquote: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Address: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Address: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Stack: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Stack: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Main: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Main: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Section: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Section: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Article: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Article: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Header: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Header: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Footer: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Footer: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Aside: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Aside: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Navigation: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Navigation: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Group: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Group: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Link: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Link: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Button: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Button: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Form: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Form: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Label: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Label: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Select: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Select: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Option: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Option: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension OptionGroup: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension OptionGroup: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Fieldset: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Fieldset: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Legend: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Legend: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Output: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Output: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension DataList: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension DataList: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Dialog: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Dialog: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Menu: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Menu: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Summary: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Summary: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Details: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {
+extension Details: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {
         JSEmitter.walkForEvents(summary, into: &bindings)
         JSEmitter.walkForEvents(content, into: &bindings)
     }
 }
-extension UnorderedList: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension UnorderedList: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension OrderedList: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension OrderedList: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension ListItem: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension ListItem: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension DescriptionList: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension DescriptionList: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension DescriptionTerm: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension DescriptionTerm: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension DescriptionDetails: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension DescriptionDetails: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Table: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Table: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension TableCaption: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension TableCaption: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension TableHead: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension TableHead: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension TableBody: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension TableBody: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension TableFooter: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension TableFooter: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension TableRow: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension TableRow: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension TableHeaderCell: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension TableHeaderCell: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension TableCell: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension TableCell: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension TableColumnGroup: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension TableColumnGroup: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Figure: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Figure: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension FigureCaption: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension FigureCaption: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Audio: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Audio: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Video: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Video: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Picture: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Picture: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
-extension Canvas: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
+extension Canvas: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) { JSEmitter.walkForEvents(content, into: &bindings) }
 }
 
 // Leaf nodes
-extension HorizontalRule: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {}
+extension HorizontalRule: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {}
 }
-extension LineBreak: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {}
+extension LineBreak: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {}
 }
-extension Image: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {}
+extension Image: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {}
 }
-extension Input: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {}
+extension Input: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {}
 }
-extension TextArea: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {}
+extension TextArea: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {}
 }
-extension Progress: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {}
+extension Progress: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {}
 }
-extension Meter: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {}
+extension Meter: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {}
 }
-extension Source: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {}
+extension Source: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {}
 }
-extension Track: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {}
+extension Track: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {}
 }
-extension TableColumn: _JSEventWalkable {
-    func _walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {}
+extension TableColumn: JSEventWalkable {
+    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {}
 }

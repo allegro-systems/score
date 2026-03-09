@@ -15,10 +15,10 @@
 ///
 /// ```swift
 /// Dialog(open: true) {
-///     Heading(.two) { Text(verbatim: "Confirm Deletion") }
-///     Paragraph { Text(verbatim: "Are you sure you want to delete this item?") }
-///     Button(type: .submit) { Text(verbatim: "Delete") }
-///     Button(type: .button) { Text(verbatim: "Cancel") }
+///     Heading(.two) { "Confirm Deletion" }
+///     Paragraph { "Are you sure you want to delete this item?" }
+///     Button(type: .submit) { "Delete" }
+///     Button(type: .button) { "Cancel" }
 /// }
 /// ```
 ///

@@ -33,10 +33,10 @@ public struct CSSEmitter {
 extension CSSEmitter {
 
     /// Formats a point value as a CSS `px` string, omitting the decimal for whole numbers.
-    static func px(_ value: Double) -> String { "\(value.cleanValue)px" }
+    static func pixels(_ value: Double) -> String { "\(value.cleanValue)px" }
 
     /// Formats a unitless number, omitting the decimal for whole numbers.
-    static func num(_ value: Double) -> String { value.cleanValue }
+    static func number(_ value: Double) -> String { value.cleanValue }
 
     /// Formats a duration value as a CSS `s` string, omitting the decimal for whole seconds.
     static func seconds(_ value: Double) -> String { "\(value.cleanValue)s" }
@@ -45,10 +45,10 @@ extension CSSEmitter {
     /// shorthand declaration when no edges are specified.
     static func spacingDeclarations(_ base: String, value: Double, edges: Set<Edge>?) -> [CSSDeclaration] {
         guard let edges, !edges.isEmpty else {
-            return [CSSDeclaration(property: base, value: px(value))]
+            return [CSSDeclaration(property: base, value: pixels(value))]
         }
         return edges.map { edge in
-            CSSDeclaration(property: "\(base)-\(edge.cssSuffix)", value: px(value))
+            CSSDeclaration(property: "\(base)-\(edge.cssSuffix)", value: pixels(value))
         }
     }
 }

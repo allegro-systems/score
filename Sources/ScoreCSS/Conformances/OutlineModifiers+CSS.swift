@@ -5,9 +5,9 @@ extension OutlineModifier: CSSRepresentable {
     /// Converts this modifier into one or more CSS declarations.
     func cssDeclarations() -> [CSSDeclaration] {
         var result: [CSSDeclaration] = [
-            .init(property: "outline", value: "\(CSSEmitter.px(width)) \(style.rawValue) \(color.cssValue)")
+            .init(property: "outline", value: "\(CSSEmitter.pixels(width)) \(style.rawValue) \(color.cssValue)")
         ]
-        if let v = offset { result.append(.init(property: "outline-offset", value: CSSEmitter.px(v))) }
+        if let v = offset { result.append(.init(property: "outline-offset", value: CSSEmitter.pixels(v))) }
         return result
     }
 }

@@ -46,12 +46,12 @@ public struct DevToolsInjector: Sendable {
         let computedJSON = computedNames.map { "\"\($0)\"" }.joined(separator: ", ")
 
         return """
-        <script>
-        window.__SCORE_DEV_META__ = {
-          states: [\(stateJSON)],
-          computeds: [\(computedJSON)]
-        };
-        </script>
-        """
+            <script>
+            window.__SCORE_DEV_META__ = {
+              states: [\(stateJSON)],
+              computeds: [\(computedJSON)]
+            };
+            </script>
+            """
     }
 }

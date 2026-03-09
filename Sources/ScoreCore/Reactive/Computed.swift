@@ -16,7 +16,7 @@
 ///     @Computed var total: Double { price * Double(quantity) }
 ///
 ///     var body: some Node {
-///         Text(verbatim: "Total: \(total)")
+///         Text { "Total: \(total)" }
 ///     }
 /// }
 /// ```

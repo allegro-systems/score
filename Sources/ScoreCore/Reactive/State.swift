@@ -17,12 +17,13 @@
 ///     @State(effect: "scope.dataset.state = isPressed.get() ? 'on' : 'off'")
 ///     var isPressed = false
 ///
-///     @Action(js: "isPressed.set(!isPressed.get())")
-///     var toggle = {}
+///     @Action func toggle() {
+///         isPressed.toggle()
+///     }
 ///
 ///     var body: some Node {
-///         Button { Text(verbatim: "Toggle") }
-///             .on(.click, "toggle")
+///         Button { "Toggle" }
+///             .on(.click, action: "toggle")
 ///             .dataAttribute("state", isPressed ? "on" : "off")
 ///     }
 /// }

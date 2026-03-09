@@ -50,4 +50,13 @@ public struct Response: Sendable {
             body: data
         )
     }
+
+    /// Creates a CSS response.
+    public static func css(_ string: String, status: HTTPResponse.Status = .ok) -> Response {
+        Response(
+            status: status,
+            headers: ["content-type": "text/css; charset=utf-8"],
+            body: Data(string.utf8)
+        )
+    }
 }

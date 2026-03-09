@@ -4,7 +4,7 @@ import ScoreCore
 extension OpacityModifier: CSSRepresentable {
     /// Converts this modifier into one or more CSS declarations.
     func cssDeclarations() -> [CSSDeclaration] {
-        [.init(property: "opacity", value: CSSEmitter.num(value))]
+        [.init(property: "opacity", value: CSSEmitter.number(value))]
     }
 }
 
@@ -12,7 +12,7 @@ extension OpacityModifier: CSSRepresentable {
 extension ShadowModifier: CSSRepresentable {
     /// Converts this modifier into one or more CSS declarations.
     func cssDeclarations() -> [CSSDeclaration] {
-        let v = "\(CSSEmitter.px(x)) \(CSSEmitter.px(y)) \(CSSEmitter.px(blur)) \(CSSEmitter.px(spread)) \(color.cssValue)"
+        let v = "\(CSSEmitter.pixels(x)) \(CSSEmitter.pixels(y)) \(CSSEmitter.pixels(blur)) \(CSSEmitter.pixels(spread)) \(color.cssValue)"
         return [.init(property: "box-shadow", value: v)]
     }
 }
@@ -21,6 +21,6 @@ extension ShadowModifier: CSSRepresentable {
 extension RadiusModifier: CSSRepresentable {
     /// Converts this modifier into one or more CSS declarations.
     func cssDeclarations() -> [CSSDeclaration] {
-        [.init(property: "border-radius", value: CSSEmitter.px(value))]
+        [.init(property: "border-radius", value: CSSEmitter.pixels(value))]
     }
 }

@@ -78,7 +78,7 @@ public struct DOMEvent: Sendable, Hashable {
 ///
 /// ```swift
 /// Button("Save")
-///     .on(.click, "handleSave")
+///     .on(.click, action: "handleSave")
 /// ```
 ///
 /// ### CSS Mapping
@@ -118,14 +118,14 @@ extension Node {
     ///
     /// ```swift
     /// Input(type: .text)
-    ///     .on(.input, "updateSearch")
+    ///     .on(.input, action: "updateSearch")
     /// ```
     ///
     /// - Parameters:
     ///   - event: The DOM event to listen for.
     ///   - handler: The name of the action handler to invoke.
     /// - Returns: A `ModifiedNode` with the event binding applied.
-    public func on(_ event: DOMEvent, _ handler: String) -> ModifiedNode<Self> {
+    public func on(_ event: DOMEvent, action handler: String) -> ModifiedNode<Self> {
         modifier(EventBindingModifier(event: event, handler: handler))
     }
 }

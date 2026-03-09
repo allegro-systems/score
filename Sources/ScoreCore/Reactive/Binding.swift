@@ -27,9 +27,9 @@
 ///
 ///     var body: some Node {
 ///         Stack {
-///             Button { "-" }.on(.click, "decrement")
-///             Text(verbatim: "\(count)")
-///             Button { "+" }.on(.click, "increment")
+///             Button { "-" }.on(.click, action: "decrement")
+///             Text { "\(count)" }
+///             Button { "+" }.on(.click, action: "increment")
 ///         }
 ///     }
 /// }

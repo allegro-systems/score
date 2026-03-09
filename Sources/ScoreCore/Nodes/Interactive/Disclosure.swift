@@ -9,9 +9,9 @@
 ///
 /// ```swift
 /// Details(summary: {
-///     Summary { Text(verbatim: "What is Score?") }
+///     Summary { "What is Score?" }
 /// }) {
-///     Paragraph { Text(verbatim: "Score is a Swift DSL for building HTML documents.") }
+///     Paragraph { "Score is a Swift DSL for building HTML documents." }
 /// }
 /// ```
 ///
@@ -52,19 +52,19 @@ public struct Summary<Content: Node>: Node {
 ///
 /// ```swift
 /// Details(summary: {
-///     Summary { Text(verbatim: "System Requirements") }
+///     Summary { "System Requirements" }
 /// }) {
 ///     UnorderedList {
-///         ListItem { Text(verbatim: "macOS 13 or later") }
-///         ListItem { Text(verbatim: "4 GB RAM minimum") }
+///         ListItem { "macOS 13 or later" }
+///         ListItem { "4 GB RAM minimum" }
 ///     }
 /// }
 ///
 /// // Pre-expanded
 /// Details(open: true, summary: {
-///     Summary { Text(verbatim: "Release Notes") }
+///     Summary { "Release Notes" }
 /// }) {
-///     Paragraph { Text(verbatim: "Version 2.0 introduces Swift 6 concurrency support.") }
+///     Paragraph { "Version 2.0 introduces Swift 6 concurrency support." }
 /// }
 /// ```
 ///

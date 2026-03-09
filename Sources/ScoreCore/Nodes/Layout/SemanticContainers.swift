@@ -48,8 +48,8 @@ public struct Main<Content: Node>: Node {
 ///
 /// ```swift
 /// Section {
-///     Heading(.two) { Text(verbatim: "About Us") }
-///     Text(verbatim: "We build great things.")
+///     Heading(.two) { "About Us" }
+///     Text { "We build great things." }
 /// }
 /// ```
 ///
@@ -83,8 +83,8 @@ public struct Section<Content: Node>: Node {
 ///
 /// ```swift
 /// Article {
-///     Heading(.two) { Text(verbatim: "Swift 6 Released") }
-///     Text(verbatim: "Apple announced Swift 6 with strict concurrency checking...")
+///     Heading(.two) { "Swift 6 Released" }
+///     Text { "Apple announced Swift 6 with strict concurrency checking..." }
 /// }
 /// ```
 ///
@@ -122,8 +122,8 @@ public struct Article<Content: Node>: Node {
 /// Header {
 ///     Image(src: "logo.png", alt: "Logo")
 ///     Navigation {
-///         Link(to: "/") { Text(verbatim: "Home") }
-///         Link(to: "/about") { Text(verbatim: "About") }
+///         Link(to: "/") { "Home" }
+///         Link(to: "/about") { "About" }
 ///     }
 /// }
 /// ```
@@ -161,8 +161,8 @@ public struct Header<Content: Node>: Node {
 ///
 /// ```swift
 /// Footer {
-///     Text(verbatim: "\u{00A9} 2026 Score. All rights reserved.")
-///     Link(to: "/privacy") { Text(verbatim: "Privacy Policy") }
+///     Text { "\u{00A9} 2026 Score. All rights reserved." }
+///     Link(to: "/privacy") { "Privacy Policy" }
 /// }
 /// ```
 ///
@@ -197,8 +197,8 @@ public struct Footer<Content: Node>: Node {
 ///
 /// ```swift
 /// Aside {
-///     Heading(.three) { Text(verbatim: "Related Articles") }
-///     Link(to: "/concurrency") { Text(verbatim: "Swift Concurrency Deep Dive") }
+///     Heading(.three) { "Related Articles" }
+///     Link(to: "/concurrency") { "Swift Concurrency Deep Dive" }
 /// }
 /// ```
 ///
@@ -233,9 +233,9 @@ public struct Aside<Content: Node>: Node {
 ///
 /// ```swift
 /// Navigation {
-///     Link(to: "/") { Text(verbatim: "Home") }
-///     Link(to: "/blog") { Text(verbatim: "Blog") }
-///     Link(to: "/contact") { Text(verbatim: "Contact") }
+///     Link(to: "/") { "Home" }
+///     Link(to: "/blog") { "Blog" }
+///     Link(to: "/contact") { "Contact" }
 /// }
 /// ```
 ///
@@ -274,8 +274,8 @@ public struct Navigation<Content: Node>: Node {
 /// Stack {
 ///     if isLoggedIn {
 ///         Group {
-///             Text(verbatim: "Welcome back!")
-///             Link(to: "/dashboard") { Text(verbatim: "Dashboard") }
+///             Text { "Welcome back!" }
+///             Link(to: "/dashboard") { "Dashboard" }
 ///         }
 ///     }
 /// }

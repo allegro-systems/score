@@ -16,17 +16,9 @@
 ///
 /// ```swift
 /// struct MyApp: Application {
-///     var pages: [any Page] {
-///         [
-///             HomePage(),
-///             AboutPage(),
-///             ContactPage(),
-///         ]
-///     }
+///     var metadata: (any Metadata)? { SiteMetadata(title: "My App") }
 ///
 ///     var theme: (any Theme)? { MyTheme(name: "default") }
-///
-///     var metadata: (any Metadata)? { SiteMetadata(title: "My App") }
 ///
 ///     var controllers: [any Controller] {
 ///         [
@@ -34,9 +26,21 @@
 ///             PostController(),
 ///         ]
 ///     }
+///
+///     @PageBuilder
+///     var pages: [any Page] {
+///         HomePage()
+///         AboutPage()
+///         ContactPage()
+///     }
 /// }
 /// ```
 public protocol Application: Sendable {
+
+    /// Creates a new instance of the application.
+    ///
+    /// Required for `@main` support so the runtime can instantiate the app.
+    init()
 
     /// The pages served by this application.
     ///
@@ -56,11 +60,19 @@ public protocol Application: Sendable {
     /// server's routing table at startup.
     var controllers: [any Controller] { get }
 
-    /// The directory where static site output is written.
+    /// The directory where build output is written.
     ///
-    /// The emitter writes rendered HTML, CSS, and JS files into a `static/`
-    /// subdirectory of this path. Defaults to `.build/score`.
+    /// The emitter writes rendered HTML, CSS, and JS files into this path.
+    /// Defaults to `.score`.
     var outputDirectory: String { get }
+
+    /// The directory where content files (Markdown, etc.) are stored.
+    ///
+    /// Content files are loaded by ``ContentCollection`` and rendered via
+    /// ``MarkdownNode``. Both absolute and relative paths are accepted;
+    /// relative paths resolve against the current working directory.
+    /// Defaults to `"Content"`.
+    var contentDirectory: String { get }
 }
 
 extension Application {
@@ -83,9 +95,14 @@ extension Application {
     /// suitable for page-only applications with no controller endpoints.
     public var controllers: [any Controller] { [] }
 
-    /// The directory where static site output is written.
+    /// The directory where build output is written.
     ///
-    /// Defaults to `.build/score`. The emitter creates a `static/`
-    /// subdirectory containing rendered HTML, CSS, and JS files.
-    public var outputDirectory: String { ".build/score" }
+    /// Defaults to `.score`.
+    public var outputDirectory: String { ".score" }
+
+    /// The directory where content files are stored.
+    ///
+    /// Defaults to `"Content"`. Relative paths resolve against the current
+    /// working directory.
+    public var contentDirectory: String { "Content" }
 }

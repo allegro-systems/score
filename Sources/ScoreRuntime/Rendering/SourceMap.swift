@@ -1,5 +1,7 @@
 /// Generates source maps (V3) for mapping emitted JS back to Swift sources.
-public enum SourceMap {
+public struct SourceMap {
+
+    private init() {}
 
     /// A builder for constructing source map JSON.
     public struct Builder {
@@ -47,7 +49,8 @@ public enum SourceMap {
 
         /// Builds the source map JSON string.
         public func build() -> String {
-            let mappings = mappingSegments
+            let mappings =
+                mappingSegments
                 .map { $0.joined(separator: ",") }
                 .joined(separator: ";")
 
@@ -56,8 +59,8 @@ public enum SourceMap {
             let escapedNames = names.map { "\"\($0.replacingOccurrences(of: "\"", with: "\\\""))\"" }
 
             return """
-            {"version":3,"file":"\(escapedFile)","sources":[\(escapedSources.joined(separator: ","))],"names":[\(escapedNames.joined(separator: ","))],"mappings":"\(mappings)"}
-            """
+                {"version":3,"file":"\(escapedFile)","sources":[\(escapedSources.joined(separator: ","))],"names":[\(escapedNames.joined(separator: ","))],"mappings":"\(mappings)"}
+                """
         }
 
         private mutating func ensureSource(_ source: String) -> Int {

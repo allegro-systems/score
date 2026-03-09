@@ -75,13 +75,13 @@ public struct CodeBlock: Node {
             if filename != nil || language != nil || showCopyButton {
                 Stack {
                     if let filename {
-                        Text(verbatim: filename)
+                        Text { filename }
                     }
                     if let language {
-                        Small { Text(verbatim: language) }
+                        Small { language }
                     }
                     if showCopyButton {
-                        Button { Text(verbatim: "Copy") }
+                        Button { "Copy" }
                     }
                 }
             }
@@ -91,12 +91,12 @@ public struct CodeBlock: Node {
                         lineNumberBlock
                     }
                     Preformatted {
-                        Code { Text(verbatim: code) }
+                        Code { code }
                     }
                 }
             } else {
                 Preformatted {
-                    Code { Text(verbatim: code) }
+                    Code { code }
                 }
             }
         }
@@ -107,7 +107,7 @@ public struct CodeBlock: Node {
         let lineCount = code.components(separatedBy: "\n").count
         // swiftlint:disable:next unused_result
         return ForEachNode(Array(1...lineCount)) { number in
-            Text(verbatim: "\(number)")
+            Text { "\(number)" }
         }
     }
 }

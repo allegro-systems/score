@@ -39,28 +39,28 @@ public struct ErrorOverlay: Sendable {
         let escapedPath = path.htmlEscaped
 
         var html = """
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-        <meta charset="utf-8">
-        <title>Score Development Error</title>
-        <style>
-        body { font-family: system-ui, sans-serif; padding: 2rem; background: #1a1a2e; color: #e0e0e0; }
-        .error-box { background: #16213e; border: 1px solid #e94560; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; }
-        .error-type { color: #e94560; font-weight: bold; }
-        .error-path { color: #0f3460; }
-        pre { background: #0f3460; padding: 1rem; border-radius: 4px; overflow-x: auto; }
-        a { color: #e94560; }
-        </style>
-        </head>
-        <body>
-        <h1>Score Development Error</h1>
-        <div class="error-box">
-        <p class="error-type">\(typeName)</p>
-        <p>\(message)</p>
-        <p>Path: <code>\(escapedPath)</code></p>
-        </div>
-        """
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+            <meta charset="utf-8">
+            <title>Score Development Error</title>
+            <style>
+            body { font-family: system-ui, sans-serif; padding: 2rem; background: #1a1a2e; color: #e0e0e0; }
+            .error-box { background: #16213e; border: 1px solid #e94560; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; }
+            .error-type { color: #e94560; font-weight: bold; }
+            .error-path { color: #0f3460; }
+            pre { background: #0f3460; padding: 1rem; border-radius: 4px; overflow-x: auto; }
+            a { color: #e94560; }
+            </style>
+            </head>
+            <body>
+            <h1>Score Development Error</h1>
+            <div class="error-box">
+            <p class="error-type">\(typeName)</p>
+            <p>\(message)</p>
+            <p>Path: <code>\(escapedPath)</code></p>
+            </div>
+            """
 
         if !frames.isEmpty {
             html.append("<h2>Stack Trace</h2>\n<pre>")

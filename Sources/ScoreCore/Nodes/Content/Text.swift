@@ -11,15 +11,15 @@
 /// ### Example — verbatim string
 ///
 /// ```swift
-/// Text(verbatim: "Hello, world!")
+/// Text { "Hello, world!" }
 /// ```
 ///
 /// ### Example — composed content
 ///
 /// ```swift
 /// Text {
-///     Strong { Text(verbatim: "Important: ") }
-///     Text(verbatim: "Please read the terms carefully.")
+///     Strong { "Important: " }
+///     "Please read the terms carefully."
 /// }
 /// ```
 ///
@@ -41,8 +41,8 @@ public struct Text<Content: Node>: Node {
     ///
     /// ```swift
     /// Text {
-    ///     Emphasis { Text(verbatim: "Note: ") }
-    ///     Text(verbatim: "This field is required.")
+    ///     Emphasis { "Note: " }
+    ///     "This field is required."
     /// }
     /// ```
     ///
@@ -61,7 +61,7 @@ public struct Text<Content: Node>: Node {
     /// ### Example
     ///
     /// ```swift
-    /// Text(verbatim: "Welcome to Score.")
+    /// Text { "Welcome to Score." }
     /// ```
     ///
     /// - Parameter verbatim: The raw string to render as text content.

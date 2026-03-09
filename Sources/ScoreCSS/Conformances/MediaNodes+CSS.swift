@@ -1,11 +1,29 @@
 import ScoreCore
 
-extension Image: CSSLeafNode {}
-extension Figure: CSSContainerNode {}
-extension FigureCaption: CSSContainerNode {}
-extension Source: CSSLeafNode {}
-extension Track: CSSLeafNode {}
-extension Audio: CSSContainerNode {}
-extension Video: CSSContainerNode {}
-extension Picture: CSSContainerNode {}
-extension Canvas: CSSContainerNode {}
+extension Image: CSSLeafNode {
+    var htmlTag: String? { "img" }
+}
+extension Figure: CSSContainerNode {
+    var htmlTag: String? { "figure" }
+}
+extension FigureCaption: CSSContainerNode {
+    var htmlTag: String? { "figcaption" }
+}
+extension Source: CSSLeafNode {
+    var htmlTag: String? { "source" }
+}
+extension Track: CSSLeafNode {
+    var htmlTag: String? { "track" }
+}
+extension Audio: CSSContainerNode {
+    var htmlTag: String? { "audio" }
+}
+extension Video: CSSContainerNode {
+    var htmlTag: String? { "video" }
+}
+extension Picture: CSSContainerNode {
+    var htmlTag: String? { "picture" }
+}
+extension Canvas: CSSContainerNode {
+    var htmlTag: String? { "canvas" }
+}

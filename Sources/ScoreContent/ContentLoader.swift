@@ -21,11 +21,18 @@ public struct ContentLoader: Sendable {
 
     /// Creates a content loader for the given directory.
     ///
+    /// Both absolute and relative paths are accepted. Relative paths are
+    /// resolved against the current working directory.
+    ///
     /// - Parameters:
-    ///   - directory: The absolute path to the content directory.
+    ///   - directory: The path to the content directory.
     ///   - fileExtension: The file extension to filter on. Defaults to `"md"`.
     public init(directory: String, fileExtension: String = "md") {
-        self.directory = directory
+        if directory.hasPrefix("/") {
+            self.directory = directory
+        } else {
+            self.directory = FileManager.default.currentDirectoryPath + "/" + directory
+        }
         self.fileExtension = fileExtension
     }
 
@@ -47,11 +54,15 @@ public struct ContentLoader: Sendable {
 
     /// Loads a single file at the given path.
     ///
-    /// - Parameter path: The absolute file path.
+    /// Both absolute and relative paths are accepted. Relative paths are
+    /// resolved against the current working directory.
+    ///
+    /// - Parameter path: The file path.
     /// - Returns: A ``LoadedContent`` value with parsed front matter and body.
     /// - Throws: An error if the file cannot be read.
     public func load(path: String) throws -> LoadedContent {
-        let url = URL(fileURLWithPath: path)
+        let resolved = path.hasPrefix("/") ? path : FileManager.default.currentDirectoryPath + "/" + path
+        let url = URL(fileURLWithPath: resolved)
         let content = try String(contentsOf: url, encoding: .utf8)
         let filename = url.lastPathComponent
         let slug = url.deletingPathExtension().lastPathComponent

@@ -47,7 +47,7 @@ struct BuildCommand: AsyncParsableCommand {
                 }
                 resultBox.withLock { $0 = result }
 
-                if !result.success {
+                if !result.succeeded {
                     throw CLIError.processFailure(
                         command: "swift build -c release",
                         exitCode: 1,
@@ -62,13 +62,27 @@ struct BuildCommand: AsyncParsableCommand {
             throw ExitCode(ScoreExitCode.buildFailure.rawValue)
         }
 
-        if let result = resultBox.withLock({ $0 }), result.success {
-            let binPath = (try? SwiftToolchain.binPath(release: true, in: directory)) ?? ".build/release"
+        if let result = resultBox.withLock({ $0 }), result.succeeded {
+            let executable = try SwiftToolchain.findExecutable(in: directory, release: true)
+
+            let emitResult = try ProcessRunner.run(
+                executable,
+                arguments: ["--build"],
+                in: directory
+            )
+
+            guard emitResult.succeeded else {
+                noora.error(
+                    .alert("Static site emission failed", takeaways: ["\(emitResult.stderr.trimmingCharacters(in: .whitespacesAndNewlines))"])
+                )
+                throw ExitCode(ScoreExitCode.buildFailure.rawValue)
+            }
+
             noora.success(
                 .alert(
                     "Production build complete",
                     takeaways: [
-                        "Artifacts: \(binPath)"
+                        "Artifacts: .score/"
                     ])
             )
         }

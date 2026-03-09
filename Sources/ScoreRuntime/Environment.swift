@@ -1,3 +1,5 @@
+import Foundation
+
 /// The deployment environment of the Score application.
 public enum Environment: String, Sendable, Equatable {
 
@@ -12,11 +14,10 @@ public enum Environment: String, Sendable, Equatable {
     /// Defaults to `.development` if the variable is unset or unrecognised.
     public static var current: Environment {
         if let raw = ProcessInfo.processInfo.environment["SCORE_ENV"],
-           let env = Environment(rawValue: raw) {
+            let env = Environment(rawValue: raw)
+        {
             return env
         }
         return .development
     }
 }
-
-import Foundation

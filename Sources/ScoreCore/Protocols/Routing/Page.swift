@@ -23,15 +23,9 @@
 ///
 ///     var body: some Node {
 ///         Stack {
-///             Heading(.one) {
-///                 Text(verbatim: "Welcome to Score")
-///             }
-///             Paragraph {
-///                 Text(verbatim: "Build server-rendered Swift web apps.")
-///             }
-///             Link(to: "/about") {
-///                 Text(verbatim: "Learn more")
-///             }
+///             Heading(.one) { "Welcome to Score" }
+///             Paragraph { "Build server-rendered Swift web apps." }
+///             Link(to: "/about") { "Learn more" }
 ///         }
 ///     }
 /// }
@@ -41,8 +35,8 @@
 ///     var metadata: (any Metadata)? { SiteMetadata(title: "About") }
 ///
 ///     var body: some Node {
-///         Heading(.one) { Text(verbatim: "About") }
-///         Paragraph { Text(verbatim: "Score is a Swift web framework.") }
+///         Heading(.one) { "About" }
+///         Paragraph { "Score is a Swift web framework." }
 ///     }
 /// }
 /// ```
@@ -79,6 +73,12 @@ public protocol Page: Sendable {
     /// ```
     static var path: String { get }
 
+    /// The resolved path for this page instance.
+    ///
+    /// Defaults to `Self.path`. Override on dynamic page types (such as
+    /// content-driven pages) where each instance serves a different URL.
+    var path: String { get }
+
     /// An optional page-level metadata override.
     ///
     /// When `nil`, the page inherits `Application.metadata` unchanged.
@@ -100,4 +100,9 @@ extension Page {
     /// The default implementation returns `nil`, so pages inherit
     /// `Application.metadata` unchanged unless they explicitly override this.
     public var metadata: (any Metadata)? { nil }
+
+    /// The resolved path for this page instance.
+    ///
+    /// Returns `Self.path` by default, so standard pages work unchanged.
+    public var path: String { Self.path }
 }

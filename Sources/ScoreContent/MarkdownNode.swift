@@ -90,7 +90,7 @@ struct BlockNodeView: Node {
         case .thematicBreak:
             HorizontalRule()
         case .rawHTML(let html):
-            Text(verbatim: html)
+            Text { html }
         case .table(let headers, let rows):
             Table {
                 TableHead {
@@ -138,7 +138,7 @@ struct InlineNodeView: Node {
     var body: some Node {
         switch inline {
         case .text(let string):
-            Text(verbatim: string)
+            Text { string }
         case .emphasis(let children):
             Emphasis {
                 InlineNodesView(inlines: children)
@@ -148,7 +148,7 @@ struct InlineNodeView: Node {
                 InlineNodesView(inlines: children)
             }
         case .code(let code):
-            Code { Text(verbatim: code) }
+            Code { code }
         case .link(let destination, let children):
             Link(to: destination) {
                 InlineNodesView(inlines: children)
@@ -158,7 +158,7 @@ struct InlineNodeView: Node {
         case .lineBreak:
             LineBreak()
         case .rawInlineHTML(let html):
-            Text(verbatim: html)
+            Text { html }
         }
     }
 }

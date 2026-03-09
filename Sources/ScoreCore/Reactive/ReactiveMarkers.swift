@@ -1,23 +1,23 @@
-/// Internal marker protocol for detecting `@State` properties via `Mirror`.
+/// Marker protocol for detecting `@State` properties via `Mirror`.
 ///
 /// `State` conforms to this protocol so that tools like `JSEmitter` and
 /// `HTMLRenderer` can identify reactive state properties at runtime using
-/// `Mirror.subjectType is any _StateMarker.Type`.
+/// `Mirror.subjectType is any StateIdentifying.Type`.
 ///
 /// The ``stateJSEffect`` property allows the emitter to extract the
 /// JavaScript effect expression from a type-erased `State` value.
-public protocol _StateMarker {
+public protocol StateIdentifying {
     /// The JavaScript effect expression, or empty string if none.
     var stateJSEffect: String { get }
 }
-extension State: _StateMarker {
+extension State: StateIdentifying {
     public var stateJSEffect: String { jsEffect }
 }
 
-/// Internal marker protocol for detecting `@Computed` properties via `Mirror`.
-public protocol _ComputedMarker {}
-extension Computed: _ComputedMarker {}
+/// Marker protocol for detecting `@Computed` properties via `Mirror`.
+public protocol ComputedIdentifying {}
+extension Computed: ComputedIdentifying {}
 
-/// Internal marker protocol for detecting `@Binding` properties via `Mirror`.
-public protocol _BindingMarker {}
-extension Binding: _BindingMarker {}
+/// Marker protocol for detecting `@Binding` properties via `Mirror`.
+public protocol BindingIdentifying {}
+extension Binding: BindingIdentifying {}

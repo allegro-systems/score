@@ -30,8 +30,8 @@ public struct ScopeInfo: Sendable {
 /// let renderer = HTMLRenderer()
 /// let html = renderer.render(
 ///     Stack {
-///         Heading(.one) { Text(verbatim: "Hello") }
-///         Paragraph { Text(verbatim: "Welcome to Score.") }
+///         Heading(.one) { "Hello" }
+///         Paragraph { "Welcome to Score." }
 ///     }
 /// )
 /// // html == "<div><h1>Hello</h1><p>Welcome to Score.</p></div>"
@@ -64,6 +64,14 @@ public struct HTMLRenderer: Sendable {
     /// encountered during rendering. If the closure returns a non-nil class
     /// name, the node's content is wrapped in an element with that class.
     public var classInjector: (@Sendable ([any ModifierValue]) -> String?)?
+
+    /// An optional closure that resolves a semantic CSS class name for
+    /// composite nodes (Components, Pages).
+    ///
+    /// When set, the renderer calls this for each composite node before
+    /// expanding its body. If it returns a non-nil class name, the body
+    /// is wrapped in a `<div class="...">`.
+    public var componentClassInjector: (@Sendable (Any) -> String?)?
 
     /// An optional closure that checks whether a node is a stateful
     /// component requiring a `data-scope` wrapper.
@@ -130,6 +138,10 @@ public struct HTMLRenderer: Sendable {
                 output.append(" data-as-value:\(name)=\"\(value.attributeEscaped)\"")
             }
             output.append("></div>")
+            write(node.body, to: &output)
+            output.append("</div>")
+        } else if let semanticClass = componentClassInjector?(node) {
+            output.append("<div class=\"\(semanticClass.attributeEscaped)\">")
             write(node.body, to: &output)
             output.append("</div>")
         } else {

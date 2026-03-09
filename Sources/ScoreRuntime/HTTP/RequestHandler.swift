@@ -1,7 +1,7 @@
 import Foundation
+import HTTPTypes
 import NIOCore
 import NIOHTTP1
-import HTTPTypes
 import ScoreCore
 import ScoreRouter
 
@@ -56,7 +56,7 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
         case .end:
             guard let head = state.head else { return }
             let bodyData: Data?
-            if var buffer = state.body {
+            if let buffer = state.body {
                 bodyData = Data(buffer.readableBytesView)
             } else {
                 bodyData = nil
@@ -70,16 +70,32 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
         body: Data?,
         context: ChannelHandlerContext
     ) {
-        let promise = context.eventLoop.makePromise(of: Void.self)
+        let eventLoop = context.eventLoop
+        let promise = eventLoop.makePromise(of: Void.self)
+        // Safety: context is only used inside eventLoop.execute, which runs on the
+        // same event loop that owns the context. nonisolated(unsafe) silences the
+        // Sendable diagnostic without introducing actual concurrency risk.
+        nonisolated(unsafe) let capturedContext = context
         promise.completeWithTask {
             let response = await self.processRequest(head: head, body: body)
-            self.writeResponse(response, context: context)
+            eventLoop.execute {
+                self.writeResponse(response, context: capturedContext)
+            }
         }
     }
 
     private func processRequest(head: HTTPRequestHead, body: Data?) async -> Response {
         let uri = head.uri
         let path = uri.split(separator: "?", maxSplits: 1).first.map(String.init) ?? uri
+
+        // Serve external CSS files
+        if path == "/global.css" {
+            let css = theme.map { ThemeCSSEmitter.emit($0) } ?? ""
+            return Response.css(css)
+        }
+        if path.hasPrefix("/styles/") && path.hasSuffix(".css") {
+            return serveScopedCSS(for: path)
+        }
 
         // Map NIO method to HTTPTypes method
         guard let method = mapMethod(head.method) else {
@@ -92,21 +108,23 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
             if resolved.isPage {
                 // Render the page
                 if let page = pages[resolved.pattern] {
-                    let html = PageRenderer.render(
+                    let cssName = Self.cssFileName(for: resolved.pattern)
+                    let result = PageRenderer.render(
                         page: page,
                         metadata: metadata,
-                        theme: theme
+                        theme: theme,
+                        cssLinks: ["/global.css", "/styles/\(cssName).css"]
                     )
-                    return Response.html(html)
+                    return Response.html(result.html)
                 }
                 return Response.text("OK", status: .ok)
             }
 
             // Controller route
             guard let handler = resolved.handler else {
-                var resp = Response.text("OK")
-                resp.headers["content-type"] = "text/plain"
-                return resp
+                var response = Response.text("OK")
+                response.headers["content-type"] = "text/plain"
+                return response
             }
 
             let queryParams = RequestContext.parseQuery(uri)
@@ -138,9 +156,9 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
                 return Response.text("Not Found", status: .notFound)
             case .methodNotAllowed(_, let allowed):
                 let allowHeader = allowed.map(\.rawValue).joined(separator: ", ")
-                var resp = Response.text("Method Not Allowed", status: .methodNotAllowed)
-                resp.headers["Allow"] = allowHeader
-                return resp
+                var response = Response.text("Method Not Allowed", status: .methodNotAllowed)
+                response.headers["Allow"] = allowHeader
+                return response
             }
         } catch {
             let html = ErrorOverlay.render(
@@ -150,6 +168,36 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
             )
             return Response.html(html, status: .internalServerError)
         }
+    }
+
+    /// Serves scoped component CSS for a page by rendering it and extracting its CSS.
+    private func serveScopedCSS(for path: String) -> Response {
+        // /styles/home.css → "home"
+        let fileName = String(path.dropFirst("/styles/".count).dropLast(".css".count))
+
+        // Find the page whose CSS file name matches
+        for (pattern, page) in pages {
+            if Self.cssFileName(for: pattern) == fileName {
+                let result = PageRenderer.render(
+                    page: page,
+                    metadata: metadata,
+                    theme: theme
+                )
+                return Response.css(result.componentCSS)
+            }
+        }
+        return Response.text("Not Found", status: .notFound)
+    }
+
+    /// Derives a CSS file name from a page path.
+    ///
+    /// - `/` → `"home"`
+    /// - `/about` → `"about"`
+    /// - `/docs/score` → `"docs-score"`
+    static func cssFileName(for pagePath: String) -> String {
+        if pagePath == "/" { return "home" }
+        let trimmed = pagePath.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return trimmed.replacingOccurrences(of: "/", with: "-")
     }
 
     private func writeResponse(_ response: Response, context: ChannelHandlerContext) {

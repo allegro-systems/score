@@ -56,23 +56,25 @@ struct ProcessRunner: Sendable {
 
         try process.run()
 
-        var stdoutData = Data()
-        var stderrData = Data()
-
         let stdoutHandle = stdoutPipe.fileHandleForReading
         let stderrHandle = stderrPipe.fileHandleForReading
+
+        let stdoutBox = LockedValue(Data())
+        let stderrBox = LockedValue(Data())
 
         let group = DispatchGroup()
 
         group.enter()
         DispatchQueue.global().async {
-            stdoutData = stdoutHandle.readDataToEndOfFile()
+            let data = stdoutHandle.readDataToEndOfFile()
+            stdoutBox.withLock { $0 = data }
             group.leave()
         }
 
         group.enter()
         DispatchQueue.global().async {
-            stderrData = stderrHandle.readDataToEndOfFile()
+            let data = stderrHandle.readDataToEndOfFile()
+            stderrBox.withLock { $0 = data }
             group.leave()
         }
 
@@ -81,8 +83,8 @@ struct ProcessRunner: Sendable {
 
         return ProcessResult(
             exitCode: process.terminationStatus,
-            stdout: String(decoding: stdoutData, as: UTF8.self),
-            stderr: String(decoding: stderrData, as: UTF8.self)
+            stdout: String(decoding: stdoutBox.withLock { $0 }, as: UTF8.self),
+            stderr: String(decoding: stderrBox.withLock { $0 }, as: UTF8.self)
         )
     }
 
@@ -157,8 +159,8 @@ struct ProcessRunner: Sendable {
         environment: [String: String]? = nil
     ) throws -> Process {
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = [executable] + arguments
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = arguments
 
         if let directory {
             process.currentDirectoryURL = URL(fileURLWithPath: directory)

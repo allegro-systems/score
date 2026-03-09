@@ -43,7 +43,8 @@ public actor InMemoryStore: Store {
     // MARK: - Scan
 
     public func scan(prefix: Key) async throws -> AsyncThrowingStream<(Key, Data), any Error> {
-        let matches = storage
+        let matches =
+            storage
             .filter { $0.key.hasPrefix(prefix) }
             .filter { entry in
                 if let expiry = entry.value.expiry {
@@ -67,7 +68,8 @@ public actor InMemoryStore: Store {
     public func increment(_ key: Key, by amount: Int) async throws -> Int {
         let current: Int
         if let entry = storage[key],
-           (entry.expiry == nil || ContinuousClock.now < entry.expiry!) {
+            entry.expiry.map({ ContinuousClock.now < $0 }) ?? true
+        {
             current = entry.data.withUnsafeBytes { $0.loadUnaligned(as: Int.self) }
         } else {
             current = 0

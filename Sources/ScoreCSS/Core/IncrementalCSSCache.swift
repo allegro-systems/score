@@ -162,8 +162,8 @@ public struct IncrementalCSSCollector: Sendable {
         collector.collectedRules()
     }
 
-    /// Renders the collected rules as a CSS stylesheet string.
-    public func renderStylesheet() -> String {
+    /// Renders the collected rules as a CSS stylesheet with nesting.
+    public func renderStylesheet() -> CSSCollector.StylesheetResult {
         collector.renderStylesheet()
     }
 

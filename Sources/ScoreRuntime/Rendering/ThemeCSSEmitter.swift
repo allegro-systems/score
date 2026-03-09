@@ -26,6 +26,9 @@ public struct ThemeCSSEmitter: Sendable {
             css.append("}\n")
         }
 
+        // Base element styles
+        emitBaseStyles(theme, into: &css)
+
         return css
     }
 
@@ -104,6 +107,43 @@ public struct ThemeCSSEmitter: Sendable {
         case .cyan(let shade): return "var(--color-cyan-\(shade))"
         case .emerald(let shade): return "var(--color-emerald-\(shade))"
         case .custom(let name, let shade): return "var(--color-\(name)-\(shade))"
+        }
+    }
+
+    private static func emitBaseStyles(_ theme: some Theme, into css: inout String) {
+        let hasColor = { (role: String) in theme.colorRoles[role] != nil }
+        let hasFont = { (name: String) in theme.fontFamilies[name] != nil }
+
+        // Box model reset
+        css.append("*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }\n")
+
+        // Body
+        var bodyDecls: [String] = ["font-size: var(--type-scale-base)", "line-height: 1.6", "min-height: 100vh"]
+        if hasColor("surface") { bodyDecls.insert("background: var(--color-surface)", at: 0) }
+        if hasColor("text") { bodyDecls.insert("color: var(--color-text)", at: min(1, bodyDecls.count)) }
+        if hasFont("sans") { bodyDecls.insert("font-family: var(--font-sans)", at: min(2, bodyDecls.count)) }
+        css.append("body { \(bodyDecls.joined(separator: "; ")); }\n")
+
+        // Links
+        if hasColor("accent") {
+            css.append("a { color: var(--color-accent); text-decoration: none; }\n")
+            css.append("a:hover { text-decoration: underline; }\n")
+        }
+
+        // Headings
+        var headingDecls: [String] = ["font-weight: 300"]
+        if hasFont("serif") { headingDecls.insert("font-family: var(--font-serif)", at: 0) }
+        if hasColor("text") { headingDecls.append("color: var(--color-text)") }
+        css.append("h1, h2, h3 { \(headingDecls.joined(separator: "; ")); }\n")
+        css.append("h1 { font-size: 32px; letter-spacing: -0.5px; }\n")
+        css.append("h2 { font-size: 22px; }\n")
+        css.append("h3 { font-size: 17px; }\n")
+
+        // Code and preformatted
+        if hasFont("mono") {
+            css.append("code { font-family: var(--font-mono); font-size: 12px; }\n")
+            css.append("pre { font-family: var(--font-mono); font-size: 12px; line-height: 1.7; overflow-x: auto; }\n")
+            css.append("pre code { background: none; padding: 0; }\n")
         }
     }
 

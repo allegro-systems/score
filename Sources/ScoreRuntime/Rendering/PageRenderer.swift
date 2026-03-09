@@ -43,9 +43,17 @@ public struct PageRenderer: Sendable {
         let keywords = pageMeta?.keywords ?? appMeta?.keywords
         let structuredData = pageMeta?.structuredData ?? appMeta?.structuredData
 
-        // Render body HTML with class injection for scoped CSS
+        // Collect CSS from node tree with component scope tracking
         var collector = CSSCollector()
-        let classMap = buildClassMap(page: page, collector: &collector)
+        collector.pageName = CSSNaming.className(from: String(describing: type(of: page)))
+        collector.collect(from: page.body)
+        let stylesheetResult = collector.renderStylesheet()
+
+        // Build class map from stylesheet analysis
+        let classMap = ClassMap(
+            classLookup: stylesheetResult.classLookup,
+            nestedKeys: stylesheetResult.nestedKeys
+        )
 
         var renderer = HTMLRenderer(classInjector: { modifiers in
             classMap.className(for: modifiers)
@@ -59,7 +67,7 @@ public struct PageRenderer: Sendable {
         let bodyHTML = renderer.render(page.body)
 
         // Component CSS
-        let componentCSS = collector.renderStylesheet()
+        let componentCSS = stylesheetResult.css
 
         let parts = DocumentAssembler.Parts(
             title: title,
@@ -77,27 +85,13 @@ public struct PageRenderer: Sendable {
         )
     }
 
-    private static func buildClassMap(
-        page: some Page,
-        collector: inout CSSCollector
-    ) -> ClassMap {
-        collector.collect(from: page.body)
-        let rules = collector.collectedRules()
-
-        // Build a lookup from declaration content hash to class name
-        var map: [String: String] = [:]
-        for rule in rules {
-            let key = rule.declarations.map { "\($0.property):\($0.value)" }.joined(separator: ";")
-            map[key] = rule.className
-        }
-
-        return ClassMap(declarationKeyToClass: map)
-    }
 }
 
-/// Maps modifier arrays to CSS class names via declaration content matching.
+/// Maps modifier arrays to CSS class names, returning `nil` for entries
+/// handled by CSS nesting (no wrapper div needed).
 private struct ClassMap: Sendable {
-    let declarationKeyToClass: [String: String]
+    let classLookup: [String: String]
+    let nestedKeys: Set<String>
 
     func className(for modifiers: [any ModifierValue]) -> String? {
         var declarations: [CSSDeclaration] = []
@@ -106,6 +100,7 @@ private struct ClassMap: Sendable {
         }
         guard !declarations.isEmpty else { return nil }
         let key = declarations.map { "\($0.property):\($0.value)" }.joined(separator: ";")
-        return declarationKeyToClass[key]
+        if nestedKeys.contains(key) { return nil }
+        return classLookup[key]
     }
 }

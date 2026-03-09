@@ -226,9 +226,8 @@ import Testing
     let node = Stack { TextNode("hi") }.padding(12)
     var collector = CSSCollector()
     collector.collect(from: node)
-    let css = collector.renderStylesheet()
-    #expect(css.contains("padding: 12px"))
-    #expect(css.contains(".s-"))
+    let result = collector.renderStylesheet()
+    #expect(result.css.contains("padding: 12px"))
 }
 
 @Test func collectorWalksNestedNodes() {
@@ -423,12 +422,12 @@ import Testing
 
     var collector = CSSCollector()
     collector.collect(from: node)
-    let css = collector.renderStylesheet()
-    #expect(css.contains("padding: 1px"))
-    #expect(css.contains("margin: 2px"))
-    #expect(css.contains("font-size: 12px"))
-    #expect(css.contains("opacity: 0.8"))
-    #expect(css.contains("padding: 3px"))
+    let result = collector.renderStylesheet()
+    #expect(result.css.contains("padding: 1px"))
+    #expect(result.css.contains("margin: 2px"))
+    #expect(result.css.contains("font-size: 12px"))
+    #expect(result.css.contains("opacity: 0.8"))
+    #expect(result.css.contains("padding: 3px"))
 }
 
 @Test func mediaAndOutlineEmittersProduceExpectedDeclarations() {
@@ -564,12 +563,12 @@ import Testing
     }
     collector.collect(from: builtArray)
 
-    let css = collector.renderStylesheet()
-    #expect(css.contains("padding: 1px"))
-    #expect(css.contains("padding: 2px"))
-    #expect(css.contains("margin: 3px"))
-    #expect(css.contains("opacity: 0.5"))
-    #expect(css.contains("padding: 4px"))
+    let result = collector.renderStylesheet()
+    #expect(result.css.contains("padding: 1px"))
+    #expect(result.css.contains("padding: 2px"))
+    #expect(result.css.contains("margin: 3px"))
+    #expect(result.css.contains("opacity: 0.5"))
+    #expect(result.css.contains("padding: 4px"))
 }
 
 @Test func boxSizingEmitterCoversContentAndBorderBox() {

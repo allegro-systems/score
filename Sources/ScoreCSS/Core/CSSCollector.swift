@@ -154,3 +154,31 @@ extension ModifiedNode: _NodeContainingModifiers {
 protocol CSSWalkable {
     func walkChildren(collector: inout CSSCollector)
 }
+
+// MARK: - CSSContainerNode
+
+/// A container node whose single `content` child should be walked for CSS.
+///
+/// Conforming to this protocol provides a default `walkChildren` that calls
+/// `collector.collect(from: content)`, eliminating per-type boilerplate.
+protocol CSSContainerNode: CSSWalkable {
+    associatedtype Content: Node
+    var content: Content { get }
+}
+
+extension CSSContainerNode {
+    func walkChildren(collector: inout CSSCollector) {
+        collector.collect(from: content)
+    }
+}
+
+// MARK: - CSSLeafNode
+
+/// A leaf node with no children to walk for CSS collection.
+///
+/// Conforming to this protocol provides an empty `walkChildren` default.
+protocol CSSLeafNode: CSSWalkable {}
+
+extension CSSLeafNode {
+    func walkChildren(collector: inout CSSCollector) {}
+}

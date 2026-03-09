@@ -1,22 +1,8 @@
 import ScoreCore
 
-/// Leaf node — no children to walk.
-extension EmptyNode: CSSWalkable {
-    /// No-op; `EmptyNode` contains no children.
-    func walkChildren(collector: inout CSSCollector) {}
-}
-
-/// Leaf node — text content carries no CSS modifiers.
-extension TextNode: CSSWalkable {
-    /// No-op; `TextNode` contains no child nodes.
-    func walkChildren(collector: inout CSSCollector) {}
-}
-
-/// Leaf node — raw text carries no CSS modifiers.
-extension RawTextNode: CSSWalkable {
-    /// No-op; `RawTextNode` contains no child nodes.
-    func walkChildren(collector: inout CSSCollector) {}
-}
+extension EmptyNode: CSSLeafNode {}
+extension TextNode: CSSLeafNode {}
+extension RawTextNode: CSSLeafNode {}
 
 /// Walks all children via parameter pack expansion.
 extension TupleNode: CSSWalkable {

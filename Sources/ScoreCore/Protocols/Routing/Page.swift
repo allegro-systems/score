@@ -38,7 +38,7 @@
 ///
 /// struct AboutPage: Page {
 ///     static let path = "/about"
-///     var metadata: Metadata? { Metadata(title: "About") }
+///     var metadata: (any Metadata)? { SiteMetadata(title: "About") }
 ///
 ///     var body: some Node {
 ///         Heading(.one) { Text(verbatim: "About") }
@@ -52,7 +52,7 @@
 /// A type conforming to `Page` must:
 /// - Declare a `static var path: String` representing the URL this
 ///   page is served at (e.g. `"/"`, `"/about"`, `"/blog/posts"`).
-/// - Optionally declare `var metadata: Metadata?` to patch
+/// - Optionally declare `var metadata: (any Metadata)?` to patch
 ///   application-level metadata.
 /// - Implement `var body: Body { get }` annotated with `@NodeBuilder`, where
 ///   `Body` is any concrete `Node` type, typically expressed as `some Node`.
@@ -82,7 +82,7 @@ public protocol Page: Sendable {
     /// An optional page-level metadata override.
     ///
     /// When `nil`, the page inherits `Application.metadata` unchanged.
-    var metadata: Metadata? { get }
+    var metadata: (any Metadata)? { get }
 
     /// The root node tree that defines the HTML content of this page.
     ///
@@ -99,5 +99,5 @@ extension Page {
     ///
     /// The default implementation returns `nil`, so pages inherit
     /// `Application.metadata` unchanged unless they explicitly override this.
-    public var metadata: Metadata? { nil }
+    public var metadata: (any Metadata)? { nil }
 }

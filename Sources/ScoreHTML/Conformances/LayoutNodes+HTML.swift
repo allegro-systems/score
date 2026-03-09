@@ -1,73 +1,35 @@
 import ScoreCore
 
-/// Renders as a `<div>` block container.
-extension Stack: HTMLRenderable {
-    /// Wraps content in a `<div>` element.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
-        renderer.tag("div", content: content, to: &output)
-    }
+extension Stack: HTMLContainerElement {
+    var htmlTagName: String { "div" }
 }
 
-/// Renders as the `<main>` landmark element.
-extension Main: HTMLRenderable {
-    /// Wraps content in a `<main>` element.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
-        renderer.tag("main", content: content, to: &output)
-    }
+extension Main: HTMLContainerElement {
+    var htmlTagName: String { "main" }
 }
 
-/// Renders as the `<section>` sectioning element.
-extension Section: HTMLRenderable {
-    /// Wraps content in a `<section>` element.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
-        renderer.tag("section", content: content, to: &output)
-    }
+extension Section: HTMLContainerElement {
+    var htmlTagName: String { "section" }
 }
 
-/// Renders as the `<article>` sectioning element.
-extension Article: HTMLRenderable {
-    /// Wraps content in an `<article>` element.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
-        renderer.tag("article", content: content, to: &output)
-    }
+extension Article: HTMLContainerElement {
+    var htmlTagName: String { "article" }
 }
 
-/// Renders as the `<header>` landmark element.
-extension Header: HTMLRenderable {
-    /// Wraps content in a `<header>` element.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
-        renderer.tag("header", content: content, to: &output)
-    }
+extension Header: HTMLContainerElement {
+    var htmlTagName: String { "header" }
 }
 
-/// Renders as the `<footer>` landmark element.
-extension Footer: HTMLRenderable {
-    /// Wraps content in a `<footer>` element.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
-        renderer.tag("footer", content: content, to: &output)
-    }
+extension Footer: HTMLContainerElement {
+    var htmlTagName: String { "footer" }
 }
 
-/// Renders as the `<aside>` complementary landmark element.
-extension Aside: HTMLRenderable {
-    /// Wraps content in an `<aside>` element.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
-        renderer.tag("aside", content: content, to: &output)
-    }
+extension Aside: HTMLContainerElement {
+    var htmlTagName: String { "aside" }
 }
 
-/// Renders as the `<nav>` navigation landmark element.
-extension Navigation: HTMLRenderable {
-    /// Wraps content in a `<nav>` element.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
-        renderer.tag("nav", content: content, to: &output)
-    }
+extension Navigation: HTMLContainerElement {
+    var htmlTagName: String { "nav" }
 }
 
-/// Renders transparently, emitting children with no wrapper element.
-extension Group: HTMLRenderable {
-    /// Emits content directly, producing no surrounding tag of its own.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
-        renderer.write(content, to: &output)
-    }
-}
+extension Group: HTMLTransparentElement {}

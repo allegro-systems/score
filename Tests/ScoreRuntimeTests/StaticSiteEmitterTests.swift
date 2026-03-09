@@ -19,7 +19,7 @@ private struct MinimalEmitterTheme: Theme {
 
 private struct EmitterHomePage: Page {
     static let path = "/"
-    var metadata: Metadata? { Metadata(title: "Home") }
+    var metadata: (any Metadata)? { SiteMetadata(title: "Home") }
     var body: some Node {
         Heading(.one) { Text(verbatim: "Welcome") }
     }
@@ -27,7 +27,7 @@ private struct EmitterHomePage: Page {
 
 private struct EmitterAboutPage: Page {
     static let path = "/about"
-    var metadata: Metadata? { Metadata(title: "About") }
+    var metadata: (any Metadata)? { SiteMetadata(title: "About") }
     var body: some Node {
         Paragraph { Text(verbatim: "About us") }
     }
@@ -37,7 +37,7 @@ private struct EmitterApp: Application {
     var pages: [any Page] { [EmitterHomePage(), EmitterAboutPage()] }
     var controllers: [any Controller] { [] }
     var theme: (any Theme)? { MinimalEmitterTheme() }
-    var metadata: Metadata? { nil }
+    var metadata: (any Metadata)? { nil }
     let outputDirectory: String
 }
 
@@ -45,7 +45,7 @@ private struct EmptyEmitterApp: Application {
     var pages: [any Page] { [] }
     var controllers: [any Controller] { [] }
     var theme: (any Theme)? { nil }
-    var metadata: Metadata? { nil }
+    var metadata: (any Metadata)? { nil }
     let outputDirectory: String
 }
 

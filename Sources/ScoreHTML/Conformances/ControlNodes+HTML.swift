@@ -1,33 +1,30 @@
 import ScoreCore
 
-/// Renders as a `<button>` element with type, form association, and state attributes.
-extension Button: HTMLRenderable {
-    /// Emits a `<button>` with `type`, and optional `form`, `name`, `value`, and `disabled`.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
+extension Button: HTMLContainerElement {
+    var htmlTagName: String { "button" }
+    var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = [("type", type.rawValue)]
         if let v = form { a.append(("form", v)) }
         if let v = name { a.append(("name", v)) }
         if let v = value { a.append(("value", v)) }
         if isDisabled { a.append(("disabled", "")) }
-        renderer.tag("button", a, content: content, to: &output)
+        return a
     }
 }
 
-/// Renders as a `<form>` element with submission attributes.
-extension Form: HTMLRenderable {
-    /// Emits a `<form>` with `action`, `method`, optional `enctype`, and optional `id`.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
+extension Form: HTMLContainerElement {
+    var htmlTagName: String { "form" }
+    var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = [("action", action), ("method", method.rawValue)]
         if let v = encoding { a.append(("enctype", v.rawValue)) }
         if let v = id { a.append(("id", v)) }
-        renderer.tag("form", a, content: content, to: &output)
+        return a
     }
 }
 
-/// Renders as the `<input>` void element with type, name, and state attributes.
-extension Input: HTMLRenderable {
-    /// Emits a self-closing `<input>` with `type` and optional `name`, `placeholder`, `value`, `id`, `required`, `disabled`, and `readonly`.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
+extension Input: HTMLVoidElement {
+    var htmlTagName: String { "input" }
+    var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = [("type", type.rawValue)]
         if let v = name { a.append(("name", v)) }
         if let v = placeholder { a.append(("placeholder", v)) }
@@ -40,59 +37,54 @@ extension Input: HTMLRenderable {
         if let v = min { a.append(("min", v)) }
         if let v = max { a.append(("max", v)) }
         if let v = list { a.append(("list", v)) }
-        renderer.voidTag("input", a, to: &output)
+        return a
     }
 }
 
-/// Renders as a `<label>` element, optionally associated with a control via `for`.
-extension Label: HTMLRenderable {
-    /// Emits a `<label>` with an optional `for` attribute linking it to a labelled control.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
+extension Label: HTMLContainerElement {
+    var htmlTagName: String { "label" }
+    var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = []
         if let v = forID { a.append(("for", v)) }
-        renderer.tag("label", a, content: content, to: &output)
+        return a
     }
 }
 
-/// Renders as a `<select>` dropdown element.
-extension Select: HTMLRenderable {
-    /// Emits a `<select>` with optional `name`, `id`, `required`, `disabled`, and `multiple`.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
+extension Select: HTMLContainerElement {
+    var htmlTagName: String { "select" }
+    var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = []
         if let v = name { a.append(("name", v)) }
         if let v = id { a.append(("id", v)) }
         if isRequired { a.append(("required", "")) }
         if isDisabled { a.append(("disabled", "")) }
         if isMultiple { a.append(("multiple", "")) }
-        renderer.tag("select", a, content: content, to: &output)
+        return a
     }
 }
 
-/// Renders as an `<option>` element within a `<select>` or `<datalist>`.
-extension Option: HTMLRenderable {
-    /// Emits an `<option>` with optional `value`, `selected`, and `disabled`.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
+extension Option: HTMLContainerElement {
+    var htmlTagName: String { "option" }
+    var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = []
         if let v = value { a.append(("value", v)) }
         if isSelected { a.append(("selected", "")) }
         if isDisabled { a.append(("disabled", "")) }
-        renderer.tag("option", a, content: content, to: &output)
+        return a
     }
 }
 
-/// Renders as an `<optgroup>` labelled group of options.
-extension OptionGroup: HTMLRenderable {
-    /// Emits an `<optgroup>` with a `label` and optional `disabled`.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
+extension OptionGroup: HTMLContainerElement {
+    var htmlTagName: String { "optgroup" }
+    var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = [("label", label)]
         if isDisabled { a.append(("disabled", "")) }
-        renderer.tag("optgroup", a, content: content, to: &output)
+        return a
     }
 }
 
-/// Renders as a `<textarea>` multi-line text input.
+/// TextArea requires custom rendering: inner text is not a child Node.
 extension TextArea: HTMLRenderable {
-    /// Emits a `<textarea>` with optional `name`, `placeholder`, `rows`, `cols`, `id`, `required`, `disabled`, `readonly`, and pre-filled value.
     func renderHTML(into output: inout String, renderer: HTMLRenderer) {
         var a: [(String, String)] = []
         if let v = name { a.append(("name", v)) }
@@ -111,47 +103,37 @@ extension TextArea: HTMLRenderable {
     }
 }
 
-/// Renders as a `<fieldset>` form grouping element.
-extension Fieldset: HTMLRenderable {
-    /// Emits a `<fieldset>` with optional `disabled`.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
-        var a: [(String, String)] = []
-        if isDisabled { a.append(("disabled", "")) }
-        renderer.tag("fieldset", a, content: content, to: &output)
+extension Fieldset: HTMLContainerElement {
+    var htmlTagName: String { "fieldset" }
+    var htmlAttributes: [(String, String)] {
+        isDisabled ? [("disabled", "")] : []
     }
 }
 
-/// Renders as a `<legend>` caption for a `<fieldset>`.
-extension Legend: HTMLRenderable {
-    /// Wraps content in a `<legend>` element.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
-        renderer.tag("legend", content: content, to: &output)
-    }
+extension Legend: HTMLContainerElement {
+    var htmlTagName: String { "legend" }
 }
 
-/// Renders as an `<output>` calculated result element.
-extension Output: HTMLRenderable {
-    /// Emits an `<output>` with an optional `for` attribute referencing input controls.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
+extension Output: HTMLContainerElement {
+    var htmlTagName: String { "output" }
+    var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = []
         if let v = forID { a.append(("for", v)) }
-        renderer.tag("output", a, content: content, to: &output)
+        return a
     }
 }
 
-/// Renders as a `<datalist>` predefined options element.
-extension DataList: HTMLRenderable {
-    /// Emits a `<datalist>` with an optional `id` for linking to an `<input>`.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
+extension DataList: HTMLContainerElement {
+    var htmlTagName: String { "datalist" }
+    var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = []
         if let v = id { a.append(("id", v)) }
-        renderer.tag("datalist", a, content: content, to: &output)
+        return a
     }
 }
 
-/// Renders as a `<progress>` task completion indicator.
+/// Progress requires custom rendering: no child content node.
 extension Progress: HTMLRenderable {
-    /// Emits a `<progress>` with optional `value` and `max` attributes.
     func renderHTML(into output: inout String, renderer: HTMLRenderer) {
         var a: [(String, String)] = []
         if let v = value { a.append(("value", v.cleanValue)) }
@@ -162,9 +144,8 @@ extension Progress: HTMLRenderable {
     }
 }
 
-/// Renders as a `<meter>` scalar measurement element.
+/// Meter requires custom rendering: no child content node.
 extension Meter: HTMLRenderable {
-    /// Emits a `<meter>` with `value` and optional `min`, `max`, `low`, `high`, and `optimum`.
     func renderHTML(into output: inout String, renderer: HTMLRenderer) {
         var a: [(String, String)] = [("value", value.cleanValue)]
         if let v = min { a.append(("min", v.cleanValue)) }

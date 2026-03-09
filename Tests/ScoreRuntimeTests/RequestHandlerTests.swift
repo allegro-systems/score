@@ -18,7 +18,7 @@ private struct RuntimeHomePage: Page {
     }
 }
 
-private let runtimeMetadata = Metadata(
+private let runtimeMetadata = SiteMetadata(
     site: "Runtime Site",
     description: "Runtime description",
     keywords: ["runtime", "tests"],
@@ -65,7 +65,7 @@ private enum RuntimeHandlerError: Error {
 
 private struct RuntimeApp: Application {
     var pages: [any Page] { [RuntimeHomePage()] }
-    var metadata: Metadata? { runtimeMetadata }
+    var metadata: (any Metadata)? { runtimeMetadata }
     var controllers: [any Controller] { [RuntimeController()] }
 }
 

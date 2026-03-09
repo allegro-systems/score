@@ -29,7 +29,7 @@ private struct NamedMinimalTheme: Theme {
     var dark: (any ThemePatch)? { nil }
 }
 
-private let appMetadata = Metadata(
+private let appMetadata = SiteMetadata(
     site: "TestSite",
     titleSeparator: " — ",
     description: "Default description",
@@ -38,7 +38,7 @@ private let appMetadata = Metadata(
 
 private struct SimplePage: Page {
     static let path = "/"
-    var metadata: Metadata? { Metadata(title: "Home") }
+    var metadata: (any Metadata)? { SiteMetadata(title: "Home") }
 
     var body: some Node {
         Heading(.one) { Text(verbatim: "Hello") }
@@ -62,7 +62,7 @@ private struct StyledPage: Page {
     #expect(html.contains("<h1>Hello</h1>"))
 }
 
-@Test func renderPageWithMetadata() {
+@Test func renderPageWithSiteMetadata() {
     let html = PageRenderer.render(page: SimplePage(), metadata: appMetadata, theme: nil)
     #expect(html.contains("<title>Home — TestSite</title>"))
     #expect(html.contains("Default description"))

@@ -26,7 +26,7 @@
 ///
 ///     var theme: (any Theme)? { MyTheme(name: "default") }
 ///
-///     var metadata: Metadata? { Metadata(title: "My App") }
+///     var metadata: (any Metadata)? { SiteMetadata(title: "My App") }
 ///
 ///     var controllers: [any Controller] {
 ///         [
@@ -48,7 +48,7 @@ public protocol Application: Sendable {
     var theme: (any Theme)? { get }
 
     /// The default document metadata inherited by pages.
-    var metadata: Metadata? { get }
+    var metadata: (any Metadata)? { get }
 
     /// The controllers that provide HTTP request handling for this application.
     ///
@@ -75,7 +75,7 @@ extension Application {
     ///
     /// The default implementation returns `nil`, meaning pages start with no
     /// application-level metadata unless a conforming type provides one.
-    public var metadata: Metadata? { nil }
+    public var metadata: (any Metadata)? { nil }
 
     /// The controllers that provide HTTP request handling for this application.
     ///

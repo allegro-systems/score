@@ -1,15 +1,16 @@
-/// Application and page-level document metadata.
+/// A protocol defining document metadata for application and page use.
 ///
-/// `Metadata` is a concrete value type used for both application-wide defaults
-/// and page-level overrides. All fields are optional so pages only set what
+/// `Metadata` captures optional document-level fields that renderers
+/// use to emit `<title>`, `<meta>`, and structured data tags. All
+/// properties default to `nil` so conforming types only declare what
 /// they need — unset fields inherit the application value at render time.
 ///
 /// ### Application-level
 ///
 /// ```swift
 /// struct MyApp: Application {
-///     var metadata: Metadata? {
-///         Metadata(site: "Acme", description: "Ship faster with Acme.")
+///     var metadata: (any Metadata)? {
+///         SiteMetadata(site: "Acme", description: "Ship faster with Acme.")
 ///     }
 /// }
 /// ```
@@ -19,31 +20,51 @@
 /// ```swift
 /// struct AboutPage: Page {
 ///     static let path = "/about"
-///     var metadata: Metadata? {
-///         Metadata(title: "About", description: "Learn about Acme.")
+///     var metadata: (any Metadata)? {
+///         SiteMetadata(title: "About", description: "Learn about Acme.")
 ///     }
 /// }
 /// ```
 ///
 /// At render time, page values take precedence over application values.
-public struct Metadata: Sendable {
+public protocol Metadata: Sendable {
 
     /// The optional site name used in title composition.
-    public var site: String?
+    var site: String? { get }
 
     /// The optional document title.
-    public var title: String?
+    var title: String? { get }
 
     /// The separator used when composing page and site titles.
-    public var titleSeparator: String?
+    var titleSeparator: String? { get }
 
     /// The optional document description.
-    public var description: String?
+    var description: String? { get }
 
     /// The keyword list for meta tags.
-    public var keywords: [String]?
+    var keywords: [String]? { get }
 
     /// Structured data payloads represented as JSON strings.
+    var structuredData: [String]? { get }
+}
+
+extension Metadata {
+    public var site: String? { nil }
+    public var title: String? { nil }
+    public var titleSeparator: String? { nil }
+    public var description: String? { nil }
+    public var keywords: [String]? { nil }
+    public var structuredData: [String]? { nil }
+}
+
+/// A concrete metadata value with all standard document metadata fields.
+public struct SiteMetadata: Metadata {
+
+    public var site: String?
+    public var title: String?
+    public var titleSeparator: String?
+    public var description: String?
+    public var keywords: [String]?
     public var structuredData: [String]?
 
     /// Creates a metadata value.

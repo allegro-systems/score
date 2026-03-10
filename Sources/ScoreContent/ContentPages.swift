@@ -45,6 +45,9 @@ public protocol ContentPage: PageProvider, Sendable {
     /// The current content item, injected by the framework.
     var item: ContentCollection.Item { get }
 
+    /// An optional page-level metadata override.
+    var metadata: (any Metadata)? { get }
+
     /// The page body, rendered once per content item.
     @NodeBuilder
     var body: Body { get }
@@ -54,6 +57,10 @@ public protocol ContentPage: PageProvider, Sendable {
 }
 
 extension ContentPage {
+
+    /// Default metadata returns `nil`, inheriting application-level metadata.
+    public var metadata: (any Metadata)? { nil }
+
     /// Generates one page per content item in the directory.
     public var pages: [any Page] {
         let collection = ContentCollection(loading: Self.content)
@@ -63,7 +70,7 @@ extension ContentPage {
                 ? Self.prefix
                 : "\(Self.prefix)/\(contentItem.slug)"
             let instance = Self(item: contentItem)
-            return ContentItemPage(pagePath: pagePath, body: instance.body)
+            return ContentItemPage(pagePath: pagePath, body: instance.body, metadata: instance.metadata)
         }
     }
 
@@ -80,15 +87,19 @@ struct ContentItemPage<Body: Node>: Page, @unchecked Sendable {
 
     let pagePath: String
     let storedBody: Body
+    let storedMetadata: (any Metadata)?
 
     static var path: String { "/_content" }
 
     var path: String { pagePath }
 
+    var metadata: (any Metadata)? { storedMetadata }
+
     var body: some Node { storedBody }
 
-    init(pagePath: String, body: Body) {
+    init(pagePath: String, body: Body, metadata: (any Metadata)? = nil) {
         self.pagePath = pagePath
         self.storedBody = body
+        self.storedMetadata = metadata
     }
 }

@@ -1,8 +1,21 @@
 /// The built-in default theme shipped with Score.
 ///
-/// `DefaultTheme` matches the Allegro handbook design system: a dark,
-/// warm-toned palette with OKLCH colors, DM Mono body text, Fraunces
-/// serif headings, and tight 4 px spacing/radius scales.
+/// `DefaultTheme` matches the Allegro handbook design system built on the
+/// Allegro Pantone palette converted to OKLCH:
+///
+/// | Swatch       | OKLCH                    |
+/// |--------------|--------------------------|
+/// | Castlerock   | oklch(0.44, 0.006, 285)  |
+/// | Blue Atoll   | oklch(0.68, 0.130, 215)  |
+/// | Carbon       | oklch(0.22, 0.018, 240)  |
+/// | Aurora       | oklch(0.88, 0.140, 98)   |
+/// | Sachet Pink  | oklch(0.70, 0.130, 355)  |
+///
+/// Light mode is the default. Dark mode is supported in two ways:
+/// - Automatically via `@media (prefers-color-scheme: dark)` using the
+///   ``dark`` patch.
+/// - Manually via `data-theme="dark"` using the ``named`` patch
+///   dictionary, allowing user-controlled theme switching.
 ///
 /// Applications that declare their own `theme` override this entirely.
 public struct DefaultTheme: Theme, Sendable {
@@ -11,11 +24,11 @@ public struct DefaultTheme: Theme, Sendable {
 
     public var colorRoles: [String: ColorToken] {
         [
-            "surface": .oklch(0.07, 0.01, 60),
-            "text": .oklch(0.90, 0.02, 75),
-            "border": .oklch(0.22, 0.02, 60),
-            "accent": .oklch(0.73, 0.10, 75),
-            "muted": .oklch(0.50, 0.03, 60),
+            "surface": .oklch(1.0, 0, 0),
+            "text": .oklch(0.16, 0, 0),
+            "border": .oklch(0.88, 0.006, 240),
+            "accent": .oklch(0.52, 0.13, 215),
+            "muted": .oklch(0.50, 0, 0),
             "destructive": .oklch(0.55, 0.22, 25),
             "success": .oklch(0.60, 0.19, 145),
         ]
@@ -23,7 +36,7 @@ public struct DefaultTheme: Theme, Sendable {
 
     public var fontFamilies: [String: String] {
         [
-            "sans": "'DM Mono', ui-monospace, monospace",
+            "sans": "'Inter', system-ui, -apple-system, sans-serif",
             "serif": "'Fraunces', serif",
             "mono": "'DM Mono', ui-monospace, monospace",
         ]
@@ -32,7 +45,34 @@ public struct DefaultTheme: Theme, Sendable {
     public var typeScaleBase: Double { 16 }
     public var typeScaleRatio: Double { 1.25 }
     public var spacingUnit: Double { 4 }
-    public var radiusBase: Double { 4 }
+    public var radiusBase: Double { 8 }
+    public var syntaxTheme: SyntaxTheme { .scoreDefault }
+
+    public var dark: (any ThemePatch)? { DefaultDarkPatch() }
+
+    public var named: [String: any ThemePatch] {
+        ["dark": DefaultDarkPatch()]
+    }
+
+    public init() {}
+}
+
+/// The dark-mode patch for the default Allegro theme.
+///
+/// Dark surfaces are anchored to Carbon with Blue Atoll as the accent.
+/// Overrides surface, text, border, accent, and muted color roles to
+/// produce a cool dark appearance that pairs with ``DefaultTheme``.
+public struct DefaultDarkPatch: ThemePatch, Sendable {
+
+    public var colorRoles: [String: ColorToken]? {
+        [
+            "surface": .oklch(0.17, 0.014, 240),
+            "text": .oklch(0.93, 0.004, 240),
+            "border": .oklch(0.26, 0.012, 240),
+            "accent": .oklch(0.68, 0.13, 215),
+            "muted": .oklch(0.58, 0.006, 240),
+        ]
+    }
 
     public init() {}
 }

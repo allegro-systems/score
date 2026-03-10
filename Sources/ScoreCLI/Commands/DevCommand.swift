@@ -109,21 +109,23 @@ final class DevRunner: Sendable {
             self.stopServer()
 
             do {
-                let result = try SwiftToolchain.build(release: false, in: self.directory)
+                let result = try SwiftToolchain.buildStreaming(release: false, in: self.directory) { line in
+                    print(line)
+                }
                 if result.succeeded {
                     self.startServer(executable: executable)
-                    self.replaceStatusBlock(icon: "✔", style: .success, message: "Server running on \(self.serverURL)")
+                    self.printStatusBlock(icon: "✔", style: .success, message: "Server running on \(self.serverURL)")
                 } else {
                     let errors = result.errors.filter { $0.severity == .error }
                     if errors.isEmpty {
-                        self.replaceStatusBlock(icon: "⨯", style: .error, message: "Rebuild failed — check terminal output for details")
+                        self.printStatusBlock(icon: "⨯", style: .error, message: "Rebuild failed")
                     } else {
-                        let detail = errors.prefix(3).map { "\($0.file):\($0.line) — \($0.message)" }.joined(separator: "\n")
-                        self.replaceStatusBlock(icon: "⨯", style: .error, message: "Rebuild failed\n\(detail)")
+                        let detail = errors.prefix(5).map { "\($0.file):\($0.line) — \($0.message)" }.joined(separator: "\n")
+                        self.printStatusBlock(icon: "⨯", style: .error, message: "Rebuild failed\n\(detail)")
                     }
                 }
             } catch {
-                self.replaceStatusBlock(icon: "⨯", style: .error, message: "Rebuild failed — \(error)")
+                self.printStatusBlock(icon: "⨯", style: .error, message: "Rebuild failed — \(error)")
             }
         }
     }

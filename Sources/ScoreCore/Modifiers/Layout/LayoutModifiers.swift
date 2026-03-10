@@ -261,6 +261,51 @@ public struct GridModifier: ModifierValue {
     }
 }
 
+/// A modifier that turns an element into a responsive grid container using
+/// CSS `auto-fit` with `minmax()`.
+///
+/// `AutoFitGridModifier` creates a grid that automatically wraps items to
+/// new rows when they would be narrower than the specified minimum width.
+/// This produces a naturally responsive grid without media queries.
+///
+/// ### Example
+///
+/// ```swift
+/// Section {
+///     ForEach(items) { item in
+///         Card(item)
+///     }
+/// }
+/// .grid(minItemWidth: 250, gap: 24)
+/// ```
+///
+/// ### CSS Mapping
+///
+/// Maps to `display: grid` with
+/// `grid-template-columns: repeat(auto-fit, minmax(<minItemWidth>px, 1fr))`.
+public struct AutoFitGridModifier: ModifierValue {
+
+    /// The minimum width of each grid item in points.
+    ///
+    /// Items narrower than this value cause the grid to wrap to fewer columns.
+    public let minItemWidth: Double
+
+    /// The space between grid tracks (rows and columns) in points.
+    ///
+    /// When `nil`, the CSS `gap` property is not set.
+    public let gap: Double?
+
+    /// Creates an auto-fit grid modifier.
+    ///
+    /// - Parameters:
+    ///   - minItemWidth: The minimum width of each grid item in points.
+    ///   - gap: The gap between tracks in points. Defaults to `nil`.
+    public init(minItemWidth: Double, gap: Double? = nil) {
+        self.minItemWidth = minItemWidth
+        self.gap = gap
+    }
+}
+
 /// A modifier that hides an element from the layout entirely.
 ///
 /// `HiddenModifier` removes the element from the rendered output by setting
@@ -360,6 +405,37 @@ extension Node {
     /// - Returns: A modified node configured as a grid container.
     public func grid(columns: Int, rows: Int? = nil, gap: Double? = nil, autoFlow: GridAutoFlow? = nil) -> ModifiedNode<Self> {
         let mod = GridModifier(columns: columns, rows: rows, gap: gap, autoFlow: autoFlow)
+        return ModifiedNode(content: self, modifiers: [mod])
+    }
+
+    /// Turns the element into a responsive grid container that automatically
+    /// wraps items based on a minimum width.
+    ///
+    /// Uses CSS `repeat(auto-fit, minmax(..., 1fr))` to create a grid that
+    /// adapts to the available width without media queries.
+    ///
+    /// ### Example
+    ///
+    /// ```swift
+    /// Section {
+    ///     ForEach(cards) { card in
+    ///         CardView(card)
+    ///     }
+    /// }
+    /// .grid(minItemWidth: 280, gap: 16)
+    /// ```
+    ///
+    /// ### CSS Mapping
+    ///
+    /// Maps to `display: grid` with
+    /// `grid-template-columns: repeat(auto-fit, minmax(<minItemWidth>px, 1fr))`.
+    ///
+    /// - Parameters:
+    ///   - minItemWidth: The minimum width of each item before wrapping.
+    ///   - gap: The gap between tracks in points. Defaults to `nil`.
+    /// - Returns: A modified node configured as a responsive grid container.
+    public func grid(minItemWidth: Double, gap: Double? = nil) -> ModifiedNode<Self> {
+        let mod = AutoFitGridModifier(minItemWidth: minItemWidth, gap: gap)
         return ModifiedNode(content: self, modifiers: [mod])
     }
 

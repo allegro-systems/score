@@ -245,6 +245,7 @@ public struct Audio<Content: Node>: Node {
     /// Creates an audio node.
     ///
     /// - Parameters:
+    ///   - src: An optional URL for the audio source. Defaults to `nil`.
     ///   - showsControls: Whether to show built-in browser controls. Defaults
     ///     to `true`.
     ///   - autoplays: Whether playback starts automatically. Defaults to

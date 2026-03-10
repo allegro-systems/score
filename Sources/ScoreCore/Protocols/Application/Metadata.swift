@@ -46,6 +46,9 @@ public protocol Metadata: Sendable {
 
     /// Structured data payloads represented as JSON strings.
     var structuredData: [String]? { get }
+
+    /// The base URL for generating canonical links and Open Graph URLs.
+    var baseURL: String? { get }
 }
 
 extension Metadata {
@@ -55,6 +58,7 @@ extension Metadata {
     public var description: String? { nil }
     public var keywords: [String]? { nil }
     public var structuredData: [String]? { nil }
+    public var baseURL: String? { nil }
 }
 
 /// A concrete metadata value with all standard document metadata fields.
@@ -66,6 +70,7 @@ public struct SiteMetadata: Metadata {
     public var description: String?
     public var keywords: [String]?
     public var structuredData: [String]?
+    public var baseURL: String?
 
     /// Creates a metadata value.
     public init(
@@ -74,7 +79,8 @@ public struct SiteMetadata: Metadata {
         titleSeparator: String? = nil,
         description: String? = nil,
         keywords: [String]? = nil,
-        structuredData: [String]? = nil
+        structuredData: [String]? = nil,
+        baseURL: String? = nil
     ) {
         self.site = site
         self.title = title
@@ -82,5 +88,6 @@ public struct SiteMetadata: Metadata {
         self.description = description
         self.keywords = keywords
         self.structuredData = structuredData
+        self.baseURL = baseURL
     }
 }

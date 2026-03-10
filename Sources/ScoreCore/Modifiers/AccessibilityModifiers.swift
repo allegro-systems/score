@@ -104,7 +104,7 @@ extension Node {
     /// - Parameters:
     ///   - label: A localized description announced by assistive technologies. When `nil`,
     ///     the system derives a label from the node's visible content.
-    ///   - hidden: When `true`, the element is excluded from the accessibility tree.
+    ///   - isHidden: When `true`, the element is excluded from the accessibility tree.
     ///     Defaults to `nil`.
     ///   - role: A semantic role identifier such as `"button"` or `"navigation"`.
     ///     When `nil`, the role is inferred from the element type.

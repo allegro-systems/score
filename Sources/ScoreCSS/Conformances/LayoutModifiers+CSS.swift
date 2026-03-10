@@ -38,3 +38,19 @@ extension GridModifier: CSSRepresentable {
         return result
     }
 }
+
+/// Enables CSS emission for `AutoFitGridModifier` modifiers.
+extension AutoFitGridModifier: CSSRepresentable {
+    /// Converts this modifier into one or more CSS declarations.
+    func cssDeclarations() -> [CSSDeclaration] {
+        var result: [CSSDeclaration] = [
+            .init(property: "display", value: "grid"),
+            .init(
+                property: "grid-template-columns",
+                value: "repeat(auto-fit, minmax(\(CSSEmitter.pixels(minItemWidth)), 1fr))"
+            ),
+        ]
+        if let v = gap { result.append(.init(property: "gap", value: CSSEmitter.pixels(v))) }
+        return result
+    }
+}

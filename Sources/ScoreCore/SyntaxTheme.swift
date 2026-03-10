@@ -1,23 +1,18 @@
-import ScoreCore
-
-/// An OKLCH colour value used for syntax theme tokens.
-///
-/// `ColorValue` stores a colour in the OKLCH perceptual colour space, which
-/// provides uniform lightness across hues. Each value is defined by three
-/// components: `lightness` (0–1), `chroma` (0–~0.4), and `hue` (0–360).
+/// A colour value in the OKLCH perceptual colour space, used for syntax
+/// theme tokens.
 ///
 /// ```swift
 /// let blue = ColorValue.oklch(0.62, 0.19, 250)
 /// ```
 public struct ColorValue: Sendable, Hashable {
 
-    /// The perceived lightness of the colour, ranging from 0 (black) to 1 (white).
+    /// Perceptual lightness, from 0 (black) to 1 (white).
     public let lightness: Double
 
-    /// The colourfulness of the colour, ranging from 0 (achromatic) to approximately 0.4.
+    /// Chroma (colourfulness), from 0 to approximately 0.4.
     public let chroma: Double
 
-    /// The hue angle in degrees, ranging from 0 to 360.
+    /// Hue angle in degrees, from 0 to 360.
     public let hue: Double
 
     /// Creates an OKLCH colour value.
@@ -31,10 +26,10 @@ public struct ColorValue: Sendable, Hashable {
         ColorValue(lightness: l, chroma: c, hue: h)
     }
 
-    /// The CSS `oklch()` representation of this colour.
+    /// The CSS representation of this colour.
     ///
-    /// Returns a string such as `"oklch(0.62 0.19 250)"` suitable for direct
-    /// embedding in CSS stylesheets.
+    /// Returns an `oklch()` function call suitable for direct embedding in
+    /// CSS stylesheets.
     public var cssValue: String {
         "oklch(\(lightness) \(chroma) \(hue))"
     }
@@ -44,7 +39,7 @@ public struct ColorValue: Sendable, Hashable {
 ///
 /// `SyntaxTheme` defines the visual presentation of syntax-highlighted code
 /// blocks. Each property corresponds to a category of language token, and the
-/// associated `ColorValue` determines how that category is rendered.
+/// associated ``ColorValue`` determines how that category is rendered.
 ///
 /// Score ships with 11 built-in themes accessible as static properties.
 ///
@@ -118,17 +113,20 @@ public struct SyntaxTheme: Sendable, Hashable {
 
 extension SyntaxTheme {
 
-    /// The default Score syntax theme with balanced contrast and muted tones.
+    /// The default Score syntax theme, matching the Allegro design handbook.
+    ///
+    /// Uses the OKLCH equivalents of the handbook's Syntax Highlighting
+    /// colours for perceptual consistency across all Allegro properties.
     public static let scoreDefault = SyntaxTheme(
-        background: .oklch(0.20, 0.02, 260),
-        keyword: .oklch(0.72, 0.18, 310),
-        string: .oklch(0.72, 0.16, 150),
-        comment: .oklch(0.55, 0.03, 260),
-        number: .oklch(0.72, 0.16, 60),
-        type: .oklch(0.75, 0.15, 200),
-        function: .oklch(0.78, 0.14, 80),
-        operatorColor: .oklch(0.80, 0.10, 60),
-        variable: .oklch(0.85, 0.04, 260)
+        background: .oklch(0.18, 0.01, 92),
+        keyword: .oklch(0.65, 0.13, 348),
+        string: .oklch(0.76, 0.12, 153),
+        comment: .oklch(0.46, 0.02, 80),
+        number: .oklch(0.71, 0.08, 58),
+        type: .oklch(0.68, 0.08, 246),
+        function: .oklch(0.66, 0.05, 84),
+        operatorColor: .oklch(0.75, 0.08, 83),
+        variable: .oklch(0.81, 0.03, 92)
     )
 
     /// A warm, minimal dark theme inspired by Vesper.

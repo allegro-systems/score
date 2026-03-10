@@ -240,7 +240,7 @@ public enum ColorToken: Sendable, Hashable {
 ///     var typeScaleRatio: Double { 1.25 }
 ///     var spacingUnit: Double { 4 }
 ///     var radiusBase: Double { 4 }
-///     var syntaxThemeName: String? { nil }
+///     var syntaxTheme: SyntaxTheme { .rosePine }
 ///     var dark: (any ThemePatch)? { nil }
 /// }
 /// ```
@@ -283,10 +283,10 @@ public protocol Theme: Sendable {
     /// The radius scale base value in points.
     var radiusBase: Double { get }
 
-    /// The optional syntax-theme identifier for code rendering.
+    /// The syntax highlighting theme used for code blocks.
     ///
-    /// When `nil`, renderer modules choose their default syntax theme.
-    var syntaxThemeName: String? { get }
+    /// Defaults to ``SyntaxTheme/scoreDefault``.
+    var syntaxTheme: SyntaxTheme { get }
 
     /// Optional dark-mode patch values applied on top of the base theme.
     var dark: (any ThemePatch)? { get }
@@ -297,6 +297,12 @@ public protocol Theme: Sendable {
     /// Theme switching is handled by user-authored JavaScript that sets
     /// the `data-theme` attribute on `<html>`.
     var named: [String: any ThemePatch] { get }
+
+    /// Styling configuration for rendered Markdown content elements.
+    ///
+    /// Controls how inline code, blockquotes, horizontal rules, and tables
+    /// appear when rendered from Markdown. Defaults to ``ContentStyle/default``.
+    var contentStyle: ContentStyle { get }
 
     /// Per-component CSS custom property overrides.
     ///
@@ -322,21 +328,46 @@ public protocol Theme: Sendable {
     /// `colorRoles["surface"]` automatically updates all components
     /// that reference it.
     var componentStyles: [String: String] { get }
+
 }
 
 extension Theme {
 
+    /// Default theme name.
+    public var name: String? { nil }
+
+    /// Default color roles from ``DefaultTheme``.
+    public var colorRoles: [String: ColorToken] { DefaultTheme().colorRoles }
+
     /// Default implementation returns an empty custom color scale map.
     public var customColorRoles: [String: [Int: ColorToken]] { [:] }
 
-    /// Default implementation returns `nil`, meaning no syntax theme override.
-    public var syntaxThemeName: String? { nil }
+    /// Default font families from ``DefaultTheme``.
+    public var fontFamilies: [String: String] { DefaultTheme().fontFamilies }
+
+    /// Default type scale base from ``DefaultTheme``.
+    public var typeScaleBase: Double { DefaultTheme().typeScaleBase }
+
+    /// Default type scale ratio from ``DefaultTheme``.
+    public var typeScaleRatio: Double { DefaultTheme().typeScaleRatio }
+
+    /// Default spacing unit from ``DefaultTheme``.
+    public var spacingUnit: Double { DefaultTheme().spacingUnit }
+
+    /// Default radius base from ``DefaultTheme``.
+    public var radiusBase: Double { DefaultTheme().radiusBase }
+
+    /// Default syntax theme from ``SyntaxTheme/scoreDefault``.
+    public var syntaxTheme: SyntaxTheme { .scoreDefault }
 
     /// Default implementation returns `nil`, meaning no dark-mode patch.
     public var dark: (any ThemePatch)? { nil }
 
-    /// Default implementation returns no named variants.
-    public var named: [String: any ThemePatch] { [:] }
+    /// Default named variants from ``DefaultTheme``.
+    public var named: [String: any ThemePatch] { DefaultTheme().named }
+
+    /// Default content style using semantic theme tokens.
+    public var contentStyle: ContentStyle { .default }
 
     /// Default implementation returns no component style overrides.
     public var componentStyles: [String: String] { [:] }
@@ -411,8 +442,8 @@ public protocol ThemePatch: Sendable {
     /// Optional radius-base override.
     var radiusBase: Double? { get }
 
-    /// Optional syntax-theme identifier override.
-    var syntaxThemeName: String? { get }
+    /// Optional syntax theme override.
+    var syntaxTheme: SyntaxTheme? { get }
 }
 
 extension ThemePatch {
@@ -439,5 +470,5 @@ extension ThemePatch {
     public var radiusBase: Double? { nil }
 
     /// Default implementation returns no syntax-theme override.
-    public var syntaxThemeName: String? { nil }
+    public var syntaxTheme: SyntaxTheme? { nil }
 }

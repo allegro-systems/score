@@ -39,7 +39,7 @@ public struct RouteTable: Sendable {
         let root = TrieNode()
 
         for page in application.pages {
-            let pattern = type(of: page).path
+            let pattern = page.path
             let segments = RouteTable.splitSegments(pattern)
             let entry = RouteEntry(
                 method: .get,

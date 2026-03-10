@@ -1,3 +1,4 @@
+import Dispatch
 import NIOCore
 import NIOHTTP1
 import NIOPosix
@@ -39,8 +40,8 @@ public struct Server: Sendable {
     /// Starts the server and begins accepting connections.
     ///
     /// Boots the NIO event loop, binds to the configured host and port,
-    /// registers all pages and controller routes, and serves until the
-    /// process is terminated.
+    /// registers all pages and controller routes, and serves until a
+    /// termination signal (SIGINT or SIGTERM) is received.
     public func run() async throws {
         let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
         defer { group.shutdownGracefully { _ in } }
@@ -73,6 +74,21 @@ public struct Server: Sendable {
             port: configuration.port
         ).get()
 
+        let signalSources = Self.installSignalHandlers(closing: channel)
+        defer {
+            for source in signalSources { source.cancel() }
+        }
+
         try await channel.closeFuture.get()
+    }
+
+    private static func installSignalHandlers(closing channel: Channel) -> [DispatchSourceSignal] {
+        [SIGINT, SIGTERM].map { sig in
+            let source = DispatchSource.makeSignalSource(signal: sig)
+            signal(sig, SIG_IGN)
+            source.setEventHandler { channel.close(promise: nil) }
+            source.resume()
+            return source
+        }
     }
 }

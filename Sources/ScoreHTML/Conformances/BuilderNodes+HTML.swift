@@ -27,20 +27,27 @@ extension RawTextNode: HTMLRenderable {
 extension ModifiedNode: HTMLRenderable {
     /// Flattens nested `ModifiedNode` wrappers into a single modifier set,
     /// then renders the innermost content. When the class injector returns
-    /// a class name, the content is wrapped in a `<div>` with that class.
-    /// When it returns `nil` (CSS nesting handles the styles), the content
-    /// renders directly without a wrapper.
+    /// a class name, it is merged directly onto the inner element's tag
+    /// if the element conforms to `HTMLAttributeInjectable`; otherwise
+    /// the content is wrapped in a `<div>` with that class. When the
+    /// injector returns `nil` (CSS nesting handles the styles), the
+    /// content renders directly without a wrapper.
     func renderHTML(into output: inout String, renderer: HTMLRenderer) {
         let (allModifiers, innerContent) = flattenedChain()
         let className = renderer.classInjector?(allModifiers)
-        let (htmlAttrs, hasEventBindings) = Self.collectHTMLAttributesAndEvents(from: allModifiers)
+        let (htmlAttrs, hasEventBindings, hasReactiveBindings) = Self.collectHTMLAttributesAndEvents(from: allModifiers)
 
-        if className != nil || !htmlAttrs.isEmpty || hasEventBindings {
-            output.append("<div")
+        if className != nil || !htmlAttrs.isEmpty || hasEventBindings || hasReactiveBindings {
+            var extraAttributes: [(String, String)] = []
 
             if hasEventBindings {
                 let eventIndex = renderer.context.nextEventIndex()
-                output.append(" data-s=\"\(eventIndex)\"")
+                extraAttributes.append(("data-s", "\(eventIndex)"))
+            }
+
+            if hasReactiveBindings {
+                let reactiveIndex = renderer.context.nextReactiveIndex()
+                extraAttributes.append(("data-r", "\(reactiveIndex)"))
             }
 
             var classValue = className ?? ""
@@ -52,15 +59,22 @@ extension ModifiedNode: HTMLRenderable {
                 }
             }
             if !classValue.isEmpty {
-                output.append(" class=\"\(classValue.attributeEscaped)\"")
+                extraAttributes.append(("class", classValue))
             }
             for (name, value) in htmlAttrs where name != "class" {
                 guard name.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" || $0 == ":" }) else { continue }
-                output.append(" \(name)=\"\(value.attributeEscaped)\"")
+                extraAttributes.append((name, value))
             }
-            output.append(">")
-            renderer.write(innerContent, to: &output)
-            output.append("</div>")
+
+            if let injectable = innerContent as? HTMLAttributeInjectable {
+                injectable.renderHTML(merging: extraAttributes, into: &output, renderer: renderer)
+            } else {
+                output.append("<div")
+                renderer.writeAttributes(extraAttributes, to: &output)
+                output.append(">")
+                renderer.write(innerContent, to: &output)
+                output.append("</div>")
+            }
         } else {
             renderer.write(innerContent, to: &output)
         }
@@ -70,12 +84,32 @@ extension ModifiedNode: HTMLRenderable {
     /// modifier array.
     private static func collectHTMLAttributesAndEvents(
         from modifiers: [any ModifierValue]
-    ) -> (attributes: [String: String], hasEventBindings: Bool) {
+    ) -> (attributes: [String: String], hasEventBindings: Bool, hasReactiveBindings: Bool) {
         var result: [String: String] = [:]
         var hasEvents = false
+        var hasReactive = false
         for modifier in modifiers {
             if modifier is EventBindingModifier {
                 hasEvents = true
+            }
+            if let visMod = modifier as? ReactiveVisibilityModifier {
+                hasReactive = true
+                if !visMod.initiallyVisible {
+                    result["hidden"] = ""
+                }
+                continue
+            }
+            if let a11y = modifier as? AccessibilityModifier {
+                if let label = a11y.label {
+                    result["aria-label"] = label
+                }
+                if let isHidden = a11y.isHidden {
+                    result["aria-hidden"] = isHidden ? "true" : "false"
+                }
+                if let role = a11y.role {
+                    result["role"] = role
+                }
+                continue
             }
             guard let attrMod = modifier as? HTMLAttributeModifier else { continue }
             for attr in attrMod.attributes {
@@ -86,7 +120,7 @@ extension ModifiedNode: HTMLRenderable {
                 }
             }
         }
-        return (result, hasEvents)
+        return (result, hasEvents, hasReactive)
     }
 }
 

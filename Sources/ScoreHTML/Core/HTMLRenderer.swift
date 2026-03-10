@@ -46,11 +46,21 @@ public struct HTMLRenderer: Sendable {
     /// Mutable counter for `data-s` event binding indices, protected by a lock
     /// to prevent data races.
     final class RenderContext: Sendable {
-        private let lock = OSAllocatedUnfairLock(initialState: 0)
+        private let eventLock = OSAllocatedUnfairLock(initialState: 0)
+        private let reactiveLock = OSAllocatedUnfairLock(initialState: 0)
 
         /// Returns the next event index and increments the counter.
         func nextEventIndex() -> Int {
-            lock.withLock { index in
+            eventLock.withLock { index in
+                let current = index
+                index += 1
+                return current
+            }
+        }
+
+        /// Returns the next reactive binding index and increments the counter.
+        func nextReactiveIndex() -> Int {
+            reactiveLock.withLock { index in
                 let current = index
                 index += 1
                 return current
@@ -127,7 +137,7 @@ public struct HTMLRenderer: Sendable {
             return
         }
 
-        if node.body is Never { return }
+        if isLeafNode(node) { return }
 
         // Check if this is a stateful component needing a scope wrapper.
         if let scopeInfo = scopeInjector?(node) {
@@ -174,6 +184,12 @@ public struct HTMLRenderer: Sendable {
                 output.append(" \(key)=\"\(value.attributeEscaped)\"")
             }
         }
+    }
+
+    /// Checks whether a node is a leaf (has `Body == Never`) without
+    /// evaluating `body`, which would trigger `fatalError` on leaf nodes.
+    private func isLeafNode<N: Node>(_ node: N) -> Bool {
+        N.Body.self == Never.self
     }
 
 }

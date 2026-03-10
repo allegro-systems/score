@@ -16,13 +16,32 @@ import ScoreCore
 ///
 /// ```css
 /// .feature-card {
-///   article { padding: 20px; background: ...; }
-///   h3 { font-size: 17px; }
+///   article {
+///     padding: 20px;
+///     background: ...;
+///   }
+///   h3 {
+///     font-size: 17px;
+///   }
 /// }
 /// ```
 ///
 /// When the same tag appears multiple times with different styles, or when
 /// there is no component scope, semantic class names are generated instead.
+///
+/// Pseudo-class modifiers (e.g. `.hover(...)`) are emitted alongside their
+/// base styles using the same selector with the pseudo-class appended:
+///
+/// ```css
+/// .feature-card {
+///   article {
+///     padding: 20px;
+///   }
+///   article:hover {
+///     background-color: oklch(0.12 0.01 60);
+///   }
+/// }
+/// ```
 ///
 /// ### Example
 ///
@@ -47,6 +66,11 @@ public struct CSSCollector: Sendable {
         public let classLookup: [String: String]
         /// Declaration keys handled by CSS nesting (no class needed in HTML).
         public let nestedKeys: Set<String>
+        /// Per-component CSS blocks keyed by scope name, used for chunking
+        /// shared component styles into a separate file during static builds.
+        public let componentBlocks: [String: String]
+        /// CSS for entries without a component scope.
+        public let flatCSS: String
     }
 
     /// A rule set mapping a class name to its declarations (backward compat).
@@ -57,11 +81,15 @@ public struct CSSCollector: Sendable {
         public let declarations: [CSSDeclaration]
     }
 
-    /// A collected entry recording a flattened modifier set with its context.
+    private struct PseudoEntry: Sendable {
+        let pseudoClass: PseudoClass
+        let declarations: [CSSDeclaration]
+    }
+
     private struct Entry: Sendable {
         let declarations: [CSSDeclaration]
         let declarationKey: String
-        let fingerprint: String
+        let pseudoEntries: [PseudoEntry]
         let componentScope: String?
         let htmlTag: String?
     }
@@ -91,12 +119,12 @@ public struct CSSCollector: Sendable {
     ///
     /// Entries inside a component scope with a unique HTML tag are rendered
     /// as nested element selectors. Ambiguous or scope-less entries receive
-    /// semantic class names.
+    /// semantic class names. Pseudo-class entries are emitted alongside their
+    /// base rules using the same selector.
     ///
     /// - Returns: A `StylesheetResult` containing the CSS, class lookup, and
     ///   set of declaration keys handled by nesting.
     public func renderStylesheet() -> StylesheetResult {
-        // Group entries by component scope
         var componentGroups: [(scope: String, entries: [Entry])] = []
         var componentIndex: [String: Int] = [:]
         var flatEntries: [Entry] = []
@@ -117,48 +145,54 @@ public struct CSSCollector: Sendable {
         var css = ""
         var classLookup: [String: String] = [:]
         var nestedKeys: Set<String> = []
+        var componentBlocks: [String: String] = [:]
 
-        // Render component groups with CSS nesting
         for (scope, groupEntries) in componentGroups {
-            // Detect ambiguity: same tag with different fingerprints
-            var tagFingerprints: [String: Set<String>] = [:]
-            for entry in groupEntries {
+            var tagDeclarationKeys: [String: Set<String>] = [:]
+            for entry in groupEntries where !entry.declarations.isEmpty {
                 guard let tag = entry.htmlTag else { continue }
-                tagFingerprints[tag, default: []].insert(entry.fingerprint)
+                tagDeclarationKeys[tag, default: []].insert(entry.declarationKey)
             }
-            let ambiguousTags = Set(tagFingerprints.filter { $0.value.count > 1 }.keys)
+            var ambiguousTags = Set(tagDeclarationKeys.filter { $0.value.count > 1 }.keys)
+            ambiguousTags.formUnion(Self.alwaysClassedTags)
 
-            css.append(".\(scope) {\n")
+            var blockCSS = ".\(scope) {\n"
 
             var tagOrdinals: [String: Int] = [:]
 
             for entry in groupEntries {
-                let decls = renderDeclarations(entry.declarations)
+                if !entry.declarations.isEmpty {
+                    let decls = renderDeclarations(entry.declarations, indent: "    ")
 
-                if let tag = entry.htmlTag, !ambiguousTags.contains(tag) {
-                    // Unique tag within component → nested element selector
-                    css.append("  \(tag) { \(decls) }\n")
-                    nestedKeys.insert(entry.declarationKey)
-                } else {
-                    // Ambiguous tag or no tag → named class nested under component
-                    let tagKey = entry.htmlTag ?? "div"
-                    let ordinal = (tagOrdinals[tagKey] ?? 0) + 1
-                    tagOrdinals[tagKey] = ordinal
-                    let className = Self.semanticClassName(
-                        component: scope,
-                        tag: entry.htmlTag,
-                        pageName: pageName,
-                        ordinal: ordinal
-                    )
-                    css.append("  .\(className) { \(decls) }\n")
-                    classLookup[entry.declarationKey] = className
+                    if let tag = entry.htmlTag, !ambiguousTags.contains(tag) {
+                        blockCSS.append("  \(tag) {\n\(decls)\n  }\n")
+                        nestedKeys.insert(entry.declarationKey)
+                        emitPseudoRules(entry.pseudoEntries, selector: tag, indent: "  ", into: &blockCSS)
+                    } else {
+                        let tagKey = entry.htmlTag ?? "div"
+                        let ordinal = (tagOrdinals[tagKey] ?? 0) + 1
+                        tagOrdinals[tagKey] = ordinal
+                        let className = Self.semanticClassName(
+                            component: scope,
+                            tag: entry.htmlTag,
+                            pageName: pageName,
+                            ordinal: ordinal
+                        )
+                        blockCSS.append("  .\(className) {\n\(decls)\n  }\n")
+                        classLookup[entry.declarationKey] = className
+                        emitPseudoRules(entry.pseudoEntries, selector: ".\(className)", indent: "  ", into: &blockCSS)
+                    }
+                } else if let tag = entry.htmlTag {
+                    emitPseudoRules(entry.pseudoEntries, selector: tag, indent: "  ", into: &blockCSS)
                 }
             }
 
-            css.append("}\n")
+            blockCSS.append("}\n")
+            componentBlocks[scope] = blockCSS
+            css.append(blockCSS)
         }
 
-        // Render flat entries (no component scope)
+        var flatCSS = ""
         var flatTagOrdinals: [String: Int] = [:]
         for entry in flatEntries {
             let tagKey = entry.htmlTag ?? "div"
@@ -170,12 +204,30 @@ public struct CSSCollector: Sendable {
                 pageName: pageName,
                 ordinal: ordinal
             )
-            let decls = renderDeclarations(entry.declarations)
-            css.append(".\(className) { \(decls) }\n")
-            classLookup[entry.declarationKey] = className
+
+            if !entry.declarations.isEmpty {
+                let decls = renderDeclarations(entry.declarations, indent: "  ")
+                let rule = ".\(className) {\n\(decls)\n}\n"
+                flatCSS.append(rule)
+                css.append(rule)
+                classLookup[entry.declarationKey] = className
+            }
+
+            for pseudo in entry.pseudoEntries {
+                let pseudoDecls = renderDeclarations(pseudo.declarations, indent: "  ")
+                let rule = ".\(className):\(pseudo.pseudoClass.rawValue) {\n\(pseudoDecls)\n}\n"
+                flatCSS.append(rule)
+                css.append(rule)
+            }
         }
 
-        return StylesheetResult(css: css, classLookup: classLookup, nestedKeys: nestedKeys)
+        return StylesheetResult(
+            css: css,
+            classLookup: classLookup,
+            nestedKeys: nestedKeys,
+            componentBlocks: componentBlocks,
+            flatCSS: flatCSS
+        )
     }
 
     /// Returns all collected entries as flat rules for backward compatibility.
@@ -187,13 +239,13 @@ public struct CSSCollector: Sendable {
         var order: [String] = []
         var nextIndex = 0
 
-        for entry in entries {
-            if seen[entry.fingerprint] == nil {
-                seen[entry.fingerprint] = Rule(
+        for entry in entries where !entry.declarationKey.isEmpty {
+            if seen[entry.declarationKey] == nil {
+                seen[entry.declarationKey] = Rule(
                     className: "s-\(nextIndex)",
                     declarations: entry.declarations
                 )
-                order.append(entry.fingerprint)
+                order.append(entry.declarationKey)
                 nextIndex += 1
             }
         }
@@ -203,24 +255,26 @@ public struct CSSCollector: Sendable {
 
     // MARK: - Tree Walking
 
+    private func isLeafNode<N: Node>(_ node: N) -> Bool {
+        N.Body.self == Never.self
+    }
+
     private mutating func walk(_ node: some Node) {
-        // 1. Modified node → flatten chain and register combined modifiers
-        if let modified = node as? any ModifierContaining {
+        if let modified = node as? any ModifierChainLinkable {
             let (allModifiers, innerNode) = flattenChain(modified)
             let tag = (innerNode as? any CSSWalkable)?.htmlTag
             registerModifiers(allModifiers, htmlTag: tag)
-            // Walk inner content for its children's CSS
             collect(from: innerNode)
             return
         }
 
-        // 2. CSS primitive → walk children directly
         if let walkable = node as? any CSSWalkable {
             walkable.walkChildren(collector: &self)
             return
         }
 
-        // 3. Composite node → detect Component scope
+        if isLeafNode(node) { return }
+
         if node is any Component {
             let name = CSSNaming.className(from: String(describing: type(of: node)))
             componentStack.append(name)
@@ -231,47 +285,83 @@ public struct CSSCollector: Sendable {
         }
     }
 
-    private func flattenChain(_ modified: any ModifierContaining) -> ([any ModifierValue], any Node) {
-        var allModifiers = modified.modifiers
-        var current = modified.innerContent
-        while let inner = current as? any ModifierContaining {
-            allModifiers.append(contentsOf: inner.modifiers)
-            current = inner.innerContent
+    private func flattenChain(_ modified: any ModifierChainLinkable) -> ([any ModifierValue], any Node) {
+        var allModifiers = modified.chainModifiers
+        var current = modified.chainContent
+        while let inner = current as? any ModifierChainLinkable {
+            allModifiers.append(contentsOf: inner.chainModifiers)
+            current = inner.chainContent
         }
         return (allModifiers, current)
     }
 
     private mutating func registerModifiers(_ modifiers: [any ModifierValue], htmlTag: String?) {
-        var declarations: [CSSDeclaration] = []
+        var baseModifiers: [any ModifierValue] = []
+        var pseudoModifiers: [PseudoClassModifier] = []
+
         for modifier in modifiers {
+            if let pseudo = modifier as? PseudoClassModifier {
+                pseudoModifiers.append(pseudo)
+            } else {
+                baseModifiers.append(modifier)
+            }
+        }
+
+        var declarations: [CSSDeclaration] = []
+        for modifier in baseModifiers {
             declarations.append(contentsOf: CSSEmitter.declarations(for: modifier))
         }
-        guard !declarations.isEmpty else { return }
 
-        let fingerprint = declarationFingerprint(for: declarations)
+        var pseudoEntries: [PseudoEntry] = []
+        for pseudo in pseudoModifiers {
+            let decls = pseudo.styles.map { $0.cssDeclaration() }
+            if !decls.isEmpty {
+                pseudoEntries.append(PseudoEntry(pseudoClass: pseudo.pseudoClass, declarations: decls))
+            }
+        }
+
+        guard !declarations.isEmpty || !pseudoEntries.isEmpty else { return }
+
+        let declarationKey = declarations.isEmpty ? "" : CSSDeclaration.lookupKey(for: declarations)
+        let pseudoKeyParts = pseudoEntries.map {
+            "\($0.pseudoClass.rawValue):\(CSSDeclaration.lookupKey(for: $0.declarations))"
+        }
+        let fullKey = ([declarationKey] + pseudoKeyParts).joined(separator: "|")
+
         let scope = componentStack.last
-        let dedupKey = "\(scope ?? "")|\(htmlTag ?? "")|\(fingerprint)"
+        let dedupKey = "\(scope ?? "")|\(htmlTag ?? "")|\(fullKey)"
 
         guard !seenEntries.contains(dedupKey) else { return }
         seenEntries.insert(dedupKey)
 
-        let declarationKey = declarations.map { "\($0.property):\($0.value)" }.joined(separator: ";")
-        entries.append(Entry(
-            declarations: declarations,
-            declarationKey: declarationKey,
-            fingerprint: fingerprint,
-            componentScope: scope,
-            htmlTag: htmlTag
-        ))
+        entries.append(
+            Entry(
+                declarations: declarations,
+                declarationKey: declarationKey,
+                pseudoEntries: pseudoEntries,
+                componentScope: scope,
+                htmlTag: htmlTag
+            ))
     }
 
     // MARK: - Helpers
 
-    private func renderDeclarations(_ declarations: [CSSDeclaration]) -> String {
-        declarations.map { "\($0.render());" }.joined(separator: " ")
+    private func emitPseudoRules(_ pseudoEntries: [PseudoEntry], selector: String, indent: String, into css: inout String) {
+        for pseudo in pseudoEntries {
+            let decls = renderDeclarations(pseudo.declarations, indent: "\(indent)  ")
+            css.append("\(indent)\(selector):\(pseudo.pseudoClass.rawValue) {\n\(decls)\n\(indent)}\n")
+        }
+    }
+
+    private func renderDeclarations(_ declarations: [CSSDeclaration], indent: String) -> String {
+        declarations.map { "\(indent)\($0.render());" }.joined(separator: "\n")
     }
 
     /// Generates a semantic class name from component, tag, and ordinal context.
+    ///
+    /// When a component scope is present, class names are short (e.g. `.small`)
+    /// because they are nested inside the component selector. When no scope
+    /// exists, the page name is prefixed instead (e.g. `.home-small`).
     static func semanticClassName(
         component: String?,
         tag: String?,
@@ -279,10 +369,19 @@ public struct CSSCollector: Sendable {
         ordinal: Int
     ) -> String {
         let tagName = friendlyTagName(tag ?? "div")
-        let base = component ?? pageName ?? "scope"
+        if component != nil {
+            return ordinal > 1 ? "\(tagName)-\(ordinal)" : tagName
+        }
+        let base = pageName ?? "scope"
         let name = "\(base)-\(tagName)"
         return ordinal > 1 ? "\(name)-\(ordinal)" : name
     }
+
+    /// Generic container tags that always receive class names instead of
+    /// element-based nested selectors. Using `div { ... }` or `span { ... }`
+    /// inside a component scope is fragile because it targets every instance
+    /// of that tag, not just the styled one.
+    private static let alwaysClassedTags: Set<String> = ["div", "span"]
 
     /// Maps HTML tag names to human-readable equivalents for class naming.
     static func friendlyTagName(_ tag: String) -> String {
@@ -305,35 +404,6 @@ public struct CSSCollector: Sendable {
         }
     }
 
-    /// FNV-1a hash of declaration content, used as deduplication key.
-    private func declarationFingerprint(for declarations: [CSSDeclaration]) -> String {
-        var hash: UInt64 = 14_695_981_039_346_656_037
-        for d in declarations {
-            for byte in d.property.utf8 {
-                hash ^= UInt64(byte)
-                hash &*= 1_099_511_628_211
-            }
-            for byte in d.value.utf8 {
-                hash ^= UInt64(byte)
-                hash &*= 1_099_511_628_211
-            }
-        }
-        return String(hash, radix: 36)
-    }
-}
-
-// MARK: - ModifierContaining
-
-/// A node that contains modifier values and can expose its inner content
-/// for chain flattening and CSS collection.
-protocol ModifierContaining {
-    var modifiers: [any ModifierValue] { get }
-    /// The inner content node, type-erased for chain flattening.
-    var innerContent: any Node { get }
-}
-
-extension ModifiedNode: ModifierContaining {
-    var innerContent: any Node { content }
 }
 
 // MARK: - CSSWalkable

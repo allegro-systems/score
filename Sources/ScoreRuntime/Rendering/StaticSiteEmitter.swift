@@ -15,6 +15,20 @@ public enum StaticSiteEmitterError: Error, Sendable, CustomStringConvertible {
     }
 }
 
+/// A rendered page entry used during static site emission.
+private struct RenderedPageEntry {
+    let pagePath: String
+    let cssName: String
+    let result: RenderResult
+}
+
+/// A CSS chunk file shared by a subset of pages.
+private struct ChunkFile {
+    let name: String
+    let css: String
+    let pages: Set<String>
+}
+
 /// Emits a static site from an `Application` to disk.
 public struct StaticSiteEmitter: Sendable {
 
@@ -23,23 +37,25 @@ public struct StaticSiteEmitter: Sendable {
     /// Renders all pages and writes them, along with external CSS files, to the
     /// application's output directory.
     ///
+    /// Component CSS is chunked by usage pattern: components used on all pages
+    /// go into `shared.css`, components shared by a subset of pages go into
+    /// named chunk files (e.g. `docs-score.css`), and page-unique styles stay
+    /// in per-page files.
+    ///
     /// The output directory is wiped clean before each emission so stale
     /// files from previous builds never linger.
     public static func emit(application: some Application) throws {
         let outputDir = application.outputDirectory
         let fm = FileManager.default
 
-        // Clean previous output
         if fm.fileExists(atPath: outputDir) {
             try fm.removeItem(atPath: outputDir)
         }
         try fm.createDirectory(atPath: outputDir, withIntermediateDirectories: true)
 
-        // Create styles directory
         let stylesDir = "\(outputDir)/styles"
         try fm.createDirectory(atPath: stylesDir, withIntermediateDirectories: true)
 
-        // Emit global CSS (theme tokens)
         let globalCSS = application.theme.map { ThemeCSSEmitter.emit($0) } ?? ""
         try globalCSS.write(
             toFile: "\(outputDir)/global.css",
@@ -47,34 +63,166 @@ public struct StaticSiteEmitter: Sendable {
             encoding: .utf8
         )
 
-        // Emit pages with per-page CSS files
+        // Render all pages with a placeholder CSS link list.
+        // The actual links are rewritten after chunk computation.
+        var rendered: [RenderedPageEntry] = []
+
         for page in application.pages {
             let pagePath = page.path
             let cssName = RequestHandler.cssFileName(for: pagePath)
-            let cssLinks = ["/global.css", "/styles/\(cssName).css"]
 
             let result = PageRenderer.render(
                 page: page,
                 metadata: application.metadata,
                 theme: application.theme,
-                cssLinks: cssLinks
+                cssLinks: ["/global.css", "/styles/\(cssName).css"]
             )
 
-            // Write per-page component CSS
-            if !result.componentCSS.isEmpty {
-                try result.componentCSS.write(
-                    toFile: "\(stylesDir)/\(cssName).css",
+            rendered.append(RenderedPageEntry(pagePath: pagePath, cssName: cssName, result: result))
+        }
+
+        // For each scope, track which pages use it
+        let totalPages = rendered.count
+        var scopePages: [String: Set<String>] = [:]
+        for entry in rendered {
+            for scope in entry.result.componentBlocks.keys {
+                scopePages[scope, default: []].insert(entry.cssName)
+            }
+        }
+
+        // Group scopes by their exact page set
+        var pageSetScopes: [Set<String>: [String]] = [:]
+        for (scope, pages) in scopePages {
+            pageSetScopes[pages, default: []].append(scope)
+        }
+
+        // Classify each group: shared (all pages), chunk (2+ pages), or page-unique
+        var sharedCSS = ""
+        var chunks: [ChunkFile] = []
+        var singlePageScopes: [String: [String]] = [:]
+        var usedChunkNames: Set<String> = []
+
+        for (pageSet, scopes) in pageSetScopes {
+            let sortedScopes = scopes.sorted()
+            var blockCSS = ""
+            for scope in sortedScopes {
+                for entry in rendered where entry.result.componentBlocks[scope] != nil {
+                    if let block = entry.result.componentBlocks[scope] {
+                        blockCSS.append(block)
+                        break
+                    }
+                }
+            }
+
+            if pageSet.count == totalPages {
+                sharedCSS.append(blockCSS)
+            } else if pageSet.count >= 2 {
+                let name = chunkName(for: pageSet, avoiding: &usedChunkNames)
+                chunks.append(ChunkFile(name: name, css: blockCSS, pages: pageSet))
+            } else if let page = pageSet.first {
+                singlePageScopes[page, default: []].append(contentsOf: sortedScopes)
+            }
+        }
+
+        // Write shared.css
+        if !sharedCSS.isEmpty {
+            try sharedCSS.write(
+                toFile: "\(stylesDir)/shared.css",
+                atomically: true,
+                encoding: .utf8
+            )
+        }
+
+        // Write chunk files
+        for chunk in chunks {
+            try chunk.css.write(
+                toFile: "\(stylesDir)/\(chunk.name).css",
+                atomically: true,
+                encoding: .utf8
+            )
+        }
+
+        // Build and write per-page CSS (page-unique scopes + flat CSS)
+        var pageHasCSS: Set<String> = []
+        for entry in rendered {
+            var pageCSS = ""
+            if let scopes = singlePageScopes[entry.cssName] {
+                for scope in scopes.sorted() {
+                    if let block = entry.result.componentBlocks[scope] {
+                        pageCSS.append(block)
+                    }
+                }
+            }
+            pageCSS.append(entry.result.flatCSS)
+
+            if !pageCSS.isEmpty {
+                pageHasCSS.insert(entry.cssName)
+                try pageCSS.write(
+                    toFile: "\(stylesDir)/\(entry.cssName).css",
                     atomically: true,
                     encoding: .utf8
                 )
             }
+        }
 
-            // Write HTML
-            let filePath = outputFilePath(for: pagePath, in: outputDir)
+        // Write HTML with correct CSS links
+        for entry in rendered {
+            var html = entry.result.html
+
+            // Build the correct style links for this page
+            var styleLinks = ""
+            if !sharedCSS.isEmpty {
+                styleLinks.append(
+                    "<link rel=\"stylesheet\" href=\"/styles/shared.css\">\n")
+            }
+            for chunk in chunks.sorted(by: { $0.name < $1.name })
+            where chunk.pages.contains(entry.cssName) {
+                styleLinks.append(
+                    "<link rel=\"stylesheet\" href=\"/styles/\(chunk.name).css\">\n")
+            }
+            if pageHasCSS.contains(entry.cssName) {
+                styleLinks.append(
+                    "<link rel=\"stylesheet\" href=\"/styles/\(entry.cssName).css\">\n")
+            }
+
+            // Replace the placeholder per-page link with the full link set
+            html = html.replacingOccurrences(
+                of: "<link rel=\"stylesheet\" href=\"/styles/\(entry.cssName).css\">\n",
+                with: styleLinks
+            )
+
+            let filePath = outputFilePath(for: entry.pagePath, in: outputDir)
             let dirPath = (filePath as NSString).deletingLastPathComponent
             try fm.createDirectory(atPath: dirPath, withIntermediateDirectories: true)
-            try result.html.write(toFile: filePath, atomically: true, encoding: .utf8)
+            try html.write(toFile: filePath, atomically: true, encoding: .utf8)
         }
+    }
+
+    /// Derives a chunk file name from the common prefix of page names in
+    /// the set. Falls back to `chunk-N` if no meaningful prefix exists.
+    private static func chunkName(
+        for pages: Set<String>,
+        avoiding used: inout Set<String>
+    ) -> String {
+        let sorted = pages.sorted()
+        var prefix = sorted[0]
+        for page in sorted.dropFirst() {
+            while !page.hasPrefix(prefix), !prefix.isEmpty {
+                prefix = String(prefix.dropLast())
+            }
+        }
+        while prefix.hasSuffix("-") {
+            prefix = String(prefix.dropLast())
+        }
+
+        var name = prefix.isEmpty ? "chunk" : prefix
+        if used.contains(name) {
+            var index = 2
+            while used.contains("\(name)-\(index)") { index += 1 }
+            name = "\(name)-\(index)"
+        }
+        used.insert(name)
+        return name
     }
 
     /// Maps a page path to a file path.

@@ -34,7 +34,8 @@ private struct MultiStatePage: Page {
 private struct ComputedPage: Page {
     static let path = "/computed"
     @State var price = 10
-    @Computed var doubled = 20
+
+    @Computed var doubled: Int { price * 2 }
 
     var body: some Node {
         Text(verbatim: "value")
@@ -122,6 +123,13 @@ private struct ActionPage: Page {
 @Test func computedPageEmitsScoreComputed() {
     let script = JSEmitter.emit(page: ComputedPage(), environment: .development)
     #expect(script.contains("Score.computed("))
+}
+
+@Test func computedPageEmitsTranslatedBody() {
+    let computeds = JSEmitter.extractComputeds(from: ComputedPage())
+    #expect(computeds.count == 1)
+    #expect(computeds[0].body.contains("price.get()"))
+    #expect(computeds[0].body.contains("* 2"))
 }
 
 @Test func stringStateEmitsQuotedValue() {

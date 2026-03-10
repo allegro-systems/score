@@ -9,6 +9,13 @@ public struct RenderResult: Sendable {
     public let html: String
     /// The component-scoped CSS extracted from the page's node tree.
     public let componentCSS: String
+    /// Per-component CSS blocks keyed by scope name, for chunking shared
+    /// styles into a separate stylesheet during static builds.
+    public let componentBlocks: [String: String]
+    /// CSS for entries without a component scope.
+    public let flatCSS: String
+    /// The emitted client-side JavaScript, if the page has reactive bindings.
+    public let script: String
 }
 
 /// Renders a `Page` to a complete HTML document string.
@@ -38,10 +45,13 @@ public struct PageRenderer: Sendable {
         let separator = pageMeta?.titleSeparator ?? appMeta?.titleSeparator ?? " — "
         let title = DocumentAssembler.composeTitle(page: pageTitle, separator: separator, site: site)
 
-        // Description and keywords
+        // Description, keywords, and canonical URL
         let description = pageMeta?.description ?? appMeta?.description
         let keywords = pageMeta?.keywords ?? appMeta?.keywords
         let structuredData = pageMeta?.structuredData ?? appMeta?.structuredData
+        let baseURL = pageMeta?.baseURL ?? appMeta?.baseURL
+        let canonicalURL = baseURL.map { $0 + page.path }
+        let ogSiteName = pageMeta?.site ?? appMeta?.site
 
         // Collect CSS from node tree with component scope tracking
         var collector = CSSCollector()
@@ -66,8 +76,8 @@ public struct PageRenderer: Sendable {
         }
         let bodyHTML = renderer.render(page.body)
 
-        // Component CSS
-        let componentCSS = stylesheetResult.css
+        // Emit client-side JavaScript for reactive bindings
+        let script = JSEmitter.emit(page: page, environment: .current)
 
         let parts = DocumentAssembler.Parts(
             title: title,
@@ -76,12 +86,19 @@ public struct PageRenderer: Sendable {
             bodyHTML: bodyHTML,
             cssLinks: cssLinks,
             structuredData: structuredData,
-            activeTheme: theme?.name
+            scripts: script.isEmpty ? nil : [script],
+            activeTheme: theme?.name,
+            canonicalURL: canonicalURL,
+            ogSiteName: ogSiteName,
+            themeNames: theme.map { Array($0.named.keys) } ?? []
         )
 
         return RenderResult(
             html: DocumentAssembler.assemble(parts),
-            componentCSS: componentCSS
+            componentCSS: stylesheetResult.css,
+            componentBlocks: stylesheetResult.componentBlocks,
+            flatCSS: stylesheetResult.flatCSS,
+            script: script
         )
     }
 
@@ -99,7 +116,7 @@ private struct ClassMap: Sendable {
             declarations.append(contentsOf: CSSEmitter.declarations(for: modifier))
         }
         guard !declarations.isEmpty else { return nil }
-        let key = declarations.map { "\($0.property):\($0.value)" }.joined(separator: ";")
+        let key = CSSDeclaration.lookupKey(for: declarations)
         if nestedKeys.contains(key) { return nil }
         return classLookup[key]
     }

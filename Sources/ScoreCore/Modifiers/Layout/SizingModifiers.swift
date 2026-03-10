@@ -5,6 +5,9 @@
 /// set are emitted in the rendered CSS output; omitted values are left at their
 /// inherited or default browser values.
 ///
+/// Values may be specified as pixel literals or as percentages using
+/// ``Length/percent(_:)``.
+///
 /// ### Example
 ///
 /// ```swift
@@ -12,6 +15,11 @@
 ///     Text("Constrained box")
 /// }
 /// .size(width: 320, minHeight: 120, maxHeight: 480)
+///
+/// Article {
+///     Text("Fills parent height")
+/// }
+/// .size(height: .percent(100))
 /// ```
 ///
 /// ### CSS Mapping
@@ -20,55 +28,55 @@
 /// and `max-height` properties on the rendered element.
 public struct SizeModifier: ModifierValue {
 
-    /// The explicit width of the element in points.
+    /// The explicit width of the element.
     ///
     /// When `nil`, the CSS `width` property is not set.
-    public let width: Double?
+    public let width: Length?
 
-    /// The explicit height of the element in points.
+    /// The explicit height of the element.
     ///
     /// When `nil`, the CSS `height` property is not set.
-    public let height: Double?
+    public let height: Length?
 
-    /// The minimum width of the element in points.
+    /// The minimum width of the element.
     ///
     /// When `nil`, the CSS `min-width` property is not set.
-    public let minWidth: Double?
+    public let minWidth: Length?
 
-    /// The minimum height of the element in points.
+    /// The minimum height of the element.
     ///
     /// When `nil`, the CSS `min-height` property is not set.
-    public let minHeight: Double?
+    public let minHeight: Length?
 
-    /// The maximum width of the element in points.
+    /// The maximum width of the element.
     ///
     /// When `nil`, the CSS `max-width` property is not set.
-    public let maxWidth: Double?
+    public let maxWidth: Length?
 
-    /// The maximum height of the element in points.
+    /// The maximum height of the element.
     ///
     /// When `nil`, the CSS `max-height` property is not set.
-    public let maxHeight: Double?
+    public let maxHeight: Length?
 
     /// Creates a size modifier.
     ///
     /// All parameters are optional. Omit any parameter to leave its corresponding
-    /// CSS property unset.
+    /// CSS property unset. Bare numeric literals are interpreted as pixel values.
     ///
     /// - Parameters:
-    ///   - width: The explicit width in points. Defaults to `nil`.
-    ///   - height: The explicit height in points. Defaults to `nil`.
-    ///   - minWidth: The minimum width in points. Defaults to `nil`.
-    ///   - minHeight: The minimum height in points. Defaults to `nil`.
-    ///   - maxWidth: The maximum width in points. Defaults to `nil`.
-    ///   - maxHeight: The maximum height in points. Defaults to `nil`.
+    ///   - width: The explicit width. Defaults to `nil`.
+    ///   - height: The explicit height. Defaults to `nil`.
+    ///   - minWidth: The minimum width. Defaults to `nil`.
+    ///   - minHeight: The minimum height. Defaults to `nil`.
+    ///   - maxWidth: The maximum width. Defaults to `nil`.
+    ///   - maxHeight: The maximum height. Defaults to `nil`.
     public init(
-        width: Double? = nil,
-        height: Double? = nil,
-        minWidth: Double? = nil,
-        minHeight: Double? = nil,
-        maxWidth: Double? = nil,
-        maxHeight: Double? = nil
+        width: Length? = nil,
+        height: Length? = nil,
+        minWidth: Length? = nil,
+        minHeight: Length? = nil,
+        maxWidth: Length? = nil,
+        maxHeight: Length? = nil
     ) {
         self.width = width
         self.height = height
@@ -120,6 +128,9 @@ extension Node {
     /// six sizing CSS properties. For simpler cases where you only need to set `width`
     /// and `height`, prefer the `.frame(width:height:)` shorthand.
     ///
+    /// Bare numeric literals are interpreted as pixel values. Use
+    /// ``Length/percent(_:)`` for relative sizing.
+    ///
     /// ### Example
     ///
     /// ```swift
@@ -128,10 +139,10 @@ extension Node {
     /// }
     /// .size(minWidth: 200, maxWidth: 600)
     ///
-    /// Div {
-    ///     Text("Fixed box")
+    /// Article {
+    ///     Text("Fills parent height")
     /// }
-    /// .size(width: 320, height: 240)
+    /// .size(height: .percent(100))
     /// ```
     ///
     /// ### CSS Mapping
@@ -140,20 +151,20 @@ extension Node {
     /// and `max-height` properties.
     ///
     /// - Parameters:
-    ///   - width: The explicit width in points. Defaults to `nil`.
-    ///   - height: The explicit height in points. Defaults to `nil`.
-    ///   - minWidth: The minimum width in points. Defaults to `nil`.
-    ///   - minHeight: The minimum height in points. Defaults to `nil`.
-    ///   - maxWidth: The maximum width in points. Defaults to `nil`.
-    ///   - maxHeight: The maximum height in points. Defaults to `nil`.
+    ///   - width: The explicit width. Defaults to `nil`.
+    ///   - height: The explicit height. Defaults to `nil`.
+    ///   - minWidth: The minimum width. Defaults to `nil`.
+    ///   - minHeight: The minimum height. Defaults to `nil`.
+    ///   - maxWidth: The maximum width. Defaults to `nil`.
+    ///   - maxHeight: The maximum height. Defaults to `nil`.
     /// - Returns: A modified node with the sizing styles applied.
     public func size(
-        width: Double? = nil,
-        height: Double? = nil,
-        minWidth: Double? = nil,
-        minHeight: Double? = nil,
-        maxWidth: Double? = nil,
-        maxHeight: Double? = nil
+        width: Length? = nil,
+        height: Length? = nil,
+        minWidth: Length? = nil,
+        minHeight: Length? = nil,
+        maxWidth: Length? = nil,
+        maxHeight: Length? = nil
     ) -> ModifiedNode<Self> {
         let mod = SizeModifier(
             width: width,
@@ -188,10 +199,10 @@ extension Node {
     /// Maps to the CSS `width` and `height` properties.
     ///
     /// - Parameters:
-    ///   - width: The explicit width in points. Defaults to `nil`.
-    ///   - height: The explicit height in points. Defaults to `nil`.
+    ///   - width: The explicit width. Defaults to `nil`.
+    ///   - height: The explicit height. Defaults to `nil`.
     /// - Returns: A modified node with the width and height styles applied.
-    public func frame(width: Double? = nil, height: Double? = nil) -> ModifiedNode<Self> {
+    public func frame(width: Length? = nil, height: Length? = nil) -> ModifiedNode<Self> {
         ModifiedNode(content: self, modifiers: [SizeModifier(width: width, height: height)])
     }
 

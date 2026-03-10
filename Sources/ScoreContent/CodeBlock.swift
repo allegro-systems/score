@@ -71,43 +71,125 @@ public struct CodeBlock: Node {
     }
 
     public var body: some Node {
-        Stack {
-            if filename != nil || language != nil || showCopyButton {
-                Stack {
-                    if let filename {
-                        Text { filename }
-                    }
-                    if let language {
-                        Small { language }
-                    }
-                    if showCopyButton {
-                        Button { "Copy" }
-                    }
-                }
+        RawTextNode(renderHTML())
+    }
+
+    private func renderHTML() -> String {
+        let trimmedCode =
+            code.hasSuffix("\n")
+            ? String(code.dropLast())
+            : code
+        let lines = trimmedCode.split(separator: "\n", omittingEmptySubsequences: false)
+        let tokens = SyntaxHighlighter.tokenize(trimmedCode, language: language)
+        let codeId = "cb-\(abs(trimmedCode.hashValue))"
+
+        var html = ""
+        html.append("<div style=\"background: \(theme.background.cssValue); border-radius: 6px; overflow: hidden; margin: 16px 0;\">")
+
+        let hasHeader = filename != nil || language != nil || showCopyButton
+        if hasHeader {
+            html.append("<div style=\"display: flex; align-items: center; justify-content: space-between; padding: 6px 16px; border-bottom: 1px solid rgba(255,255,255,0.12);\">")
+            html.append(
+                "<span style=\"color: \(theme.comment.cssValue); font-family: var(--font-mono, monospace); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;\">")
+            if let filename {
+                html.append(escapeHTML(filename))
+            } else if let language {
+                html.append(escapeHTML(language))
             }
+            html.append("</span>")
+            if showCopyButton {
+                html.append(
+                    """
+                    <button onclick="navigator.clipboard.writeText(document.getElementById(&quot;\(codeId)&quot;).textContent).then(function(){var b=this;b.textContent=&quot;Copied!&quot;;setTimeout(function(){b.textContent=&quot;Copy&quot;},1500)}.bind(this))" style="background: none; border: 1px solid rgba(255,255,255,0.15); color: \(theme.variable.cssValue); font-size: 10px; padding: 2px 8px; border-radius: 3px; cursor: pointer; font-family: var(--font-mono, monospace);">Copy</button>
+                    """)
+            }
+            html.append("</div>")
+        }
+
+        // Hidden element for copy button
+        html.append(
+            "<pre id=\"\(codeId)\" style=\"position:absolute;left:-9999px;\">\(escapeHTML(trimmedCode))</pre>"
+        )
+
+        let gridColumns = showLineNumbers ? "auto 1fr" : "1fr"
+        html.append(
+            "<div style=\"display: grid; grid-template-columns: \(gridColumns); overflow-x: auto;\">"
+        )
+
+        let lineHTMLs = splitTokensIntoLines(tokens: tokens, lineCount: max(lines.count, 1))
+        let mono = "font-family: var(--font-mono, monospace); font-size: 13px; line-height: 1.5;"
+
+        for (i, lineHTML) in lineHTMLs.enumerated() {
+            let top = i == 0 ? "12px" : "0"
+            let bottom = i == lineHTMLs.count - 1 ? "12px" : "0"
+
             if showLineNumbers {
-                Stack {
-                    Stack {
-                        lineNumberBlock
-                    }
-                    Preformatted {
-                        Code { code }
-                    }
+                html.append(
+                    "<span style=\"\(mono) padding: \(top) 12px \(bottom) 12px; color: \(theme.comment.cssValue); text-align: right; user-select: none; -webkit-user-select: none; border-right: 1px solid rgba(255,255,255,0.10);\">\(i + 1)</span>"
+                )
+            }
+
+            html.append(
+                "<code style=\"\(mono) padding: \(top) 16px \(bottom) 16px; white-space: pre; background: none; border: none; border-radius: 0;\">\(lineHTML)</code>"
+            )
+        }
+
+        html.append("</div></div>")
+
+        return html
+    }
+
+    private func splitTokensIntoLines(
+        tokens: [SyntaxToken], lineCount: Int
+    ) -> [String] {
+        var result = Array(repeating: "", count: lineCount)
+        var currentLine = 0
+
+        for token in tokens {
+            let color = cssColor(for: token.category)
+            let parts = token.text.split(separator: "\n", omittingEmptySubsequences: false)
+
+            for (j, part) in parts.enumerated() {
+                if j > 0 {
+                    currentLine += 1
+                    if currentLine >= lineCount { break }
                 }
-            } else {
-                Preformatted {
-                    Code { code }
+                guard currentLine < lineCount else { break }
+
+                let escaped = escapeHTML(String(part))
+                if !escaped.isEmpty {
+                    if let color {
+                        result[currentLine] += "<span style=\"color: \(color);\">\(escaped)</span>"
+                    } else {
+                        result[currentLine] +=
+                            "<span style=\"color: \(theme.variable.cssValue);\">\(escaped)</span>"
+                    }
                 }
             }
+        }
+
+        return result
+    }
+
+    private func cssColor(for category: TokenCategory) -> String? {
+        switch category {
+        case .keyword: theme.keyword.cssValue
+        case .string: theme.string.cssValue
+        case .comment: theme.comment.cssValue
+        case .number: theme.number.cssValue
+        case .type: theme.type.cssValue
+        case .function: theme.function.cssValue
+        case .operator: theme.operatorColor.cssValue
+        case .variable: theme.variable.cssValue
+        case .plain: nil
         }
     }
 
-    /// The line-number column rendered as a series of small text elements.
-    private var lineNumberBlock: some Node {
-        let lineCount = code.components(separatedBy: "\n").count
-        // swiftlint:disable:next unused_result
-        return ForEachNode(Array(1...lineCount)) { number in
-            Text { "\(number)" }
-        }
+    private func escapeHTML(_ text: String) -> String {
+        text.replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+            .replacingOccurrences(of: "'", with: "&#39;")
     }
 }

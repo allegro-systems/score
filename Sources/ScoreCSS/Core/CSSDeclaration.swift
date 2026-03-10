@@ -40,6 +40,18 @@ public struct CSSDeclaration: Sendable, Hashable {
         "\(property): \(Self.sanitizeCSSValue(value))"
     }
 
+    /// Builds a lookup key from an array of declarations.
+    ///
+    /// The key concatenates each declaration's property and value, separated
+    /// by semicolons. This format is used by `CSSCollector` and the HTML
+    /// renderer to match modifier sets to their CSS class names.
+    ///
+    /// - Parameter declarations: The declarations to key.
+    /// - Returns: A deterministic string key for the declaration set.
+    public static func lookupKey(for declarations: [CSSDeclaration]) -> String {
+        declarations.map { "\($0.property):\($0.value)" }.joined(separator: ";")
+    }
+
     /// Strips characters from a CSS value that could break out of a declaration.
     ///
     /// Removes `{`, `}`, `;`, `<`, `>`, and strips `url(...)` blocks that

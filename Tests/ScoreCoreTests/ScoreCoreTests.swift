@@ -173,12 +173,6 @@ import Testing
     #expect(sizeMod?.maxWidth == 500)
     #expect(sizeMod?.maxHeight == 400)
 
-    let frame = TextNode("x").frame(width: 120, height: 60)
-    let frameMod = frame.modifiers[0] as? SizeModifier
-    #expect(frameMod?.width == 120)
-    #expect(frameMod?.height == 60)
-    #expect(frameMod?.minWidth == nil)
-
     let aspect = TextNode("x").aspectRatio(16.0 / 9.0)
     let aspectMod = aspect.modifiers[0] as? AspectRatioModifier
     #expect(aspectMod?.ratio == 16.0 / 9.0)

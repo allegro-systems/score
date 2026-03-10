@@ -4,7 +4,8 @@ import ScoreCore
 extension FilterModifier: CSSRepresentable {
     /// Converts this modifier into one or more CSS declarations.
     func cssDeclarations() -> [CSSDeclaration] {
-        [.init(property: "filter", value: value)]
+        let value = filters.map(\.cssValue).joined(separator: " ")
+        return [.init(property: "filter", value: value)]
     }
 }
 
@@ -12,7 +13,8 @@ extension FilterModifier: CSSRepresentable {
 extension BackdropFilterModifier: CSSRepresentable {
     /// Converts this modifier into one or more CSS declarations.
     func cssDeclarations() -> [CSSDeclaration] {
-        [.init(property: "backdrop-filter", value: value)]
+        let value = filters.map(\.cssValue).joined(separator: " ")
+        return [.init(property: "backdrop-filter", value: value)]
     }
 }
 
@@ -20,6 +22,6 @@ extension BackdropFilterModifier: CSSRepresentable {
 extension BlendModeModifier: CSSRepresentable {
     /// Converts this modifier into one or more CSS declarations.
     func cssDeclarations() -> [CSSDeclaration] {
-        [.init(property: "mix-blend-mode", value: value)]
+        [.init(property: "mix-blend-mode", value: mode.rawValue)]
     }
 }

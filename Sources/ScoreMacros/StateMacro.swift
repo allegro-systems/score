@@ -60,7 +60,7 @@ public struct StateMacro: AccessorMacro, PeerMacro {
 
         let name = binding.pattern.trimmedDescription
         let initializer = binding.initializer?.value.trimmedDescription ?? "nil"
-        let effect = extractEffect(from: node) ?? ""
+        let storageKey = extractPersisted(from: node) ?? ""
 
         let typeAnnotation: String
         if let explicitType = binding.typeAnnotation?.type.trimmedDescription {
@@ -78,7 +78,7 @@ public struct StateMacro: AccessorMacro, PeerMacro {
             private var _stateStorage_\(raw: name)\(raw: typeAnnotation) = \(raw: initializer)
             """)
 
-        if effect.isEmpty {
+        if storageKey.isEmpty {
             peers.append(
                 """
                 let _state_\(raw: name) = StateDescriptor(name: \(literal: name), jsInitialValue: \(literal: jsValue))
@@ -86,7 +86,7 @@ public struct StateMacro: AccessorMacro, PeerMacro {
         } else {
             peers.append(
                 """
-                let _state_\(raw: name) = StateDescriptor(name: \(literal: name), jsInitialValue: \(literal: jsValue), effect: \(literal: effect))
+                let _state_\(raw: name) = StateDescriptor(name: \(literal: name), jsInitialValue: \(literal: jsValue), storageKey: \(literal: storageKey))
                 """)
         }
 
@@ -100,12 +100,12 @@ public struct StateMacro: AccessorMacro, PeerMacro {
         return peers
     }
 
-    private static func extractEffect(from node: AttributeSyntax) -> String? {
+    private static func extractPersisted(from node: AttributeSyntax) -> String? {
         guard let arguments = node.arguments?.as(LabeledExprListSyntax.self) else {
             return nil
         }
         for argument in arguments {
-            guard argument.label?.text == "effect" else { continue }
+            guard argument.label?.text == "persisted" else { continue }
             guard let stringLiteral = argument.expression.as(StringLiteralExprSyntax.self) else {
                 continue
             }

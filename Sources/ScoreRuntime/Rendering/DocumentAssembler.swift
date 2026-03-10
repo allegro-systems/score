@@ -34,6 +34,8 @@ public struct DocumentAssembler: Sendable {
         /// `localStorage` before first paint, preventing a flash of
         /// unstyled content (FOUC).
         public var themeNames: [String]
+        /// External JavaScript file paths to link before `</body>`.
+        public var scriptLinks: [String]
 
         /// Creates document parts.
         public init(
@@ -48,7 +50,8 @@ public struct DocumentAssembler: Sendable {
             canonicalURL: String? = nil,
             ogSiteName: String? = nil,
             headLinks: [String] = [],
-            themeNames: [String] = []
+            themeNames: [String] = [],
+            scriptLinks: [String] = []
         ) {
             self.title = title
             self.description = description
@@ -62,6 +65,7 @@ public struct DocumentAssembler: Sendable {
             self.ogSiteName = ogSiteName
             self.headLinks = headLinks
             self.themeNames = themeNames
+            self.scriptLinks = scriptLinks
         }
     }
 
@@ -149,6 +153,9 @@ public struct DocumentAssembler: Sendable {
         }
         html.append("\n")
 
+        for link in parts.scriptLinks {
+            html.append("<script src=\"\(link)\"></script>\n")
+        }
         if let scripts = parts.scripts {
             for script in scripts {
                 html.append(script)

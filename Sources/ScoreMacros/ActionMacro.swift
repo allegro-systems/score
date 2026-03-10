@@ -21,8 +21,6 @@ import SwiftSyntaxMacros
 /// )
 /// ```
 ///
-/// When a `js:` argument is provided, it overrides the auto-generated body.
-///
 /// The `JSEmitter` discovers these descriptors via Mirror reflection
 /// to emit client-side JavaScript action functions.
 public struct ActionMacro: PeerMacro {
@@ -37,9 +35,7 @@ public struct ActionMacro: PeerMacro {
         }
 
         let name = funcDecl.name.text
-        let jsBody =
-            extractJSBody(from: node)
-            ?? SwiftToJSTranslator.translateBody(funcDecl)
+        let jsBody = SwiftToJSTranslator.translateBody(funcDecl)
 
         let descriptor: DeclSyntax
         if let jsBody, !jsBody.isEmpty {
@@ -53,23 +49,6 @@ public struct ActionMacro: PeerMacro {
         }
 
         return [descriptor]
-    }
-
-    private static func extractJSBody(from node: AttributeSyntax) -> String? {
-        guard let arguments = node.arguments?.as(LabeledExprListSyntax.self) else {
-            return nil
-        }
-        for argument in arguments {
-            guard argument.label?.text == "js" else { continue }
-            guard let stringLiteral = argument.expression.as(StringLiteralExprSyntax.self) else {
-                continue
-            }
-            let content = stringLiteral.segments.compactMap { segment -> String? in
-                segment.as(StringSegmentSyntax.self)?.content.text
-            }.joined()
-            return content
-        }
-        return nil
     }
 }
 

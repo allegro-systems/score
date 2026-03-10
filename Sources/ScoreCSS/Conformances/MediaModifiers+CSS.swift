@@ -12,6 +12,6 @@ extension ObjectFitModifier: CSSRepresentable {
 extension ObjectPositionModifier: CSSRepresentable {
     /// Converts this modifier into one or more CSS declarations.
     func cssDeclarations() -> [CSSDeclaration] {
-        [.init(property: "object-position", value: value)]
+        [.init(property: "object-position", value: position.rawValue)]
     }
 }

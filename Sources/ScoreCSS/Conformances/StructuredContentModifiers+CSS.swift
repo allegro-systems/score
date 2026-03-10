@@ -7,7 +7,6 @@ extension ListStyleModifier: CSSRepresentable {
         var result: [CSSDeclaration] = []
         if let v = type { result.append(.init(property: "list-style-type", value: v.rawValue)) }
         if let v = position { result.append(.init(property: "list-style-position", value: v.rawValue)) }
-        if let v = image { result.append(.init(property: "list-style-image", value: v)) }
         return result
     }
 }

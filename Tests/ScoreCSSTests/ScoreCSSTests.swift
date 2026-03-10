@@ -169,19 +169,19 @@ import Testing
 // MARK: - CSSEmitter: transitions and animations
 
 @Test func transitionEmitterProducesDuration() {
-    let decls = CSSEmitter.declarations(for: TransitionModifier(property: "opacity", duration: 0.3))
+    let decls = CSSEmitter.declarations(for: TransitionModifier(property: .opacity, duration: 0.3))
     let dur = decls.first { $0.property == "transition-duration" }
     #expect(dur?.value == "0.3s")
 }
 
 @Test func transitionEmitterWithTiming() {
-    let decls = CSSEmitter.declarations(for: TransitionModifier(property: "color", duration: 0.2, timing: "ease-in-out"))
+    let decls = CSSEmitter.declarations(for: TransitionModifier(property: .color, duration: 0.2, timing: .easeInOut))
     let timing = decls.first { $0.property == "transition-timing-function" }
     #expect(timing?.value == "ease-in-out")
 }
 
 @Test func animationEmitterProducesShorthand() {
-    let decls = CSSEmitter.declarations(for: AnimationModifier(name: "spin", duration: 1.0, timing: "linear", iterationCount: "infinite"))
+    let decls = CSSEmitter.declarations(for: AnimationModifier(name: "spin", duration: 1.0, timing: .linear, iterationCount: .infinite))
     #expect(decls.count == 1)
     #expect(decls[0].property == "animation")
     #expect(decls[0].value.contains("spin"))
@@ -275,19 +275,17 @@ import Testing
     #expect(flexItem.contains(CSSDeclaration(property: "order", value: "2")))
     #expect(flexItem.contains(CSSDeclaration(property: "align-self", value: "center")))
 
-    let gridPlacement = CSSEmitter.declarations(for: GridPlacementModifier(column: "1 / 3", row: "2", area: "hero", justifySelf: .center, placeSelf: "center end"))
+    let gridPlacement = CSSEmitter.declarations(for: GridPlacementModifier(column: .range(1, 3), row: .line(2), area: "hero", justifySelf: .center))
     #expect(gridPlacement.contains(CSSDeclaration(property: "grid-column", value: "1 / 3")))
     #expect(gridPlacement.contains(CSSDeclaration(property: "grid-row", value: "2")))
     #expect(gridPlacement.contains(CSSDeclaration(property: "grid-area", value: "hero")))
     #expect(gridPlacement.contains(CSSDeclaration(property: "justify-self", value: "center")))
-    #expect(gridPlacement.contains(CSSDeclaration(property: "place-self", value: "center end")))
 }
 
 @Test func structuredContentEmittersCoverAllProperties() {
-    let list = CSSEmitter.declarations(for: ListStyleModifier(type: .disc, position: .inside, image: "url('/dot.svg')"))
+    let list = CSSEmitter.declarations(for: ListStyleModifier(type: .disc, position: .inside))
     #expect(list.contains(CSSDeclaration(property: "list-style-type", value: "disc")))
     #expect(list.contains(CSSDeclaration(property: "list-style-position", value: "inside")))
-    #expect(list.contains(CSSDeclaration(property: "list-style-image", value: "url('/dot.svg')")))
 
     let table = CSSEmitter.declarations(for: TableStyleModifier(layout: .fixed, borderCollapse: .collapse, borderSpacing: 4, captionSide: .bottom))
     #expect(table.contains(CSSDeclaration(property: "table-layout", value: "fixed")))
@@ -304,13 +302,13 @@ import Testing
     #expect(overflow.contains(CSSDeclaration(property: "overflow-x", value: "hidden")))
     #expect(overflow.contains(CSSDeclaration(property: "overflow-y", value: "auto")))
 
-    let filter = CSSEmitter.declarations(for: FilterModifier("blur(4px)"))
-    #expect(filter == [CSSDeclaration(property: "filter", value: "blur(4px)")])
+    let filter = CSSEmitter.declarations(for: FilterModifier([.blur(4)]))
+    #expect(filter == [CSSDeclaration(property: "filter", value: "blur(4.0px)")])
 
-    let backdrop = CSSEmitter.declarations(for: BackdropFilterModifier("saturate(150%)"))
-    #expect(backdrop == [CSSDeclaration(property: "backdrop-filter", value: "saturate(150%)")])
+    let backdrop = CSSEmitter.declarations(for: BackdropFilterModifier([.saturate(1.5)]))
+    #expect(backdrop == [CSSDeclaration(property: "backdrop-filter", value: "saturate(1.5)")])
 
-    let blend = CSSEmitter.declarations(for: BlendModeModifier("multiply"))
+    let blend = CSSEmitter.declarations(for: BlendModeModifier(.multiply))
     #expect(blend == [CSSDeclaration(property: "mix-blend-mode", value: "multiply")])
 
     let cursor = CSSEmitter.declarations(for: CursorModifier(.grab))
@@ -434,8 +432,8 @@ import Testing
     let fit = CSSEmitter.declarations(for: ObjectFitModifier(.cover))
     #expect(fit == [CSSDeclaration(property: "object-fit", value: "cover")])
 
-    let position = CSSEmitter.declarations(for: ObjectPositionModifier("center 20%"))
-    #expect(position == [CSSDeclaration(property: "object-position", value: "center 20%")])
+    let position = CSSEmitter.declarations(for: ObjectPositionModifier(.center))
+    #expect(position == [CSSDeclaration(property: "object-position", value: "center")])
 
     let outline = CSSEmitter.declarations(for: OutlineModifier(width: 2, style: .dotted, color: .accent, offset: 3))
     #expect(outline.contains(CSSDeclaration(property: "outline", value: "2px dotted var(--color-accent)")))
@@ -445,11 +443,11 @@ import Testing
 @Test func backgroundImageAndTypographyEmittersCoverAllBranches() {
     let bg = CSSEmitter.declarations(
         for: BackgroundImageModifier(
-            image: "url('/bg.png')",
-            size: "cover",
-            position: "center",
+            url: "/bg.png",
+            size: .cover,
+            position: .center,
             repeatMode: .noRepeat,
-            clip: "text"
+            clip: .text
         )
     )
     #expect(bg.contains(CSSDeclaration(property: "background-image", value: "url('/bg.png')")))

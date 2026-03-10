@@ -39,25 +39,124 @@ public enum BackgroundRepeat: String, Sendable {
     case round
 }
 
-/// A modifier that applies an image to the background of a node.
+/// How a background image is sized within its container.
+///
+/// ### CSS Mapping
+///
+/// Maps to the CSS `background-size` property.
+public enum BackgroundSize: String, Sendable {
+    /// The image is scaled to cover the entire container, preserving aspect ratio.
+    /// Parts of the image may be clipped.
+    ///
+    /// CSS equivalent: `background-size: cover`.
+    case cover
+
+    /// The image is scaled to fit entirely within the container, preserving aspect ratio.
+    /// The container may have empty space.
+    ///
+    /// CSS equivalent: `background-size: contain`.
+    case contain
+
+    /// The image is rendered at its intrinsic size.
+    ///
+    /// CSS equivalent: `background-size: auto`.
+    case auto
+}
+
+/// The alignment of a background image within its container.
+///
+/// ### CSS Mapping
+///
+/// Maps to the CSS `background-position` property.
+public enum BackgroundPosition: String, Sendable {
+    /// Centres the image in both axes.
+    ///
+    /// CSS equivalent: `background-position: center`.
+    case center
+
+    /// Aligns the image to the top edge.
+    ///
+    /// CSS equivalent: `background-position: top`.
+    case top
+
+    /// Aligns the image to the bottom edge.
+    ///
+    /// CSS equivalent: `background-position: bottom`.
+    case bottom
+
+    /// Aligns the image to the left edge.
+    ///
+    /// CSS equivalent: `background-position: left`.
+    case left
+
+    /// Aligns the image to the right edge.
+    ///
+    /// CSS equivalent: `background-position: right`.
+    case right
+
+    /// Aligns the image to the top-left corner.
+    ///
+    /// CSS equivalent: `background-position: top left`.
+    case topLeft = "top left"
+
+    /// Aligns the image to the top-right corner.
+    ///
+    /// CSS equivalent: `background-position: top right`.
+    case topRight = "top right"
+
+    /// Aligns the image to the bottom-left corner.
+    ///
+    /// CSS equivalent: `background-position: bottom left`.
+    case bottomLeft = "bottom left"
+
+    /// Aligns the image to the bottom-right corner.
+    ///
+    /// CSS equivalent: `background-position: bottom right`.
+    case bottomRight = "bottom right"
+}
+
+/// The painting area of a background image.
+///
+/// ### CSS Mapping
+///
+/// Maps to the CSS `background-clip` property.
+public enum BackgroundClip: String, Sendable {
+    /// The background extends to the outer edge of the border.
+    ///
+    /// CSS equivalent: `background-clip: border-box`.
+    case borderBox = "border-box"
+
+    /// The background extends to the outer edge of the padding.
+    ///
+    /// CSS equivalent: `background-clip: padding-box`.
+    case paddingBox = "padding-box"
+
+    /// The background extends to the edge of the content box.
+    ///
+    /// CSS equivalent: `background-clip: content-box`.
+    case contentBox = "content-box"
+
+    /// The background is clipped to the foreground text.
+    ///
+    /// CSS equivalent: `background-clip: text`.
+    case text
+}
+
+/// A modifier that applies a background image to a node.
 ///
 /// `BackgroundImageModifier` provides control over the image source, sizing,
 /// positioning, repeat mode, and clipping box for element backgrounds.
-/// All properties are optional; you can provide only the values you need.
 ///
 /// ### Example
 ///
 /// ```swift
 /// HeroSection()
 ///     .backgroundImage(
-///         "url('/images/hero.jpg')",
-///         size: "cover",
-///         position: "center",
+///         url: "/images/hero.jpg",
+///         size: .cover,
+///         position: .center,
 ///         repeat: .noRepeat
 ///     )
-///
-/// Pattern()
-///     .backgroundImage("url('/images/tile.png')", repeat: .repeat)
 /// ```
 ///
 /// ### CSS Mapping
@@ -65,41 +164,41 @@ public enum BackgroundRepeat: String, Sendable {
 /// Maps to the CSS `background-image`, `background-size`, `background-position`,
 /// `background-repeat`, and `background-clip` properties on the rendered element.
 public struct BackgroundImageModifier: ModifierValue {
-    /// The CSS image value, such as a `url(...)` string or a gradient function.
+    /// The URL path of the background image.
     ///
-    /// When `nil`, no image is applied.
-    public let image: String?
+    /// The framework wraps this in a CSS `url()` function automatically.
+    public let url: String
 
-    /// The CSS `background-size` value, such as `"cover"`, `"contain"`, or `"100px 200px"`.
+    /// How the background image is sized.
     ///
     /// When `nil`, the browser's default size (`auto`) is used.
-    public let size: String?
+    public let size: BackgroundSize?
 
-    /// The CSS `background-position` value, such as `"center"` or `"top right"`.
+    /// The alignment of the background image.
     ///
     /// When `nil`, the browser's default position (`0% 0%`) is used.
-    public let position: String?
+    public let position: BackgroundPosition?
 
     /// The repeat mode applied to the background image.
     ///
     /// When `nil`, the browser's default repeat behavior is used.
     public let repeatMode: BackgroundRepeat?
 
-    /// The CSS `background-clip` value, such as `"border-box"` or `"text"`.
+    /// The painting area of the background image.
     ///
     /// When `nil`, the browser's default clipping box (`border-box`) is used.
-    public let clip: String?
+    public let clip: BackgroundClip?
 
     /// Creates a background image modifier.
     ///
     /// - Parameters:
-    ///   - image: A CSS image value such as `"url('/img/bg.png')"` or a gradient string.
-    ///   - size: Optional CSS `background-size` value.
-    ///   - position: Optional CSS `background-position` value.
-    ///   - repeatMode: Optional `BackgroundRepeat` mode.
-    ///   - clip: Optional CSS `background-clip` value.
-    public init(image: String? = nil, size: String? = nil, position: String? = nil, repeatMode: BackgroundRepeat? = nil, clip: String? = nil) {
-        self.image = image
+    ///   - url: The URL path of the background image.
+    ///   - size: Optional background sizing mode.
+    ///   - position: Optional background alignment.
+    ///   - repeatMode: Optional repeat mode.
+    ///   - clip: Optional painting area.
+    public init(url: String, size: BackgroundSize? = nil, position: BackgroundPosition? = nil, repeatMode: BackgroundRepeat? = nil, clip: BackgroundClip? = nil) {
+        self.url = url
         self.size = size
         self.position = position
         self.repeatMode = repeatMode
@@ -110,23 +209,18 @@ public struct BackgroundImageModifier: ModifierValue {
 extension Node {
     /// Applies a background image to this node.
     ///
-    /// Use this modifier to set a CSS image or gradient as the background of a node.
-    /// Combine the size, position, repeat, and clip parameters to achieve the
-    /// exact background layout you need.
+    /// The framework wraps the URL path in a CSS `url()` function automatically.
     ///
     /// ### Example
     ///
     /// ```swift
     /// HeroSection()
     ///     .backgroundImage(
-    ///         "url('/images/hero.jpg')",
-    ///         size: "cover",
-    ///         position: "center",
+    ///         url: "/images/hero.jpg",
+    ///         size: .cover,
+    ///         position: .center,
     ///         repeat: .noRepeat
     ///     )
-    ///
-    /// GradientBox()
-    ///     .backgroundImage("linear-gradient(to right, #f00, #00f)", size: "100% 100%")
     /// ```
     ///
     /// ### CSS Mapping
@@ -135,16 +229,18 @@ extension Node {
     /// `background-repeat`, and `background-clip` properties on the rendered element.
     ///
     /// - Parameters:
-    ///   - image: A CSS image value such as `"url('/img/bg.png')"` or a gradient function.
-    ///   - size: Optional CSS `background-size` value. Defaults to `nil`.
-    ///   - position: Optional CSS `background-position` value. Defaults to `nil`.
-    ///   - repeatMode: Optional `BackgroundRepeat` mode controlling tiling. Defaults to `nil`.
-    ///   - clip: Optional CSS `background-clip` value. Defaults to `nil`.
+    ///   - url: The URL path of the background image.
+    ///   - size: Optional background sizing mode. Defaults to `nil`.
+    ///   - position: Optional background alignment. Defaults to `nil`.
+    ///   - repeatMode: Optional repeat mode controlling tiling. Defaults to `nil`.
+    ///   - clip: Optional painting area. Defaults to `nil`.
     /// - Returns: A `ModifiedNode` with the background image modifier applied.
-    public func backgroundImage(_ image: String, size: String? = nil, position: String? = nil, repeat repeatMode: BackgroundRepeat? = nil, clip: String? = nil) -> ModifiedNode<
-        Self
-    > {
-        let mod = BackgroundImageModifier(image: image, size: size, position: position, repeatMode: repeatMode, clip: clip)
+    public func backgroundImage(
+        url: String, size: BackgroundSize? = nil, position: BackgroundPosition? = nil, repeat repeatMode: BackgroundRepeat? = nil, clip: BackgroundClip? = nil
+    )
+        -> ModifiedNode<Self>
+    {
+        let mod = BackgroundImageModifier(url: url, size: size, position: position, repeatMode: repeatMode, clip: clip)
         return ModifiedNode(content: self, modifiers: [mod])
     }
 }

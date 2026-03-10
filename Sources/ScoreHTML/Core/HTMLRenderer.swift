@@ -151,7 +151,7 @@ public struct HTMLRenderer: Sendable {
             write(node.body, to: &output)
             output.append("</div>")
         } else if let semanticClass = componentClassInjector?(node) {
-            output.append("<div class=\"\(semanticClass.attributeEscaped)\">")
+            output.append("<div class=\"\(semanticClass.attributeEscaped)\" style=\"display:contents\">")
             write(node.body, to: &output)
             output.append("</div>")
         } else {

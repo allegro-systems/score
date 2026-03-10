@@ -1,9 +1,9 @@
-import Dispatch
 import NIOCore
 import NIOHTTP1
 import NIOPosix
 import ScoreCore
 import ScoreRouter
+import ServiceLifecycle
 
 /// A Score application server.
 public struct Server: Sendable {
@@ -44,7 +44,6 @@ public struct Server: Sendable {
     /// termination signal (SIGINT or SIGTERM) is received.
     public func run() async throws {
         let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
-        defer { group.shutdownGracefully { _ in } }
 
         let routeTable = RouteTable(application)
         let pages = Dictionary(
@@ -74,21 +73,12 @@ public struct Server: Sendable {
             port: configuration.port
         ).get()
 
-        let signalSources = Self.installSignalHandlers(closing: channel)
-        defer {
-            for source in signalSources { source.cancel() }
+        try await withGracefulShutdownHandler {
+            try await channel.closeFuture.get()
+        } onGracefulShutdown: {
+            channel.close(promise: nil)
         }
 
-        try await channel.closeFuture.get()
-    }
-
-    private static func installSignalHandlers(closing channel: Channel) -> [DispatchSourceSignal] {
-        [SIGINT, SIGTERM].map { sig in
-            let source = DispatchSource.makeSignalSource(signal: sig)
-            signal(sig, SIG_IGN)
-            source.setEventHandler { channel.close(promise: nil) }
-            source.resume()
-            return source
-        }
+        try await group.shutdownGracefully()
     }
 }

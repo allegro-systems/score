@@ -59,4 +59,13 @@ public struct Response: Sendable {
             body: Data(string.utf8)
         )
     }
+
+    /// Creates a JavaScript response.
+    public static func javascript(_ string: String, status: HTTPResponse.Status = .ok) -> Response {
+        Response(
+            status: status,
+            headers: ["content-type": "application/javascript; charset=utf-8"],
+            body: Data(string.utf8)
+        )
+    }
 }

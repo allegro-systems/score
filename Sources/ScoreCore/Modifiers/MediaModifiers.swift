@@ -66,35 +66,84 @@ public struct ObjectFitModifier: ModifierValue {
     }
 }
 
-/// A modifier that sets the alignment point of a replaced element's content within its container.
+/// The alignment point of a replaced element's content within its container.
 ///
-/// `ObjectPositionModifier` specifies which part of the content is visible when
-/// it overflows its container, such as when an image is cropped with `object-fit: cover`.
+/// `ObjectPosition` controls which part of the content is visible when it
+/// overflows its container, such as when an image is cropped with
+/// `object-fit: cover`.
+///
+/// ### CSS Mapping
+///
+/// Maps to the CSS `object-position` property.
+public enum ObjectPosition: String, Sendable {
+    /// Centres the content in both axes.
+    ///
+    /// CSS equivalent: `object-position: center`.
+    case center
+
+    /// Aligns the content to the top edge.
+    ///
+    /// CSS equivalent: `object-position: top`.
+    case top
+
+    /// Aligns the content to the bottom edge.
+    ///
+    /// CSS equivalent: `object-position: bottom`.
+    case bottom
+
+    /// Aligns the content to the left edge.
+    ///
+    /// CSS equivalent: `object-position: left`.
+    case left
+
+    /// Aligns the content to the right edge.
+    ///
+    /// CSS equivalent: `object-position: right`.
+    case right
+
+    /// Aligns the content to the top-left corner.
+    ///
+    /// CSS equivalent: `object-position: top left`.
+    case topLeft = "top left"
+
+    /// Aligns the content to the top-right corner.
+    ///
+    /// CSS equivalent: `object-position: top right`.
+    case topRight = "top right"
+
+    /// Aligns the content to the bottom-left corner.
+    ///
+    /// CSS equivalent: `object-position: bottom left`.
+    case bottomLeft = "bottom left"
+
+    /// Aligns the content to the bottom-right corner.
+    ///
+    /// CSS equivalent: `object-position: bottom right`.
+    case bottomRight = "bottom right"
+}
+
+/// A modifier that sets the alignment point of a replaced element's content within its container.
 ///
 /// ### Example
 ///
 /// ```swift
 /// Image("portrait")
 ///     .objectFit(.cover)
-///     .objectPosition("top center")
-///
-/// HeroImage()
-///     .objectFit(.cover)
-///     .objectPosition("50% 20%")
+///     .objectPosition(.top)
 /// ```
 ///
 /// ### CSS Mapping
 ///
 /// Maps to the CSS `object-position` property on the rendered element.
 public struct ObjectPositionModifier: ModifierValue {
-    /// The raw CSS `object-position` value, such as `"center"`, `"top right"`, or `"50% 25%"`.
-    public let value: String
+    /// The position controlling where content is anchored within its container.
+    public let position: ObjectPosition
 
     /// Creates an object-position modifier.
     ///
-    /// - Parameter value: A CSS `object-position` value string (e.g., `"center"`, `"top"`, `"50% 20%"`).
-    public init(_ value: String) {
-        self.value = value
+    /// - Parameter position: The `ObjectPosition` value describing content alignment.
+    public init(_ position: ObjectPosition) {
+        self.position = position
     }
 }
 
@@ -133,20 +182,16 @@ extension Node {
     /// ```swift
     /// Image("portrait")
     ///     .objectFit(.cover)
-    ///     .objectPosition("top center")
-    ///
-    /// Banner()
-    ///     .objectFit(.cover)
-    ///     .objectPosition("center 30%")
+    ///     .objectPosition(.top)
     /// ```
     ///
     /// ### CSS Mapping
     ///
     /// Maps to the CSS `object-position` property on the rendered element.
     ///
-    /// - Parameter value: A CSS `object-position` value string, such as `"center"` or `"top right"`.
+    /// - Parameter position: The `ObjectPosition` value describing content alignment.
     /// - Returns: A `ModifiedNode` with the object-position modifier applied.
-    public func objectPosition(_ value: String) -> ModifiedNode<Self> {
-        ModifiedNode(content: self, modifiers: [ObjectPositionModifier(value)])
+    public func objectPosition(_ position: ObjectPosition) -> ModifiedNode<Self> {
+        ModifiedNode(content: self, modifiers: [ObjectPositionModifier(position)])
     }
 }

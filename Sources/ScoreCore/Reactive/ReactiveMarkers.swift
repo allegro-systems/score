@@ -2,13 +2,8 @@
 ///
 /// `StateDescriptor` conforms to this protocol so that the
 /// ``JSEmitter`` can identify reactive state properties at runtime.
-public protocol StateIdentifying {
-    /// The JavaScript effect expression, or empty string if none.
-    var stateJSEffect: String { get }
-}
-extension StateDescriptor: StateIdentifying {
-    public var stateJSEffect: String { effect }
-}
+public protocol StateIdentifying {}
+extension StateDescriptor: StateIdentifying {}
 
 /// Marker protocol for detecting `@Computed` descriptors via `Mirror`.
 ///

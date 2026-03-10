@@ -124,9 +124,8 @@ extension Node {
 
     /// Sets explicit, minimum, and maximum dimensions for the element.
     ///
-    /// Use this modifier when you need fine-grained control over one or more of the
-    /// six sizing CSS properties. For simpler cases where you only need to set `width`
-    /// and `height`, prefer the `.frame(width:height:)` shorthand.
+    /// Use this modifier when you need to control one or more of the
+    /// six sizing CSS properties.
     ///
     /// Bare numeric literals are interpreted as pixel values. Use
     /// ``Length/percent(_:)`` for relative sizing.
@@ -177,35 +176,6 @@ extension Node {
         return ModifiedNode(content: self, modifiers: [mod])
     }
 
-    /// Sets the explicit width and height of the element.
-    ///
-    /// This is a convenience shorthand for `.size(width:height:)` that only sets
-    /// the explicit dimensions without touching minimum or maximum constraints.
-    ///
-    /// ### Example
-    ///
-    /// ```swift
-    /// Image("avatar")
-    ///     .frame(width: 48, height: 48)
-    ///
-    /// Div {
-    ///     Text("Banner")
-    /// }
-    /// .frame(width: 800)
-    /// ```
-    ///
-    /// ### CSS Mapping
-    ///
-    /// Maps to the CSS `width` and `height` properties.
-    ///
-    /// - Parameters:
-    ///   - width: The explicit width. Defaults to `nil`.
-    ///   - height: The explicit height. Defaults to `nil`.
-    /// - Returns: A modified node with the width and height styles applied.
-    public func frame(width: Length? = nil, height: Length? = nil) -> ModifiedNode<Self> {
-        ModifiedNode(content: self, modifiers: [SizeModifier(width: width, height: height)])
-    }
-
     /// Enforces a fixed width-to-height aspect ratio on the element.
     ///
     /// The browser will automatically calculate the missing dimension to maintain
@@ -216,7 +186,7 @@ extension Node {
     ///
     /// ```swift
     /// Image("thumbnail")
-    ///     .frame(width: 320)
+    ///     .size(width: 320)
     ///     .aspectRatio(16.0 / 9.0)
     ///
     /// Div {

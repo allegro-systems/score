@@ -16,6 +16,10 @@ public struct RenderResult: Sendable {
     public let flatCSS: String
     /// The emitted client-side JavaScript, if the page has reactive bindings.
     public let script: String
+    /// The page-specific JavaScript without the shared runtime.
+    public let pageJS: String
+    /// Whether this page requires the Score signals runtime.
+    public let needsRuntime: Bool
 }
 
 /// Renders a `Page` to a complete HTML document string.
@@ -30,12 +34,15 @@ public struct PageRenderer: Sendable {
     ///   - appMeta: Application-level metadata.
     ///   - theme: The active theme.
     ///   - cssLinks: External CSS file paths to link in `<head>`.
+    ///   - scriptLinks: External JavaScript file paths to link before `</body>`.
+    ///     When provided, scripts are loaded externally instead of inlined.
     /// - Returns: A `RenderResult` containing the HTML and extracted component CSS.
     public static func render(
         page: some Page,
         metadata appMeta: (any Metadata)?,
         theme: (any Theme)?,
-        cssLinks: [String] = []
+        cssLinks: [String] = [],
+        scriptLinks: [String] = []
     ) -> RenderResult {
         let pageMeta = page.metadata
 
@@ -77,7 +84,26 @@ public struct PageRenderer: Sendable {
         let bodyHTML = renderer.render(page.body)
 
         // Emit client-side JavaScript for reactive bindings
-        let script = JSEmitter.emit(page: page, environment: .current)
+        let jsResult = JSEmitter.emitPageScript(page: page)
+
+        // Use external script links when provided, otherwise inline
+        let inlineScripts: [String]?
+        let resolvedScriptLinks: [String]
+        if !scriptLinks.isEmpty && !jsResult.pageJS.isEmpty {
+            inlineScripts = nil
+            resolvedScriptLinks = scriptLinks
+        } else if !jsResult.pageJS.isEmpty {
+            var inlineJS = ""
+            if jsResult.needsRuntime {
+                inlineJS.append(JSEmitter.clientRuntime)
+            }
+            inlineJS.append(jsResult.pageJS)
+            inlineScripts = ["<script>\n\(inlineJS)</script>"]
+            resolvedScriptLinks = []
+        } else {
+            inlineScripts = nil
+            resolvedScriptLinks = []
+        }
 
         let parts = DocumentAssembler.Parts(
             title: title,
@@ -86,11 +112,12 @@ public struct PageRenderer: Sendable {
             bodyHTML: bodyHTML,
             cssLinks: cssLinks,
             structuredData: structuredData,
-            scripts: script.isEmpty ? nil : [script],
+            scripts: inlineScripts,
             activeTheme: theme?.name,
             canonicalURL: canonicalURL,
             ogSiteName: ogSiteName,
-            themeNames: theme.map { Array($0.named.keys) } ?? []
+            themeNames: theme.map { Array($0.named.keys) } ?? [],
+            scriptLinks: resolvedScriptLinks
         )
 
         return RenderResult(
@@ -98,7 +125,9 @@ public struct PageRenderer: Sendable {
             componentCSS: stylesheetResult.css,
             componentBlocks: stylesheetResult.componentBlocks,
             flatCSS: stylesheetResult.flatCSS,
-            script: script
+            script: jsResult.pageJS.isEmpty ? "" : "<script>\n\(jsResult.needsRuntime ? JSEmitter.clientRuntime : "")\(jsResult.pageJS)</script>",
+            pageJS: jsResult.pageJS,
+            needsRuntime: jsResult.needsRuntime
         )
     }
 

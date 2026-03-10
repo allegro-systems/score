@@ -18,8 +18,8 @@ extension PseudoStyle {
             .init(property: "opacity", value: CSSEmitter.number(value))
         case .textDecoration(let value):
             .init(property: "text-decoration", value: value.rawValue)
-        case .transform(let value):
-            .init(property: "transform", value: value)
+        case .transform(let transforms):
+            .init(property: "transform", value: transforms.map(\.cssValue).joined(separator: " "))
         }
     }
 }

@@ -36,25 +36,6 @@ struct DevCommand: AsyncParsableCommand {
     }
 }
 
-private nonisolated(unsafe) var _devRunnerServerProcess: LockedValue<Process?>?
-
-private func _devRunnerSignalHandler(_: Int32) {
-    let pid = _devRunnerServerProcess?.withLock { $0?.processIdentifier } ?? 0
-    if pid > 0 {
-        // Send SIGTERM for graceful NIO shutdown.
-        kill(pid, SIGTERM)
-        // Wait briefly, then force-kill if still alive.
-        usleep(500_000)
-        // Check if process is still running (waitpid with WNOHANG).
-        var status: Int32 = 0
-        if waitpid(pid, &status, WNOHANG) == 0 {
-            kill(pid, SIGKILL)
-            waitpid(pid, &status, 0)
-        }
-    }
-    exit(0)
-}
-
 /// Manages the development lifecycle: build, run, watch, and rebuild.
 final class DevRunner: Sendable {
 
@@ -71,8 +52,6 @@ final class DevRunner: Sendable {
     }
 
     func start() async throws {
-        installSignalHandler()
-
         let buildSuccess = try await initialBuild()
         guard buildSuccess else {
             throw ExitCode(ScoreExitCode.buildFailure.rawValue)
@@ -233,8 +212,4 @@ final class DevRunner: Sendable {
         printStatusBlock(icon: icon, style: style, message: message)
     }
 
-    private func installSignalHandler() {
-        _devRunnerServerProcess = serverProcess
-        signal(SIGINT, _devRunnerSignalHandler)
-    }
 }

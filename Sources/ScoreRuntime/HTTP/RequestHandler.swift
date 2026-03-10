@@ -97,6 +97,14 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
             return serveScopedCSS(for: path)
         }
 
+        // Serve external JavaScript files
+        if path == "/score.js" {
+            return Response.javascript(JSEmitter.clientRuntime)
+        }
+        if path.hasPrefix("/scripts/") && path.hasSuffix(".js") {
+            return servePageScript(for: path)
+        }
+
         // Map NIO method to HTTPTypes method
         guard let method = mapMethod(head.method) else {
             return Response.text("Method Not Allowed", status: .methodNotAllowed)
@@ -109,11 +117,23 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
                 // Render the page
                 if let page = pages[resolved.pattern] {
                     let cssName = Self.cssFileName(for: resolved.pattern)
+
+                    // Determine script links for this page
+                    let jsResult = JSEmitter.emitPageScript(page: page)
+                    var scriptLinks: [String] = []
+                    if !jsResult.pageJS.isEmpty {
+                        if jsResult.needsRuntime {
+                            scriptLinks.append("/score.js")
+                        }
+                        scriptLinks.append("/scripts/\(cssName).js")
+                    }
+
                     let result = PageRenderer.render(
                         page: page,
                         metadata: metadata,
                         theme: theme,
-                        cssLinks: ["/global.css", "/styles/\(cssName).css"]
+                        cssLinks: ["/global.css", "/styles/\(cssName).css"],
+                        scriptLinks: scriptLinks
                     )
                     return Response.html(result.html)
                 }
@@ -184,6 +204,27 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
                     theme: theme
                 )
                 return Response.css(result.componentCSS)
+            }
+        }
+        return Response.text("Not Found", status: .notFound)
+    }
+
+    /// Serves page-specific JavaScript by rendering the page and extracting its JS.
+    private func servePageScript(for path: String) -> Response {
+        // /scripts/home.js → "home"
+        let fileName = String(path.dropFirst("/scripts/".count).dropLast(".js".count))
+
+        for (pattern, page) in pages {
+            if Self.cssFileName(for: pattern) == fileName {
+                let result = PageRenderer.render(
+                    page: page,
+                    metadata: metadata,
+                    theme: theme
+                )
+                if result.pageJS.isEmpty {
+                    return Response.text("Not Found", status: .notFound)
+                }
+                return Response.javascript(result.pageJS)
             }
         }
         return Response.text("Not Found", status: .notFound)

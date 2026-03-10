@@ -75,9 +75,8 @@ public enum ListStylePosition: String, Sendable {
 
 /// A modifier that configures the visual style of a list node.
 ///
-/// `ListStyleModifier` controls the marker type, marker position, and optionally
-/// replaces markers with a custom image. All properties are optional; provide only
-/// the values you want to override.
+/// `ListStyleModifier` controls the marker type and marker position.
+/// All properties are optional; provide only the values you want to override.
 ///
 /// ### Example
 ///
@@ -97,7 +96,7 @@ public enum ListStylePosition: String, Sendable {
 ///
 /// ### CSS Mapping
 ///
-/// Maps to the CSS `list-style-type`, `list-style-position`, and `list-style-image`
+/// Maps to the CSS `list-style-type` and `list-style-position`
 /// properties on the rendered element.
 public struct ListStyleModifier: ModifierValue {
     /// The visual marker type for list items.
@@ -110,21 +109,14 @@ public struct ListStyleModifier: ModifierValue {
     /// When `nil`, the position is inherited from the parent node.
     public let position: ListStylePosition?
 
-    /// A CSS image value used as the list item marker, such as `"url('/icons/bullet.svg')"`.
-    ///
-    /// When `nil`, the `type` value determines the marker appearance.
-    public let image: String?
-
     /// Creates a list style modifier.
     ///
     /// - Parameters:
     ///   - type: Optional marker type for list items.
     ///   - position: Optional marker position relative to the content box.
-    ///   - image: Optional CSS image string to use as the list item marker.
-    public init(type: ListStyleType? = nil, position: ListStylePosition? = nil, image: String? = nil) {
+    public init(type: ListStyleType? = nil, position: ListStylePosition? = nil) {
         self.type = type
         self.position = position
-        self.image = image
     }
 }
 
@@ -255,8 +247,8 @@ public struct TableStyleModifier: ModifierValue {
 extension Node {
     /// Applies list styling to this node.
     ///
-    /// Use this modifier on list nodes to configure the marker type,
-    /// marker position, or a custom image marker.
+    /// Use this modifier on list nodes to configure the marker type and
+    /// marker position.
     ///
     /// ### Example
     ///
@@ -266,23 +258,19 @@ extension Node {
     ///     ListItem("Second item")
     /// }
     /// .listStyle(type: .disc, position: .outside)
-    ///
-    /// CheckList()
-    ///     .listStyle(type: .none, image: "url('/icons/check.svg')")
     /// ```
     ///
     /// ### CSS Mapping
     ///
-    /// Maps to the CSS `list-style-type`, `list-style-position`, and
-    /// `list-style-image` properties on the rendered element.
+    /// Maps to the CSS `list-style-type` and `list-style-position`
+    /// properties on the rendered element.
     ///
     /// - Parameters:
     ///   - type: Optional marker type for list items.
     ///   - position: Optional marker position relative to the content box.
-    ///   - image: Optional CSS image string to use as the list item marker.
     /// - Returns: A `ModifiedNode` with the list style modifier applied.
-    public func listStyle(type: ListStyleType? = nil, position: ListStylePosition? = nil, image: String? = nil) -> ModifiedNode<Self> {
-        let mod = ListStyleModifier(type: type, position: position, image: image)
+    public func listStyle(type: ListStyleType? = nil, position: ListStylePosition? = nil) -> ModifiedNode<Self> {
+        let mod = ListStyleModifier(type: type, position: position)
         return ModifiedNode(content: self, modifiers: [mod])
     }
 

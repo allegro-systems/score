@@ -19,11 +19,10 @@ extension GridPlacementModifier: CSSRepresentable {
     /// Converts this modifier into one or more CSS declarations.
     func cssDeclarations() -> [CSSDeclaration] {
         var result: [CSSDeclaration] = []
-        if let v = column { result.append(.init(property: "grid-column", value: v)) }
-        if let v = row { result.append(.init(property: "grid-row", value: v)) }
+        if let v = column { result.append(.init(property: "grid-column", value: v.cssValue)) }
+        if let v = row { result.append(.init(property: "grid-row", value: v.cssValue)) }
         if let v = area { result.append(.init(property: "grid-area", value: v)) }
         if let v = justifySelf { result.append(.init(property: "justify-self", value: v.rawValue)) }
-        if let v = placeSelf { result.append(.init(property: "place-self", value: v)) }
         return result
     }
 }

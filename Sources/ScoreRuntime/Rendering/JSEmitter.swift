@@ -7,7 +7,7 @@ public struct JSEmitter: Sendable {
     public struct StateInfo: Sendable {
         public let name: String
         public let initialValue: String
-        public let effect: String
+        public let storageKey: String
     }
 
     /// Information about a `@Computed` property extracted via Mirror.
@@ -199,16 +199,25 @@ public struct JSEmitter: Sendable {
 
     // MARK: - Client Runtime
 
-    /// Minimal signals runtime inlined into pages that use reactive state.
-    static let clientRuntime = """
+    /// Minimal signals runtime shared across all reactive pages.
+    public static let clientRuntime = """
         const Score=(()=>{let t=null;function state(v){let subs=new Set();return{get(){if(t)subs.add(t);return v},set(n){if(n===v)return;v=n;for(const fn of subs)fn()}}}function effect(fn){const run=()=>{t=run;try{fn()}finally{t=null}};run()}function computed(fn){let s=state(undefined);effect(()=>s.set(fn()));return{get:s.get}}return{state,effect,computed}})();
         """
 
     // MARK: - Emission
 
-    /// Emits a `<script>` tag for a page, or an empty string if the page
-    /// has no reactive properties or event bindings.
-    public static func emit(page: some Page, environment: Environment) -> String {
+    /// The result of analyzing a page's reactive content.
+    public struct EmissionResult: Sendable {
+        /// The page-specific JavaScript (state, computed, actions, bindings).
+        /// Empty if the page has no reactive content.
+        public let pageJS: String
+        /// Whether this page requires the Score signals runtime.
+        public let needsRuntime: Bool
+    }
+
+    /// Analyzes a page and returns its reactive JavaScript separately from
+    /// the shared runtime. Use this when externalizing scripts to files.
+    public static func emitPageScript(page: some Page) -> EmissionResult {
         let pageStates = extractStates(from: page)
         let pageComputeds = extractComputeds(from: page)
         let pageActions = extractActions(from: page)
@@ -221,9 +230,10 @@ public struct JSEmitter: Sendable {
             || !pageLevelReactive.isEmpty
         let hasElementLevel = !elementScopes.isEmpty
 
-        guard hasPageLevel || hasElementLevel else { return "" }
+        guard hasPageLevel || hasElementLevel else {
+            return EmissionResult(pageJS: "", needsRuntime: false)
+        }
 
-        var js = ""
         let needsRuntime =
             !pageStates.isEmpty || !pageComputeds.isEmpty
             || !pageLevelReactive.isEmpty
@@ -231,10 +241,7 @@ public struct JSEmitter: Sendable {
                 !$0.states.isEmpty || !$0.computeds.isEmpty || !$0.reactiveBindings.isEmpty
             })
 
-        if needsRuntime {
-            js.append(clientRuntime)
-        }
-
+        var js = ""
         var bindingOffset = 0
         var reactiveOffset = 0
 
@@ -256,6 +263,23 @@ public struct JSEmitter: Sendable {
             js.append("}\n")
         }
 
+        return EmissionResult(pageJS: js, needsRuntime: needsRuntime)
+    }
+
+    /// Emits a `<script>` tag for a page, or an empty string if the page
+    /// has no reactive properties or event bindings.
+    ///
+    /// This is a convenience that inlines both the runtime and page JS.
+    /// For external script files, use ``emitPageScript(page:)`` instead.
+    public static func emit(page: some Page, environment: Environment) -> String {
+        let result = emitPageScript(page: page)
+        guard !result.pageJS.isEmpty else { return "" }
+
+        var js = ""
+        if result.needsRuntime {
+            js.append(clientRuntime)
+        }
+        js.append(result.pageJS)
         return "<script>\n\(js)</script>"
     }
 
@@ -268,7 +292,11 @@ public struct JSEmitter: Sendable {
         bindingOffset: inout Int, reactiveOffset: inout Int, into js: inout String
     ) {
         for state in states {
-            js.append("const \(state.name) = Score.state(\(state.initialValue));\n")
+            if state.storageKey.isEmpty {
+                js.append("const \(state.name) = Score.state(\(state.initialValue));\n")
+            } else {
+                js.append("const \(state.name) = Score.state((()=>{var v=localStorage.getItem(\"\(state.storageKey)\");return v!==null?JSON.parse(v):\(state.initialValue)})());\n")
+            }
         }
         for computed in computeds {
             if computed.body.isEmpty {
@@ -290,8 +318,8 @@ public struct JSEmitter: Sendable {
             )
             bindingOffset += 1
         }
-        for state in states where !state.effect.isEmpty {
-            js.append("Score.effect(() => { \(state.effect) });\n")
+        for state in states where !state.storageKey.isEmpty {
+            js.append("Score.effect(() => { localStorage.setItem(\"\(state.storageKey)\",JSON.stringify(\(state.name).get())); });\n")
         }
         for reactive in reactiveBindings {
             switch reactive.kind {
@@ -317,7 +345,7 @@ public struct JSEmitter: Sendable {
                 StateInfo(
                     name: descriptor.name,
                     initialValue: descriptor.jsInitialValue,
-                    effect: descriptor.effect
+                    storageKey: descriptor.storageKey
                 ))
         }
         return states

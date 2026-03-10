@@ -72,11 +72,50 @@ public struct FlexItemModifier: ModifierValue {
     }
 }
 
+/// A column or row placement within a CSS grid container.
+///
+/// `GridSpan` describes where a grid item starts and how many tracks it spans.
+///
+/// ### CSS Mapping
+///
+/// Maps to the CSS `grid-column` or `grid-row` property values.
+public struct GridSpan: Sendable {
+
+    /// The CSS string representation of this grid span.
+    public let cssValue: String
+
+    /// Places the item at a specific grid line.
+    ///
+    /// - Parameter line: The 1-based grid line number.
+    /// - Returns: A grid span starting at the given line.
+    public static func line(_ line: Int) -> GridSpan {
+        GridSpan(cssValue: "\(line)")
+    }
+
+    /// Makes the item span a number of tracks from its auto-placed position.
+    ///
+    /// - Parameter count: The number of tracks to span.
+    /// - Returns: A grid span covering the given number of tracks.
+    public static func span(_ count: Int) -> GridSpan {
+        GridSpan(cssValue: "span \(count)")
+    }
+
+    /// Places the item between two grid lines.
+    ///
+    /// - Parameters:
+    ///   - start: The 1-based starting grid line.
+    ///   - end: The 1-based ending grid line.
+    /// - Returns: A grid span from `start` to `end`.
+    public static func range(_ start: Int, _ end: Int) -> GridSpan {
+        GridSpan(cssValue: "\(start) / \(end)")
+    }
+}
+
 /// A modifier that controls where a grid item is placed within its grid container.
 ///
 /// `GridPlacementModifier` applies grid child placement properties to a node,
-/// including explicit column and row placement, named area assignment, inline
-/// justification, and the shorthand `place-self` property.
+/// including explicit column and row placement, named area assignment, and
+/// inline justification.
 ///
 /// ### Example
 ///
@@ -85,25 +124,28 @@ public struct FlexItemModifier: ModifierValue {
 ///     Text("Header")
 /// }
 /// .gridPlacement(area: "header", justifySelf: .center)
+///
+/// Div {
+///     Text("Spanning")
+/// }
+/// .gridPlacement(column: .range(1, 3), row: .line(1))
 /// ```
 ///
 /// ### CSS Mapping
 ///
-/// Maps to the CSS `grid-column`, `grid-row`, `grid-area`, `justify-self`,
-/// and `place-self` properties on the rendered element.
+/// Maps to the CSS `grid-column`, `grid-row`, `grid-area`, and `justify-self`
+/// properties on the rendered element.
 public struct GridPlacementModifier: ModifierValue {
 
     /// The column track or span within the grid.
     ///
-    /// Accepts any valid CSS `grid-column` value, such as `"1"`, `"1 / 3"`, or `"span 2"`.
     /// When `nil`, the CSS `grid-column` property is not set.
-    public let column: String?
+    public let column: GridSpan?
 
     /// The row track or span within the grid.
     ///
-    /// Accepts any valid CSS `grid-row` value, such as `"2"` or `"1 / span 3"`.
     /// When `nil`, the CSS `grid-row` property is not set.
-    public let row: String?
+    public let row: GridSpan?
 
     /// The named grid area this item should occupy.
     ///
@@ -117,29 +159,21 @@ public struct GridPlacementModifier: ModifierValue {
     /// When `nil`, the CSS `justify-self` property is not set.
     public let justifySelf: TextAlign?
 
-    /// The shorthand for both block-axis and inline-axis self-alignment.
-    ///
-    /// Accepts any valid CSS `place-self` value, such as `"center start"`.
-    /// When `nil`, the CSS `place-self` property is not set.
-    public let placeSelf: String?
-
     /// Creates a grid placement modifier.
     ///
     /// All parameters are optional. Omit any parameter to leave its corresponding
     /// CSS property unset.
     ///
     /// - Parameters:
-    ///   - column: The grid column placement string. Defaults to `nil`.
-    ///   - row: The grid row placement string. Defaults to `nil`.
+    ///   - column: The grid column placement. Defaults to `nil`.
+    ///   - row: The grid row placement. Defaults to `nil`.
     ///   - area: The named grid area. Defaults to `nil`.
     ///   - justifySelf: The inline-axis alignment. Defaults to `nil`.
-    ///   - placeSelf: The shorthand self-placement string. Defaults to `nil`.
-    public init(column: String? = nil, row: String? = nil, area: String? = nil, justifySelf: TextAlign? = nil, placeSelf: String? = nil) {
+    public init(column: GridSpan? = nil, row: GridSpan? = nil, area: String? = nil, justifySelf: TextAlign? = nil) {
         self.column = column
         self.row = row
         self.area = area
         self.justifySelf = justifySelf
-        self.placeSelf = placeSelf
     }
 }
 
@@ -192,7 +226,7 @@ extension Node {
     /// Div {
     ///     Text("Spanning header")
     /// }
-    /// .gridPlacement(column: "1 / -1", row: "1")
+    /// .gridPlacement(column: .range(1, -1), row: .line(1))
     ///
     /// Div {
     ///     Text("Named area")
@@ -202,18 +236,17 @@ extension Node {
     ///
     /// ### CSS Mapping
     ///
-    /// Maps to the CSS `grid-column`, `grid-row`, `grid-area`, `justify-self`,
-    /// and `place-self` properties.
+    /// Maps to the CSS `grid-column`, `grid-row`, `grid-area`, and
+    /// `justify-self` properties.
     ///
     /// - Parameters:
-    ///   - column: The grid column placement string. Defaults to `nil`.
-    ///   - row: The grid row placement string. Defaults to `nil`.
+    ///   - column: The grid column placement. Defaults to `nil`.
+    ///   - row: The grid row placement. Defaults to `nil`.
     ///   - area: The named grid area. Defaults to `nil`.
     ///   - justifySelf: The inline-axis alignment. Defaults to `nil`.
-    ///   - placeSelf: The shorthand self-placement string. Defaults to `nil`.
     /// - Returns: A modified node with the grid placement styles applied.
-    public func gridPlacement(column: String? = nil, row: String? = nil, area: String? = nil, justifySelf: TextAlign? = nil, placeSelf: String? = nil) -> ModifiedNode<Self> {
-        let mod = GridPlacementModifier(column: column, row: row, area: area, justifySelf: justifySelf, placeSelf: placeSelf)
+    public func gridPlacement(column: GridSpan? = nil, row: GridSpan? = nil, area: String? = nil, justifySelf: TextAlign? = nil) -> ModifiedNode<Self> {
+        let mod = GridPlacementModifier(column: column, row: row, area: area, justifySelf: justifySelf)
         return ModifiedNode(content: self, modifiers: [mod])
     }
 }

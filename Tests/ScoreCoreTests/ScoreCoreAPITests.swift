@@ -74,21 +74,19 @@ import Testing
     #expect(itemMod?.order == 2)
     #expect(itemMod?.alignSelf == .end)
 
-    let placed = TextNode("x").gridPlacement(column: "1 / 3", row: "2", area: "main", justifySelf: .center, placeSelf: "center stretch")
+    let placed = TextNode("x").gridPlacement(column: .range(1, 3), row: .line(2), area: "main", justifySelf: .center)
     let place = placed.modifiers.first as? GridPlacementModifier
-    #expect(place?.column == "1 / 3")
-    #expect(place?.row == "2")
+    #expect(place?.column?.cssValue == "1 / 3")
+    #expect(place?.row?.cssValue == "2")
     #expect(place?.area == "main")
     #expect(place?.justifySelf == .center)
-    #expect(place?.placeSelf == "center stretch")
 
     #expect(TextNode("x").hidden().modifiers.first is HiddenModifier)
 
-    let listStyled = TextNode("x").listStyle(type: .decimal, position: .inside, image: "url('/bullet.svg')")
+    let listStyled = TextNode("x").listStyle(type: .decimal, position: .inside)
     let list = listStyled.modifiers.first as? ListStyleModifier
     #expect(list?.type == .decimal)
     #expect(list?.position == .inside)
-    #expect(list?.image == "url('/bullet.svg')")
 
     let tableStyled = TextNode("x").tableStyle(layout: .fixed, borderCollapse: .collapse, borderSpacing: 6, captionSide: .bottom)
     let table = tableStyled.modifiers.first as? TableStyleModifier
@@ -99,25 +97,25 @@ import Testing
 }
 
 @Test func motionScrollInteractionFilterAndMediaModifiersStoreConfiguredValues() {
-    let transformed = TextNode("x").transform("rotate(45deg)")
-    #expect((transformed.modifiers.first as? TransformModifier)?.value == "rotate(45deg)")
+    let transformed = TextNode("x").transform(.rotate(45))
+    #expect((transformed.modifiers.first as? TransformModifier)?.transforms.count == 1)
 
-    let transitioned = TextNode("x").transition(property: "opacity", duration: 0.2, timing: "ease-in-out", delay: 0.1)
+    let transitioned = TextNode("x").transition(property: .opacity, duration: 0.2, timing: .easeInOut, delay: 0.1)
     let transition = transitioned.modifiers.first as? TransitionModifier
-    #expect(transition?.property == "opacity")
+    #expect(transition?.property == .opacity)
     #expect(transition?.duration == 0.2)
-    #expect(transition?.timing == "ease-in-out")
+    #expect(transition?.timing == .easeInOut)
     #expect(transition?.delay == 0.1)
 
-    let animated = TextNode("x").animation(name: "fade", duration: 0.3, timing: "ease", delay: 0.05, iterationCount: "2", direction: "alternate", fillMode: "forwards")
+    let animated = TextNode("x").animation(name: "fade", duration: 0.3, timing: .ease, delay: 0.05, iterationCount: .count(2), direction: .alternate, fillMode: .forwards)
     let animation = animated.modifiers.first as? AnimationModifier
     #expect(animation?.name == "fade")
     #expect(animation?.duration == 0.3)
-    #expect(animation?.timing == "ease")
+    #expect(animation?.timing == .ease)
     #expect(animation?.delay == 0.05)
-    #expect(animation?.iterationCount == "2")
-    #expect(animation?.direction == "alternate")
-    #expect(animation?.fillMode == "forwards")
+    #expect(animation?.iterationCount?.cssValue == "2")
+    #expect(animation?.direction == .alternate)
+    #expect(animation?.fillMode == .forwards)
 
     let scrollBehavior = TextNode("x").scrollBehavior(.smooth)
     #expect((scrollBehavior.modifiers.first as? ScrollBehaviorModifier)?.behavior == .smooth)
@@ -135,12 +133,12 @@ import Testing
     #expect((TextNode("x").cursor(.grab).modifiers.first as? CursorModifier)?.style == .grab)
     #expect((TextNode("x").userSelect(.none).modifiers.first as? UserSelectModifier)?.mode == UserSelectMode.none)
 
-    #expect((TextNode("x").filter("blur(2px)").modifiers.first as? FilterModifier)?.value == "blur(2px)")
-    #expect((TextNode("x").backdropFilter("blur(10px)").modifiers.first as? BackdropFilterModifier)?.value == "blur(10px)")
-    #expect((TextNode("x").blendMode("multiply").modifiers.first as? BlendModeModifier)?.value == "multiply")
+    #expect((TextNode("x").filter(.blur(2)).modifiers.first as? FilterModifier)?.filters.count == 1)
+    #expect((TextNode("x").backdropFilter(.blur(10)).modifiers.first as? BackdropFilterModifier)?.filters.count == 1)
+    #expect((TextNode("x").blendMode(.multiply).modifiers.first as? BlendModeModifier)?.mode == .multiply)
 
     #expect((TextNode("x").objectFit(.cover).modifiers.first as? ObjectFitModifier)?.fit == .cover)
-    #expect((TextNode("x").objectPosition("top center").modifiers.first as? ObjectPositionModifier)?.value == "top center")
+    #expect((TextNode("x").objectPosition(.topRight).modifiers.first as? ObjectPositionModifier)?.position == .topRight)
     #expect(ObjectFit.scaleDown.rawValue == "scale-down")
 }
 

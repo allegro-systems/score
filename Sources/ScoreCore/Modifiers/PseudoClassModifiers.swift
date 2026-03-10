@@ -77,10 +77,10 @@ public enum PseudoStyle: Sendable, Hashable {
     /// CSS equivalent: `text-decoration: <value>`.
     case textDecoration(TextDecoration)
 
-    /// Applies a CSS transform.
+    /// Applies CSS transforms.
     ///
     /// CSS equivalent: `transform: <value>`.
-    case transform(String)
+    case transform([Transform])
 }
 
 /// A modifier that applies styles conditionally under a CSS pseudo-class.

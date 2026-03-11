@@ -29,16 +29,16 @@ import ScoreCore
 /// When the same tag appears multiple times with different styles, or when
 /// there is no component scope, semantic class names are generated instead.
 ///
-/// Pseudo-class modifiers (e.g. `.hover(...)`) are emitted alongside their
-/// base styles using the same selector with the pseudo-class appended:
+/// Pseudo-class modifiers (e.g. `.hover(...)`) are nested inside their
+/// parent element using the `&` selector:
 ///
 /// ```css
 /// .feature-card {
 ///   article {
 ///     padding: 20px;
-///   }
-///   article:hover {
-///     background-color: oklch(0.12 0.01 60);
+///     &:hover {
+///       background-color: oklch(0.12 0.01 60);
+///     }
 ///   }
 /// }
 /// ```
@@ -165,9 +165,10 @@ public struct CSSCollector: Sendable {
                     let decls = renderDeclarations(entry.declarations, indent: "    ")
 
                     if let tag = entry.htmlTag, !ambiguousTags.contains(tag) {
-                        blockCSS.append("  \(tag) {\n\(decls)\n  }\n")
+                        blockCSS.append("  \(tag) {\n\(decls)")
+                        emitNestedPseudoRules(entry.pseudoEntries, indent: "    ", into: &blockCSS)
+                        blockCSS.append("\n  }\n")
                         nestedKeys.insert(entry.declarationKey)
-                        emitPseudoRules(entry.pseudoEntries, selector: tag, indent: "  ", into: &blockCSS)
                     } else {
                         let tagKey = entry.htmlTag ?? "div"
                         let ordinal = (tagOrdinals[tagKey] ?? 0) + 1
@@ -178,12 +179,15 @@ public struct CSSCollector: Sendable {
                             pageName: pageName,
                             ordinal: ordinal
                         )
-                        blockCSS.append("  .\(className) {\n\(decls)\n  }\n")
+                        blockCSS.append("  .\(className) {\n\(decls)")
+                        emitNestedPseudoRules(entry.pseudoEntries, indent: "    ", into: &blockCSS)
+                        blockCSS.append("\n  }\n")
                         classLookup[entry.declarationKey] = className
-                        emitPseudoRules(entry.pseudoEntries, selector: ".\(className)", indent: "  ", into: &blockCSS)
                     }
                 } else if let tag = entry.htmlTag {
-                    emitPseudoRules(entry.pseudoEntries, selector: tag, indent: "  ", into: &blockCSS)
+                    blockCSS.append("  \(tag) {\n")
+                    emitNestedPseudoRules(entry.pseudoEntries, indent: "    ", into: &blockCSS)
+                    blockCSS.append("\n  }\n")
                 }
             }
 
@@ -207,15 +211,16 @@ public struct CSSCollector: Sendable {
 
             if !entry.declarations.isEmpty {
                 let decls = renderDeclarations(entry.declarations, indent: "  ")
-                let rule = ".\(className) {\n\(decls)\n}\n"
+                var rule = ".\(className) {\n\(decls)"
+                emitNestedPseudoRules(entry.pseudoEntries, indent: "  ", into: &rule)
+                rule.append("\n}\n")
                 flatCSS.append(rule)
                 css.append(rule)
                 classLookup[entry.declarationKey] = className
-            }
-
-            for pseudo in entry.pseudoEntries {
-                let pseudoDecls = renderDeclarations(pseudo.declarations, indent: "  ")
-                let rule = ".\(className):\(pseudo.pseudoClass.rawValue) {\n\(pseudoDecls)\n}\n"
+            } else if !entry.pseudoEntries.isEmpty {
+                var rule = ".\(className) {\n"
+                emitNestedPseudoRules(entry.pseudoEntries, indent: "  ", into: &rule)
+                rule.append("\n}\n")
                 flatCSS.append(rule)
                 css.append(rule)
             }
@@ -346,10 +351,10 @@ public struct CSSCollector: Sendable {
 
     // MARK: - Helpers
 
-    private func emitPseudoRules(_ pseudoEntries: [PseudoEntry], selector: String, indent: String, into css: inout String) {
+    private func emitNestedPseudoRules(_ pseudoEntries: [PseudoEntry], indent: String, into css: inout String) {
         for pseudo in pseudoEntries {
             let decls = renderDeclarations(pseudo.declarations, indent: "\(indent)  ")
-            css.append("\(indent)\(selector):\(pseudo.pseudoClass.rawValue) {\n\(decls)\n\(indent)}\n")
+            css.append("\n\(indent)&:\(pseudo.pseudoClass.rawValue) {\n\(decls)\n\(indent)}")
         }
     }
 
@@ -369,8 +374,9 @@ public struct CSSCollector: Sendable {
         ordinal: Int
     ) -> String {
         let tagName = friendlyTagName(tag ?? "div")
-        if component != nil {
-            return ordinal > 1 ? "\(tagName)-\(ordinal)" : tagName
+        if let component {
+            let name = "\(component)-\(tagName)"
+            return ordinal > 1 ? "\(name)-\(ordinal)" : name
         }
         let base = pageName ?? "scope"
         let name = "\(base)-\(tagName)"

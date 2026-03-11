@@ -88,8 +88,7 @@ final class DevRunner: Sendable {
             self.stopServer()
 
             do {
-                let result = try SwiftToolchain.buildStreaming(release: false, in: self.directory) { line in
-                    print(line)
+                let result = try SwiftToolchain.buildStreaming(release: false, in: self.directory) { _ in
                 }
                 if result.succeeded {
                     self.startServer(executable: executable)

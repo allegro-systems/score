@@ -8,6 +8,7 @@ public struct JSEmitter: Sendable {
         public let name: String
         public let initialValue: String
         public let storageKey: String
+        public let isTheme: Bool
     }
 
     /// Information about a `@Computed` property extracted via Mirror.
@@ -200,19 +201,31 @@ public struct JSEmitter: Sendable {
     // MARK: - Client Runtime
 
     /// Minimal signals runtime shared across all reactive pages.
+    ///
+    /// Aligned with the TC39 Signals proposal (`Signal.State`, `Signal.Computed`),
+    /// making it a near drop-in replacement once signals are standardised.
+    /// `Signal.effect` is a Score addition not present in the TC39 spec.
     public static let clientRuntime = """
-        const Score=(()=>{let t=null;function state(v){let subs=new Set();return{get(){if(t)subs.add(t);return v},set(n){if(n===v)return;v=n;for(const fn of subs)fn()}}}function effect(fn){const run=()=>{t=run;try{fn()}finally{t=null}};run()}function computed(fn){let s=state(undefined);effect(()=>s.set(fn()));return{get:s.get}}return{state,effect,computed}})();
+        const Signal=(()=>{let t=null;function State(v){let subs=new Set();return{get(){if(t)subs.add(t);return v},set(n){if(n===v)return;v=n;for(const fn of subs)fn()}}}function effect(fn){const run=()=>{t=run;try{fn()}finally{t=null}};run()}function Computed(fn){let s=new State(undefined);effect(()=>s.set(fn()));return{get:s.get}}return{State,effect,Computed}})();
         """
 
     // MARK: - Emission
 
     /// The result of analyzing a page's reactive content.
     public struct EmissionResult: Sendable {
-        /// The page-specific JavaScript (state, computed, actions, bindings).
-        /// Empty if the page has no reactive content.
-        public let pageJS: String
+        /// JavaScript for page-level declarations (outside any `Element`).
+        public let pageLevelJS: String
+        /// Per-`Element` JavaScript blocks, each wrapped in `{ ... }`.
+        public let scopeBlocks: [String]
         /// Whether this page requires the Score signals runtime.
         public let needsRuntime: Bool
+
+        /// Combined page JavaScript for inline use or backward compatibility.
+        public var pageJS: String {
+            var js = pageLevelJS
+            for block in scopeBlocks { js.append(block) }
+            return js
+        }
     }
 
     /// Analyzes a page and returns its reactive JavaScript separately from
@@ -231,7 +244,7 @@ public struct JSEmitter: Sendable {
         let hasElementLevel = !elementScopes.isEmpty
 
         guard hasPageLevel || hasElementLevel else {
-            return EmissionResult(pageJS: "", needsRuntime: false)
+            return EmissionResult(pageLevelJS: "", scopeBlocks: [], needsRuntime: false)
         }
 
         let needsRuntime =
@@ -241,7 +254,7 @@ public struct JSEmitter: Sendable {
                 !$0.states.isEmpty || !$0.computeds.isEmpty || !$0.reactiveBindings.isEmpty
             })
 
-        var js = ""
+        var pageLevelJS = ""
         var bindingOffset = 0
         var reactiveOffset = 0
 
@@ -249,21 +262,23 @@ public struct JSEmitter: Sendable {
             states: pageStates, computeds: pageComputeds,
             actions: pageActions, bindings: pageLevelBindings,
             reactiveBindings: pageLevelReactive,
-            bindingOffset: &bindingOffset, reactiveOffset: &reactiveOffset, into: &js
+            bindingOffset: &bindingOffset, reactiveOffset: &reactiveOffset, into: &pageLevelJS
         )
 
+        var scopeBlocks: [String] = []
         for scope in elementScopes {
-            js.append("{\n")
+            var block = "{\n"
             emitDeclarations(
                 states: scope.states, computeds: scope.computeds,
                 actions: scope.actions, bindings: scope.bindings,
                 reactiveBindings: scope.reactiveBindings,
-                bindingOffset: &bindingOffset, reactiveOffset: &reactiveOffset, into: &js
+                bindingOffset: &bindingOffset, reactiveOffset: &reactiveOffset, into: &block
             )
-            js.append("}\n")
+            block.append("}\n")
+            scopeBlocks.append(block)
         }
 
-        return EmissionResult(pageJS: js, needsRuntime: needsRuntime)
+        return EmissionResult(pageLevelJS: pageLevelJS, scopeBlocks: scopeBlocks, needsRuntime: needsRuntime)
     }
 
     /// Emits a `<script>` tag for a page, or an empty string if the page
@@ -283,7 +298,7 @@ public struct JSEmitter: Sendable {
         return "<script>\n\(js)</script>"
     }
 
-    /// Emits `const`, `function`, `addEventListener`, and `Score.effect` lines
+    /// Emits `const`, `function`, `addEventListener`, and `Signal.effect` lines
     /// for a set of declarations, advancing binding offsets as they are emitted.
     private static func emitDeclarations(
         states: [StateInfo], computeds: [ComputedInfo],
@@ -293,16 +308,21 @@ public struct JSEmitter: Sendable {
     ) {
         for state in states {
             if state.storageKey.isEmpty {
-                js.append("const \(state.name) = Score.state(\(state.initialValue));\n")
+                js.append("const \(state.name) = new Signal.State(\(state.initialValue));\n")
+            } else if state.isTheme {
+                js.append(
+                    "const \(state.name) = new Signal.State((()=>{var v=localStorage.getItem(\"\(state.storageKey)\");if(v!=null){var p=JSON.parse(v);return typeof p===\"boolean\"?p:p===\"dark\"}return window.matchMedia&&window.matchMedia(\"(prefers-color-scheme: dark)\").matches?true:\(state.initialValue)})());\n"
+                )
             } else {
-                js.append("const \(state.name) = Score.state((()=>{var v=localStorage.getItem(\"\(state.storageKey)\");return v!==null?JSON.parse(v):\(state.initialValue)})());\n")
+                js.append(
+                    "const \(state.name) = new Signal.State((()=>{var v=localStorage.getItem(\"\(state.storageKey)\");return v!==null?JSON.parse(v):\(state.initialValue)})());\n")
             }
         }
         for computed in computeds {
             if computed.body.isEmpty {
-                js.append("const \(computed.name) = Score.computed(() => \(computed.name));\n")
+                js.append("const \(computed.name) = new Signal.Computed(() => \(computed.name));\n")
             } else {
-                js.append("const \(computed.name) = Score.computed(() => \(computed.body));\n")
+                js.append("const \(computed.name) = new Signal.Computed(() => \(computed.body));\n")
             }
         }
         for action in actions {
@@ -319,17 +339,22 @@ public struct JSEmitter: Sendable {
             bindingOffset += 1
         }
         for state in states where !state.storageKey.isEmpty {
-            js.append("Score.effect(() => { localStorage.setItem(\"\(state.storageKey)\",JSON.stringify(\(state.name).get())); });\n")
+            js.append("Signal.effect(() => { localStorage.setItem(\"\(state.storageKey)\",JSON.stringify(\(state.name).get())); });\n")
+            if state.isTheme {
+                js.append(
+                    "Signal.effect(() => { var v=\(state.name).get();if(v)document.documentElement.setAttribute(\"data-theme\",\"dark\");else document.documentElement.removeAttribute(\"data-theme\"); });\n"
+                )
+            }
         }
         for reactive in reactiveBindings {
             switch reactive.kind {
             case .visibility(let stateName):
                 let selector = "document.querySelector(\"[data-r=\\\"\(reactiveOffset)\\\"]\")"
-                js.append("Score.effect(() => { \(selector).hidden = !\(stateName).get(); });\n")
+                js.append("Signal.effect(() => { \(selector).hidden = !\(stateName).get(); });\n")
                 reactiveOffset += 1
             case .text(let bindingName):
                 js.append(
-                    "Score.effect(() => { document.querySelector('[data-bind=\"\(bindingName)\"]').textContent = \(bindingName).get(); });\n"
+                    "Signal.effect(() => { document.querySelector('[data-bind=\"\(bindingName)\"]').textContent = \(bindingName).get(); });\n"
                 )
             }
         }
@@ -345,7 +370,8 @@ public struct JSEmitter: Sendable {
                 StateInfo(
                     name: descriptor.name,
                     initialValue: descriptor.jsInitialValue,
-                    storageKey: descriptor.storageKey
+                    storageKey: descriptor.storageKey,
+                    isTheme: descriptor.isTheme
                 ))
         }
         return states

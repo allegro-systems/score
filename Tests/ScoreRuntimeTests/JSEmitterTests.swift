@@ -100,9 +100,9 @@ private struct ActionPage: Page {
     #expect(script.hasSuffix("</script>"))
 }
 
-@Test func emitIncludesScoreStateCalls() {
+@Test func emitIncludesSignalStateCalls() {
     let script = JSEmitter.emit(page: ReactivePage(), environment: .development)
-    #expect(script.contains("Score.state(0)"))
+    #expect(script.contains("new Signal.State(0)"))
 }
 
 @Test func emitIncludesAddEventListener() {
@@ -120,9 +120,9 @@ private struct ActionPage: Page {
     #expect(script.contains("function increment(event)"))
 }
 
-@Test func computedPageEmitsScoreComputed() {
+@Test func computedPageEmitsSignalComputed() {
     let script = JSEmitter.emit(page: ComputedPage(), environment: .development)
-    #expect(script.contains("Score.computed("))
+    #expect(script.contains("new Signal.Computed("))
 }
 
 @Test func computedPageEmitsTranslatedBody() {

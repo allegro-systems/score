@@ -60,7 +60,8 @@ public struct Server: Sendable {
                             routeTable: routeTable,
                             pages: pages,
                             metadata: self.application.metadata,
-                            theme: self.application.theme
+                            theme: self.application.theme,
+                            resourcesDirectory: self.application.resourcesDirectory
                         )
                     )
                 }

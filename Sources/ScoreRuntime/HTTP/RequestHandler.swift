@@ -14,18 +14,21 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
     private let pages: [String: any Page]
     private let metadata: (any Metadata)?
     private let theme: (any Theme)?
+    private let resourcesDirectory: String?
 
     /// Creates a request handler with the given configuration.
     public init(
         routeTable: RouteTable,
         pages: [String: any Page],
         metadata: (any Metadata)?,
-        theme: (any Theme)?
+        theme: (any Theme)?,
+        resourcesDirectory: String? = nil
     ) {
         self.routeTable = routeTable
         self.pages = pages
         self.metadata = metadata
         self.theme = theme
+        self.resourcesDirectory = resourcesDirectory
     }
 
     // MARK: - State
@@ -95,6 +98,22 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
         }
         if path.hasPrefix("/styles/") && path.hasSuffix(".css") {
             return serveScopedCSS(for: path)
+        }
+
+        // Serve static resources (fonts, images, etc.)
+        if path.hasPrefix("/assets/"), let resourcesDirectory {
+            let relativePath = String(path.dropFirst("/assets/".count))
+            if let (data, contentType) = StaticFileHandler.serve(
+                relativePath: relativePath,
+                from: resourcesDirectory
+            ) {
+                return Response(
+                    status: .ok,
+                    headers: ["content-type": contentType],
+                    body: data
+                )
+            }
+            return Response.text("Not Found", status: .notFound)
         }
 
         // Serve external JavaScript files

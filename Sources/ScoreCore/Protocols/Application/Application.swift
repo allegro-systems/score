@@ -73,6 +73,15 @@ public protocol Application: Sendable {
     /// relative paths resolve against the current working directory.
     /// Defaults to `"Content"`.
     var contentDirectory: String { get }
+
+    /// The directory containing static resources (fonts, images, etc.).
+    ///
+    /// Files in this directory are fingerprinted and copied to the output
+    /// during static site generation, and served directly during development.
+    /// Font files (`.woff`, `.woff2`, `.ttf`, `.otf`) referenced by
+    /// ``Theme/fontFaces`` automatically generate `@font-face` declarations.
+    /// Defaults to `"Resources"`.
+    var resourcesDirectory: String { get }
 }
 
 extension Application {
@@ -105,4 +114,9 @@ extension Application {
     /// Defaults to `"Content"`. Relative paths resolve against the current
     /// working directory.
     public var contentDirectory: String { "Content" }
+
+    /// The directory containing static resources.
+    ///
+    /// Defaults to `"Resources"`.
+    public var resourcesDirectory: String { "Resources" }
 }

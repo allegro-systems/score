@@ -1,3 +1,4 @@
+import ScoreAssets
 import ScoreCore
 import Testing
 
@@ -222,4 +223,113 @@ private struct NamedTheme: Theme {
     #expect(css.contains("--color-accent:"))
     #expect(css.contains("--font-sans:"))
     #expect(css.contains("@media (prefers-color-scheme: dark)"))
+}
+
+@Test func defaultThemeEmitsFontImports() {
+    let css = ThemeCSSEmitter.emit(DefaultTheme())
+    #expect(css.contains("@import url('https://fonts.googleapis.com/css2?family=DM+Mono:"))
+    #expect(css.contains("@import url('https://fonts.googleapis.com/css2?family=Fraunces:"))
+    #expect(css.contains("@import url('https://fonts.googleapis.com/css2?family=Inter:"))
+}
+
+@Test func emptyFontImportsEmitsNoImportRules() {
+    let css = ThemeCSSEmitter.emit(TestTheme())
+    #expect(!css.contains("@import"))
+}
+
+private struct CustomFontTheme: Theme {
+    var fontImports: [String] {
+        ["https://fonts.bunny.net/css?family=dm-mono:400"]
+    }
+    var fontFamilies: [String: String] { ["mono": "'DM Mono', monospace"] }
+    var colorRoles: [String: ColorToken] { [:] }
+}
+
+@Test func customFontImportsEmitted() {
+    let css = ThemeCSSEmitter.emit(CustomFontTheme())
+    #expect(css.contains("@import url('https://fonts.bunny.net/css?family=dm-mono:400')"))
+}
+
+// MARK: - @font-face Tests
+
+private struct FontFaceTheme: Theme {
+    var fontFaces: [FontFace] {
+        [
+            FontFace("Inter", resource: "fonts/Inter-Regular.woff2", weight: .regular),
+            FontFace("Inter", resource: "fonts/Inter-Bold.woff2", weight: .bold),
+            FontFace("Inter", resource: "fonts/Inter-Italic.woff2", isItalic: true),
+        ]
+    }
+    var fontFamilies: [String: String] { ["sans": "'Inter', system-ui, sans-serif"] }
+    var colorRoles: [String: ColorToken] { [:] }
+}
+
+@Test func fontFacesEmitFontFaceRules() {
+    let css = ThemeCSSEmitter.emit(FontFaceTheme())
+    #expect(css.contains("@font-face {"))
+    #expect(css.contains("font-family: 'Inter';"))
+}
+
+@Test func fontFaceEmitsCorrectWeightAndStyle() {
+    let css = ThemeCSSEmitter.emit(FontFaceTheme())
+    #expect(css.contains("font-weight: 400;"))
+    #expect(css.contains("font-weight: 700;"))
+    #expect(css.contains("font-style: normal;"))
+    #expect(css.contains("font-style: italic;"))
+}
+
+@Test func fontFaceEmitsFormatHint() {
+    let css = ThemeCSSEmitter.emit(FontFaceTheme())
+    #expect(css.contains("format('woff2')"))
+}
+
+@Test func fontFaceEmitsFontDisplaySwap() {
+    let css = ThemeCSSEmitter.emit(FontFaceTheme())
+    #expect(css.contains("font-display: swap;"))
+}
+
+@Test func fontFaceUsesAssetPath() {
+    let css = ThemeCSSEmitter.emit(FontFaceTheme())
+    #expect(css.contains("url('/assets/fonts/Inter-Regular.woff2')"))
+    #expect(css.contains("url('/assets/fonts/Inter-Bold.woff2')"))
+}
+
+@Test func fontFaceUsesFingerprintedPathFromManifest() {
+    let manifest = AssetManifest(entries: [
+        "fonts/Inter-Regular.woff2": "fonts/Inter-Regular-a1b2c3d4.woff2"
+    ])
+    let css = ThemeCSSEmitter.emit(FontFaceTheme(), assetManifest: manifest)
+    #expect(css.contains("url('/assets/fonts/Inter-Regular-a1b2c3d4.woff2')"))
+    #expect(css.contains("url('/assets/fonts/Inter-Bold.woff2')"))
+}
+
+@Test func noFontFacesEmitsNoFontFaceRules() {
+    let css = ThemeCSSEmitter.emit(TestTheme())
+    #expect(!css.contains("@font-face"))
+}
+
+private struct TrueTypeFontTheme: Theme {
+    var fontFaces: [FontFace] {
+        [FontFace("Roboto", resource: "fonts/Roboto.ttf")]
+    }
+    var fontFamilies: [String: String] { [:] }
+    var colorRoles: [String: ColorToken] { [:] }
+}
+
+@Test func fontFaceDetectsTrueTypeFormat() {
+    let css = ThemeCSSEmitter.emit(TrueTypeFontTheme())
+    #expect(css.contains("format('truetype')"))
+}
+
+private struct OpenTypeFontTheme: Theme {
+    var fontFaces: [FontFace] {
+        [FontFace("Roboto", resource: "fonts/Roboto.otf")]
+    }
+    var fontFamilies: [String: String] { [:] }
+    var colorRoles: [String: ColorToken] { [:] }
+}
+
+@Test func fontFaceDetectsOpenTypeFormat() {
+    let css = ThemeCSSEmitter.emit(OpenTypeFontTheme())
+    #expect(css.contains("format('opentype')"))
 }

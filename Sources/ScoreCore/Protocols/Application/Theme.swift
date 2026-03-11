@@ -271,6 +271,38 @@ public protocol Theme: Sendable {
     /// Example keys include `"sans"`, `"mono"`, and `"brand"`.
     var fontFamilies: [String: String] { get }
 
+    /// External stylesheet URLs imported before theme custom properties.
+    ///
+    /// Use this to load web fonts from any CDN (Google Fonts, Bunny Fonts,
+    /// Adobe Fonts, etc.). Each URL is emitted as an `@import url(...)`
+    /// rule at the top of the theme stylesheet.
+    ///
+    /// ```swift
+    /// var fontImports: [String] {
+    ///     [
+    ///         "https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap",
+    ///         "https://fonts.bunny.net/css?family=dm-mono:300,400,500",
+    ///     ]
+    /// }
+    /// ```
+    var fontImports: [String] { get }
+
+    /// Local font face declarations for self-hosted fonts.
+    ///
+    /// Each entry generates a CSS `@font-face` rule. The ``FontFace/resource``
+    /// path is resolved against the application's resources directory and
+    /// fingerprinted during static site builds.
+    ///
+    /// ```swift
+    /// var fontFaces: [FontFace] {
+    ///     [
+    ///         FontFace("Inter", resource: "fonts/Inter-Regular.woff2"),
+    ///         FontFace("Inter", resource: "fonts/Inter-Bold.woff2", weight: .bold),
+    ///     ]
+    /// }
+    /// ```
+    var fontFaces: [FontFace] { get }
+
     /// The typographic scale base size in points.
     var typeScaleBase: Double { get }
 
@@ -344,6 +376,12 @@ extension Theme {
 
     /// Default font families from ``DefaultTheme``.
     public var fontFamilies: [String: String] { DefaultTheme().fontFamilies }
+
+    /// Default font imports return an empty array.
+    public var fontImports: [String] { [] }
+
+    /// Default font faces return an empty array.
+    public var fontFaces: [FontFace] { [] }
 
     /// Default type scale base from ``DefaultTheme``.
     public var typeScaleBase: Double { DefaultTheme().typeScaleBase }

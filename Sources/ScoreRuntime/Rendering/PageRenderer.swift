@@ -18,6 +18,10 @@ public struct RenderResult: Sendable {
     public let script: String
     /// The page-specific JavaScript without the shared runtime.
     public let pageJS: String
+    /// JavaScript for page-level declarations (outside any `Element`).
+    public let pageLevelJS: String
+    /// Per-`Element` JavaScript blocks for scope-level deduplication.
+    public let jsScopeBlocks: [String]
     /// Whether this page requires the Score signals runtime.
     public let needsRuntime: Bool
 }
@@ -127,6 +131,8 @@ public struct PageRenderer: Sendable {
             flatCSS: stylesheetResult.flatCSS,
             script: jsResult.pageJS.isEmpty ? "" : "<script>\n\(jsResult.needsRuntime ? JSEmitter.clientRuntime : "")\(jsResult.pageJS)</script>",
             pageJS: jsResult.pageJS,
+            pageLevelJS: jsResult.pageLevelJS,
+            jsScopeBlocks: jsResult.scopeBlocks,
             needsRuntime: jsResult.needsRuntime
         )
     }

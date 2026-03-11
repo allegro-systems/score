@@ -1,4 +1,5 @@
 import Foundation
+import ScoreAssets
 import ScoreCore
 
 /// Errors raised by the static site emitter.
@@ -42,9 +43,10 @@ public struct StaticSiteEmitter: Sendable {
     /// named chunk files (e.g. `docs-score.css`), and page-unique styles stay
     /// in per-page files.
     ///
-    /// JavaScript is externalized: the Score signals runtime is written to
-    /// `score.js` (shared across all reactive pages), and per-page declarations
-    /// go into `/scripts/{page}.js`.
+    /// JavaScript is chunked similarly: Element scope blocks used on all
+    /// reactive pages go into `shared.js`, blocks shared by a subset go into
+    /// named chunks, and page-unique blocks plus page-level declarations stay
+    /// in per-page files. The Score signals runtime is written to `score.js`.
     ///
     /// The output directory is wiped clean before each emission so stale
     /// files from previous builds never linger.
@@ -61,8 +63,24 @@ public struct StaticSiteEmitter: Sendable {
         let scriptsDir = "\(outputDir)/scripts"
         try fm.createDirectory(atPath: stylesDir, withIntermediateDirectories: true)
 
-        let globalCSS = application.theme.map { ThemeCSSEmitter.emit($0) } ?? ""
-        try globalCSS.write(
+        // Process resources directory (fonts, images, etc.)
+        let assetManifest: AssetManifest?
+        let resourcesDir = application.resourcesDirectory
+        if fm.fileExists(atPath: resourcesDir) {
+            let pipeline = AssetPipeline(
+                sourceDirectory: resourcesDir,
+                outputDirectory: "\(outputDir)/assets"
+            )
+            assetManifest = try pipeline.process()
+        } else {
+            assetManifest = nil
+        }
+
+        let globalCSS =
+            application.theme.map {
+                ThemeCSSEmitter.emit($0, assetManifest: assetManifest)
+            } ?? ""
+        try Minifier.minifyCSS(globalCSS).write(
             toFile: "\(outputDir)/global.css",
             atomically: true,
             encoding: .utf8
@@ -108,8 +126,8 @@ public struct StaticSiteEmitter: Sendable {
             )
         }
 
-        // Deduplicate JS: group pages by identical content, write shared
-        // files for groups used by multiple pages.
+        // Deduplicate JS: group Element scope blocks by usage pattern
+        // (mirroring CSS chunking), write shared/chunk/page-specific files.
         try writeJSFiles(
             rendered: rendered,
             scriptsDir: scriptsDir,
@@ -161,7 +179,7 @@ public struct StaticSiteEmitter: Sendable {
 
         // Write shared.css
         if !sharedCSS.isEmpty {
-            try sharedCSS.write(
+            try Minifier.minifyCSS(sharedCSS).write(
                 toFile: "\(stylesDir)/shared.css",
                 atomically: true,
                 encoding: .utf8
@@ -170,7 +188,7 @@ public struct StaticSiteEmitter: Sendable {
 
         // Write chunk files
         for chunk in chunks {
-            try chunk.css.write(
+            try Minifier.minifyCSS(chunk.css).write(
                 toFile: "\(stylesDir)/\(chunk.name).css",
                 atomically: true,
                 encoding: .utf8
@@ -192,7 +210,7 @@ public struct StaticSiteEmitter: Sendable {
 
             if !pageCSS.isEmpty {
                 pageHasCSS.insert(entry.cssName)
-                try pageCSS.write(
+                try Minifier.minifyCSS(pageCSS).write(
                     toFile: "\(stylesDir)/\(entry.cssName).css",
                     atomically: true,
                     encoding: .utf8
@@ -200,7 +218,7 @@ public struct StaticSiteEmitter: Sendable {
             }
         }
 
-        // Build JS link map: page name → actual script path
+        // Build JS link map: page name → actual script paths
         let jsLinkMap = buildJSLinkMap(rendered: rendered)
 
         // Write HTML with correct CSS and JS links
@@ -229,89 +247,129 @@ public struct StaticSiteEmitter: Sendable {
                 with: styleLinks
             )
 
-            // Replace the placeholder per-page JS link with the deduplicated one
-            if let actualPath = jsLinkMap[entry.cssName] {
+            // Replace the placeholder per-page JS link with the deduplicated set
+            if let scriptPaths = jsLinkMap[entry.cssName] {
+                let scriptTags = scriptPaths.map {
+                    "<script src=\"\($0)\"></script>"
+                }.joined(separator: "\n")
                 html = html.replacingOccurrences(
                     of: "<script src=\"/scripts/\(entry.cssName).js\"></script>",
-                    with: "<script src=\"\(actualPath)\"></script>"
+                    with: scriptTags
                 )
             }
 
             let filePath = outputFilePath(for: entry.pagePath, in: outputDir)
             let dirPath = (filePath as NSString).deletingLastPathComponent
             try fm.createDirectory(atPath: dirPath, withIntermediateDirectories: true)
-            try html.write(toFile: filePath, atomically: true, encoding: .utf8)
+            try Minifier.minifyHTML(html).write(toFile: filePath, atomically: true, encoding: .utf8)
         }
     }
 
-    /// Writes deduplicated JS files. Pages with identical JS content share a
-    /// single file instead of getting individual copies.
+    /// Writes deduplicated JS files. Element scope blocks are grouped by
+    /// usage pattern (mirroring CSS chunking): blocks used on all reactive
+    /// pages go into `shared.js`, blocks shared by a subset go into named
+    /// chunks, and page-unique blocks stay in per-page files.
     private static func writeJSFiles(
         rendered: [RenderedPageEntry],
         scriptsDir: String,
         fm: FileManager
     ) throws {
-        let groups = jsContentGroups(from: rendered)
-        guard !groups.isEmpty else { return }
+        let reactiveEntries = rendered.filter { !$0.result.pageJS.isEmpty }
+        guard !reactiveEntries.isEmpty else { return }
         try fm.createDirectory(atPath: scriptsDir, withIntermediateDirectories: true)
 
-        for (name, js) in groups {
-            try js.write(
-                toFile: "\(scriptsDir)/\(name).js",
-                atomically: true,
-                encoding: .utf8
-            )
+        let chunked = chunkJSScopeBlocks(rendered: rendered, totalPages: reactiveEntries.count)
+
+        if !chunked.sharedJS.isEmpty {
+            try Minifier.minifyJS(chunked.sharedJS).write(
+                toFile: "\(scriptsDir)/shared.js", atomically: true, encoding: .utf8)
+        }
+
+        for chunk in chunked.chunks {
+            try Minifier.minifyJS(chunk.js).write(
+                toFile: "\(scriptsDir)/\(chunk.name).js", atomically: true, encoding: .utf8)
+        }
+
+        for entry in reactiveEntries {
+            var pageJS = entry.result.pageLevelJS
+            if let blocks = chunked.pageBlocks[entry.cssName] {
+                pageJS.append(blocks.joined())
+            }
+            guard !pageJS.isEmpty else { continue }
+            try Minifier.minifyJS(pageJS).write(
+                toFile: "\(scriptsDir)/\(entry.cssName).js", atomically: true, encoding: .utf8)
         }
     }
 
-    /// Builds a map from page name to actual JS file path, accounting for
-    /// deduplication of identical content.
-    private static func buildJSLinkMap(rendered: [RenderedPageEntry]) -> [String: String] {
-        var contentPages: [String: [String]] = [:]
-        for entry in rendered where !entry.result.pageJS.isEmpty {
-            contentPages[entry.result.pageJS, default: []].append(entry.cssName)
+    private struct JSChunkResult {
+        let sharedJS: String
+        let chunks: [(name: String, js: String, pages: Set<String>)]
+        let pageBlocks: [String: [String]]
+    }
+
+    private static func chunkJSScopeBlocks(
+        rendered: [RenderedPageEntry],
+        totalPages: Int
+    ) -> JSChunkResult {
+        var blockPages: [String: Set<String>] = [:]
+        for entry in rendered {
+            for block in entry.result.jsScopeBlocks {
+                blockPages[block, default: []].insert(entry.cssName)
+            }
         }
 
+        var pageSetBlocks: [Set<String>: [String]] = [:]
+        for (block, pages) in blockPages {
+            pageSetBlocks[pages, default: []].append(block)
+        }
+
+        var sharedJS = ""
+        var chunks: [(name: String, js: String, pages: Set<String>)] = []
+        var pageBlocks: [String: [String]] = [:]
         var usedNames: Set<String> = []
-        var linkMap: [String: String] = [:]
 
-        for (_, pages) in contentPages {
-            let name: String
-            if pages.count == 1 {
-                name = pages[0]
-            } else {
-                name = chunkName(for: Set(pages), scopes: [], avoiding: &usedNames)
+        for (pageSet, blocks) in pageSetBlocks {
+            let combined = blocks.joined()
+            if pageSet.count == totalPages {
+                sharedJS.append(combined)
+            } else if pageSet.count >= 2 {
+                let name = chunkName(for: pageSet, scopes: [], avoiding: &usedNames)
+                chunks.append((name: name, js: combined, pages: pageSet))
+            } else if let page = pageSet.first {
+                pageBlocks[page, default: []].append(contentsOf: blocks)
             }
+        }
 
-            for page in pages {
-                linkMap[page] = "/scripts/\(name).js"
+        return JSChunkResult(sharedJS: sharedJS, chunks: chunks, pageBlocks: pageBlocks)
+    }
+
+    /// Builds a map from page name to the list of actual JS script paths,
+    /// accounting for scope-block deduplication.
+    private static func buildJSLinkMap(rendered: [RenderedPageEntry]) -> [String: [String]] {
+        let reactiveEntries = rendered.filter { !$0.result.pageJS.isEmpty }
+        guard !reactiveEntries.isEmpty else { return [:] }
+
+        let chunked = chunkJSScopeBlocks(rendered: rendered, totalPages: reactiveEntries.count)
+
+        var linkMap: [String: [String]] = [:]
+        for entry in reactiveEntries {
+            var links: [String] = []
+            if !chunked.sharedJS.isEmpty {
+                links.append("/scripts/shared.js")
             }
+            for chunk in chunked.chunks.sorted(by: { $0.name < $1.name })
+            where chunk.pages.contains(entry.cssName) {
+                links.append("/scripts/\(chunk.name).js")
+            }
+            let hasPageJS =
+                !entry.result.pageLevelJS.isEmpty
+                || chunked.pageBlocks[entry.cssName] != nil
+            if hasPageJS {
+                links.append("/scripts/\(entry.cssName).js")
+            }
+            linkMap[entry.cssName] = links
         }
         return linkMap
-    }
-
-    /// Groups pages by identical JS content, returning `(fileName, jsContent)` pairs.
-    private static func jsContentGroups(
-        from rendered: [RenderedPageEntry]
-    ) -> [(name: String, js: String)] {
-        var contentPages: [String: [String]] = [:]
-        for entry in rendered where !entry.result.pageJS.isEmpty {
-            contentPages[entry.result.pageJS, default: []].append(entry.cssName)
-        }
-
-        var usedNames: Set<String> = []
-        var result: [(name: String, js: String)] = []
-
-        for (js, pages) in contentPages {
-            let name: String
-            if pages.count == 1 {
-                name = pages[0]
-            } else {
-                name = chunkName(for: Set(pages), scopes: [], avoiding: &usedNames)
-            }
-            result.append((name: name, js: js))
-        }
-        return result
     }
 
     /// Derives a chunk file name from the common prefix of page names,

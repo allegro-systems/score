@@ -19,7 +19,7 @@ import Testing
     try "hello".write(toFile: txtFile, atomically: true, encoding: .utf8)
 
     let watcher = FileWatcher(directories: [tempDir], extensions: ["swift"])
-    let snapshot = watcher.buildSnapshot()
+    let snapshot = watcher.snapshot()
 
     #expect(snapshot[swiftFile] != nil)
     #expect(snapshot[txtFile] == nil)
@@ -41,7 +41,7 @@ import Testing
     try "// nested".write(toFile: nestedFile, atomically: true, encoding: .utf8)
 
     let watcher = FileWatcher(directories: [tempDir], extensions: ["swift"])
-    let snapshot = watcher.buildSnapshot()
+    let snapshot = watcher.snapshot()
 
     #expect(snapshot.count == 2)
     #expect(snapshot[rootFile] != nil)
@@ -97,7 +97,7 @@ import Testing
         directories: ["/nonexistent/path/that/does/not/exist"],
         extensions: ["swift"]
     )
-    let snapshot = watcher.buildSnapshot()
+    let snapshot = watcher.snapshot()
     #expect(snapshot.isEmpty)
 }
 
@@ -115,7 +115,7 @@ import Testing
     try "data".write(toFile: "\(tempDir)/c.txt", atomically: true, encoding: .utf8)
 
     let watcher = FileWatcher(directories: [tempDir], extensions: ["swift", "json"])
-    let snapshot = watcher.buildSnapshot()
+    let snapshot = watcher.snapshot()
 
     #expect(snapshot.count == 2)
 }

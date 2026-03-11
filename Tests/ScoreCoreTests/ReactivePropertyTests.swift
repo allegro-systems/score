@@ -2,30 +2,35 @@ import Testing
 
 @testable import ScoreCore
 
-@Test func stateReturnsInitialValue() {
-    @State var count = 0
-    #expect(count == 0)
+@Test func stateDescriptorStoresFields() {
+    let descriptor = StateDescriptor(name: "count", jsInitialValue: "0")
+    #expect(descriptor.name == "count")
+    #expect(descriptor.jsInitialValue == "0")
+    #expect(descriptor.storageKey == "")
+    #expect(descriptor.isTheme == false)
 }
 
-@Test func stateAcceptsStringValue() {
-    @State var name = "hello"
-    #expect(name == "hello")
+@Test func stateDescriptorWithStorageKey() {
+    let descriptor = StateDescriptor(name: "volume", jsInitialValue: "50", storageKey: "volume")
+    #expect(descriptor.storageKey == "volume")
+    #expect(descriptor.isTheme == false)
 }
 
-@Test func stateSupportsMutation() {
-    @State var value = 10
-    value = 42
-    #expect(value == 42)
+@Test func stateDescriptorWithThemeKey() {
+    let descriptor = StateDescriptor(name: "isDark", jsInitialValue: "false", storageKey: "as-theme", isTheme: true)
+    #expect(descriptor.isTheme == true)
+    #expect(descriptor.storageKey == "as-theme")
 }
 
-@Test func computedEvaluatesClosure() {
-    @Computed var doubled = 5 * 2
-    #expect(doubled == 10)
+@Test func computedDescriptorStoresFields() {
+    let descriptor = ComputedDescriptor(name: "label", body: "count.get() > 0 ? \"Active\" : \"Idle\"")
+    #expect(descriptor.name == "label")
+    #expect(descriptor.body.contains("count.get()"))
 }
 
-@Test func computedProducesCorrectValue() {
-    let compute = Computed<Int>(wrappedValue: 42)
-    #expect(compute.wrappedValue == 42)
+@Test func computedDescriptorDefaultsToEmptyBody() {
+    let descriptor = ComputedDescriptor(name: "total")
+    #expect(descriptor.body == "")
 }
 
 @Test func actionDescriptorCreatesSuccessfully() {
@@ -80,4 +85,16 @@ import Testing
 
     let inner = node.content.modifiers[0] as? EventBindingModifier
     #expect(inner?.event == .focus)
+}
+
+@Test func storageKeyThemeConstant() {
+    let key = StorageKey.theme
+    #expect(key.rawValue == "as-theme")
+    #expect(key.isTheme == true)
+}
+
+@Test func storageKeyFromStringLiteral() {
+    let key: StorageKey = "my-setting"
+    #expect(key.rawValue == "my-setting")
+    #expect(key.isTheme == false)
 }

@@ -131,7 +131,7 @@ import Testing
     #expect(config.rateLimit.attempts == 5)
     #expect(config.rateLimit.window == .seconds(900))
     #expect(config.cookieName == "score_session")
-    #expect(config.cookieSecure == true)
+    #expect(config.isCookieSecure == true)
     #expect(config.cookieSameSite == .lax)
 }
 
@@ -140,13 +140,13 @@ import Testing
         sessionTTL: .seconds(7200),
         magicLinkTTL: .seconds(300),
         cookieName: "my_session",
-        cookieSecure: false,
+        isCookieSecure: false,
         cookieSameSite: .strict
     )
     #expect(config.sessionTTL == .seconds(7200))
     #expect(config.magicLinkTTL == .seconds(300))
     #expect(config.cookieName == "my_session")
-    #expect(config.cookieSecure == false)
+    #expect(config.isCookieSecure == false)
     #expect(config.cookieSameSite == .strict)
 }
 

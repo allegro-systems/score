@@ -61,9 +61,9 @@ import Testing
 // MARK: - Accessibility modifier
 
 @Test func accessibilityModifierStoresAllFields() {
-    let mod = AccessibilityModifier(label: "Avatar", hidden: true, role: "img")
+    let mod = AccessibilityModifier(label: "Avatar", isHidden: true, role: "img")
     #expect(mod.label == "Avatar")
-    #expect(mod.hidden == true)
+    #expect(mod.isHidden == true)
     #expect(mod.role == "img")
 }
 
@@ -73,7 +73,7 @@ import Testing
 
     let mod = node.modifiers[0] as? AccessibilityModifier
     #expect(mod?.label == "label")
-    #expect(mod?.hidden == false)
+    #expect(mod?.isHidden == false)
     #expect(mod?.role == "note")
 }
 

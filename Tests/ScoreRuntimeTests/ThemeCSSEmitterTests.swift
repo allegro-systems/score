@@ -15,6 +15,7 @@ struct TestTheme: Theme {
     var radiusBase: Double { 4 }
     var syntaxThemeName: String? { nil }
     var dark: (any ThemePatch)? { nil }
+    var named: [String: any ThemePatch] { [:] }
 }
 
 struct DarkPatch: ThemePatch {
@@ -87,7 +88,7 @@ struct FullDarkTheme: Theme {
 
 @Test func emitColorRoleCustomProperty() {
     let css = ThemeCSSEmitter.emit(TestTheme())
-    #expect(css.contains("--color-accent: oklch(0.65 0.18 270.0)"))
+    #expect(css.contains("--color-accent: oklch(0.65 0.18 270)"))
 }
 
 @Test func emitFontFamilyCustomProperty() {
@@ -113,7 +114,7 @@ struct FullDarkTheme: Theme {
 @Test func emitDarkModeOverrides() {
     let css = ThemeCSSEmitter.emit(DarkTheme())
     #expect(css.contains("@media (prefers-color-scheme: dark)"))
-    #expect(css.contains("--color-accent: oklch(0.8 0.12 270.0)"))
+    #expect(css.contains("--color-accent: oklch(0.8 0.12 270)"))
 }
 
 @Test func noDarkBlockWhenNoPatch() {
@@ -195,7 +196,7 @@ private struct NamedTheme: Theme {
 @Test func emitNamedThemeBlock() {
     let css = ThemeCSSEmitter.emit(NamedTheme())
     #expect(css.contains("[data-theme=\"ocean\"]"))
-    #expect(css.contains("--color-accent: oklch(0.6 0.15 220.0)"))
+    #expect(css.contains("--color-accent: oklch(0.6 0.15 220)"))
 }
 
 @Test func emitMultipleNamedThemeBlocks() {

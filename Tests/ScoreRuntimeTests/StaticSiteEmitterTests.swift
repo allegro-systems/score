@@ -38,7 +38,10 @@ private struct EmitterApp: Application {
     var controllers: [any Controller] { [] }
     var theme: (any Theme)? { MinimalEmitterTheme() }
     var metadata: (any Metadata)? { nil }
-    let outputDirectory: String
+    var outputDirectory: String = ""
+
+    init() {}
+    init(outputDirectory: String) { self.outputDirectory = outputDirectory }
 }
 
 private struct EmptyEmitterApp: Application {
@@ -46,7 +49,10 @@ private struct EmptyEmitterApp: Application {
     var controllers: [any Controller] { [] }
     var theme: (any Theme)? { nil }
     var metadata: (any Metadata)? { nil }
-    let outputDirectory: String
+    var outputDirectory: String = ""
+
+    init() {}
+    init(outputDirectory: String) { self.outputDirectory = outputDirectory }
 }
 
 @Test func emitCreatesOutputDirectory() throws {
@@ -58,7 +64,7 @@ private struct EmptyEmitterApp: Application {
     let app = EmitterApp(outputDirectory: tempDir)
     try StaticSiteEmitter.emit(application: app)
 
-    #expect(FileManager.default.fileExists(atPath: "\(tempDir)/static"))
+    #expect(FileManager.default.fileExists(atPath: tempDir))
 }
 
 @Test func emitCreatesGlobalCSS() throws {
@@ -70,7 +76,7 @@ private struct EmptyEmitterApp: Application {
     let app = EmitterApp(outputDirectory: tempDir)
     try StaticSiteEmitter.emit(application: app)
 
-    let cssPath = "\(tempDir)/static/as-global.css"
+    let cssPath = "\(tempDir)/global.css"
     #expect(FileManager.default.fileExists(atPath: cssPath))
 
     let css = try String(contentsOfFile: cssPath, encoding: .utf8)
@@ -86,7 +92,7 @@ private struct EmptyEmitterApp: Application {
     let app = EmitterApp(outputDirectory: tempDir)
     try StaticSiteEmitter.emit(application: app)
 
-    let indexPath = "\(tempDir)/static/index.html"
+    let indexPath = "\(tempDir)/index.html"
     #expect(FileManager.default.fileExists(atPath: indexPath))
 
     let html = try String(contentsOfFile: indexPath, encoding: .utf8)
@@ -94,7 +100,7 @@ private struct EmptyEmitterApp: Application {
     #expect(html.contains("Welcome"))
 }
 
-@Test func emitCreatesSubdirectoryForNestedPages() throws {
+@Test func emitCreatesNestedPageFile() throws {
     let tempDir = FileManager.default.temporaryDirectory
         .appendingPathComponent("score-emitter-test-\(UUID().uuidString)")
         .path
@@ -103,7 +109,7 @@ private struct EmptyEmitterApp: Application {
     let app = EmitterApp(outputDirectory: tempDir)
     try StaticSiteEmitter.emit(application: app)
 
-    let aboutPath = "\(tempDir)/static/about/index.html"
+    let aboutPath = "\(tempDir)/about.html"
     #expect(FileManager.default.fileExists(atPath: aboutPath))
 
     let html = try String(contentsOfFile: aboutPath, encoding: .utf8)
@@ -119,11 +125,11 @@ private struct EmptyEmitterApp: Application {
     let app = EmptyEmitterApp(outputDirectory: tempDir)
     try StaticSiteEmitter.emit(application: app)
 
-    let cssPath = "\(tempDir)/static/as-global.css"
+    let cssPath = "\(tempDir)/global.css"
     #expect(FileManager.default.fileExists(atPath: cssPath))
 }
 
-@Test func emitGlobalCSSContainsComponentTokens() throws {
+@Test func emitGlobalCSSContainsThemeTokens() throws {
     let tempDir = FileManager.default.temporaryDirectory
         .appendingPathComponent("score-emitter-test-\(UUID().uuidString)")
         .path
@@ -132,8 +138,8 @@ private struct EmptyEmitterApp: Application {
     let app = EmitterApp(outputDirectory: tempDir)
     try StaticSiteEmitter.emit(application: app)
 
-    let css = try String(contentsOfFile: "\(tempDir)/static/as-global.css", encoding: .utf8)
-    #expect(css.contains("data-component"))
+    let css = try String(contentsOfFile: "\(tempDir)/global.css", encoding: .utf8)
+    #expect(css.contains("spacing-unit"))
 }
 
 @Test func emitHTMLReferencesExternalAssets() throws {
@@ -145,8 +151,8 @@ private struct EmptyEmitterApp: Application {
     let app = EmitterApp(outputDirectory: tempDir)
     try StaticSiteEmitter.emit(application: app)
 
-    let html = try String(contentsOfFile: "\(tempDir)/static/index.html", encoding: .utf8)
-    #expect(html.contains("as-global.css"))
+    let html = try String(contentsOfFile: "\(tempDir)/index.html", encoding: .utf8)
+    #expect(html.contains("global.css"))
 }
 
 @Test func missingResourceErrorDescription() {

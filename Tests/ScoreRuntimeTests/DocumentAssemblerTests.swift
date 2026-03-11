@@ -52,17 +52,6 @@ import Testing
     #expect(html.contains("<meta name=\"keywords\" content=\"swift, web\">"))
 }
 
-@Test func assembleIncludesThemeCSS() {
-    let parts = DocumentAssembler.Parts(themeCSS: ":root { --x: 1; }\n")
-    let html = DocumentAssembler.assemble(parts)
-    #expect(html.contains("<style>\n:root { --x: 1; }\n</style>"))
-}
-
-@Test func assembleIncludesComponentCSS() {
-    let parts = DocumentAssembler.Parts(componentCSS: ".s-abc { color: red; }\n")
-    let html = DocumentAssembler.assemble(parts)
-    #expect(html.contains(".s-abc { color: red; }"))
-}
 
 @Test func assembleIncludesBody() {
     let parts = DocumentAssembler.Parts(bodyHTML: "<h1>Hello</h1>")

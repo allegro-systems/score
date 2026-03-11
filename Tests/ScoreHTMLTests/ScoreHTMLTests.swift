@@ -351,15 +351,15 @@ import Testing
                 Image(src: "/hero.jpg", alt: "Hero", width: 640, height: 480, loading: .lazy, decoding: .async)
             }
             FigureCaption { TextNode("Caption") }
-            Audio(src: "/track.mp3", controls: true, autoplay: true, loop: true, muted: true, preload: .metadata) {
+            Audio(src: "/track.mp3", showsControls: true, autoplays: true, loops: true, isMuted: true, preload: .metadata) {
                 Track(src: "/track.vtt", kind: .captions, label: "English", languageCode: "en", isDefault: true)
             }
             Video(
                 src: "/movie.mp4",
-                controls: true,
-                autoplay: true,
-                loop: true,
-                muted: true,
+                showsControls: true,
+                autoplays: true,
+                loops: true,
+                isMuted: true,
                 preload: .auto,
                 poster: "/poster.jpg",
                 width: 1280,
@@ -411,7 +411,7 @@ import Testing
 
 @Test func orderedAndDescriptionListsRenderAdvancedAttributes() {
     let ordered = HTMLRenderer().render(
-        OrderedList(start: 3, reversed: true) {
+        OrderedList(start: 3, isReversed: true) {
             ListItem { TextNode("third") }
             ListItem { TextNode("second") }
         }

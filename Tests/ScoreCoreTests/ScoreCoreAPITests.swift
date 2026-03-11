@@ -51,13 +51,13 @@ import Testing
 }
 
 @Test func layoutItemAndTableListStyleModifiersStoreConfiguredValues() {
-    let flexed = TextNode("x").flex(.column, gap: 12, align: .center, justify: .spaceBetween, wrap: true)
+    let flexed = TextNode("x").flex(.column, gap: 12, align: .center, justify: .spaceBetween, wraps: true)
     let flex = flexed.modifiers.first as? FlexModifier
     #expect(flex?.direction == .column)
     #expect(flex?.gap == 12)
     #expect(flex?.align == .center)
     #expect(flex?.justify == .spaceBetween)
-    #expect(flex?.wrap == true)
+    #expect(flex?.wraps == true)
 
     let gridded = TextNode("x").grid(columns: 3, rows: 2, gap: 10, autoFlow: .rowDense)
     let grid = gridded.modifiers.first as? GridModifier
@@ -181,11 +181,11 @@ import Testing
 }
 
 @Test func semanticListTableAndTextNodesPreserveInitializerState() {
-    let ordered = OrderedList(start: 5, reversed: true) {
+    let ordered = OrderedList(start: 5, isReversed: true) {
         ListItem { TextNode("step") }
     }
     #expect(ordered.start == 5)
-    #expect(ordered.reversed == true)
+    #expect(ordered.isReversed == true)
 
     let headerCell = TableHeaderCell(scope: .column) { TextNode("Name") }
     #expect(headerCell.scope == .column)
@@ -231,23 +231,23 @@ import Testing
     #expect(track.languageCode == "en")
     #expect(track.isDefault == true)
 
-    let audio = Audio(src: "/audio.mp3", controls: true, autoplay: false, loop: true, muted: true, preload: .metadata) {
+    let audio = Audio(src: "/audio.mp3", showsControls: true, autoplays: false, loops: true, isMuted: true, preload: .metadata) {
         Source(src: "/audio.ogg", type: "audio/ogg")
     }
     #expect(audio.src == "/audio.mp3")
-    #expect(audio.controls == true)
-    #expect(audio.loop == true)
-    #expect(audio.muted == true)
+    #expect(audio.showsControls == true)
+    #expect(audio.loops == true)
+    #expect(audio.isMuted == true)
     #expect(audio.preload == .metadata)
 
-    let video = Video(src: "/video.mp4", controls: true, autoplay: false, loop: false, muted: true, preload: .auto, poster: "/poster.jpg", width: 1280, height: 720) {
+    let video = Video(src: "/video.mp4", showsControls: true, autoplays: false, loops: false, isMuted: true, preload: .auto, poster: "/poster.jpg", width: 1280, height: 720) {
         Track(src: "/video.vtt")
     }
     #expect(video.src == "/video.mp4")
     #expect(video.poster == "/poster.jpg")
     #expect(video.width == 1280)
     #expect(video.height == 720)
-    #expect(video.muted == true)
+    #expect(video.isMuted == true)
 
     let canvas = Canvas(width: 800, height: 600) { TextNode("fallback") }
     #expect(canvas.width == 800)

@@ -131,6 +131,7 @@ let package = Package(
             name: "ScoreRuntimeTests",
             dependencies: [
                 "ScoreRuntime",
+                "ScoreAssets",
                 .product(name: "NIOEmbedded", package: "swift-nio"),
             ]
         ),

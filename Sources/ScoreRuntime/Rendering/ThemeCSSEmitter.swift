@@ -1,3 +1,4 @@
+import ScoreAssets
 import ScoreCore
 
 /// Emits CSS custom properties from a ``Theme`` definition.
@@ -5,16 +6,27 @@ public struct ThemeCSSEmitter: Sendable {
 
     private init() {}
 
-    /// Emits a complete theme stylesheet including font imports, `:root`
-    /// block, optional dark mode media query, and named theme variants.
-    public static func emit(_ theme: some Theme) -> String {
+    /// Emits a complete theme stylesheet including font imports, `@font-face`
+    /// rules, `:root` block, optional dark mode media query, and named theme
+    /// variants.
+    ///
+    /// - Parameters:
+    ///   - theme: The theme to emit CSS for.
+    ///   - assetManifest: An optional asset manifest used to resolve font file
+    ///     paths to fingerprinted URLs. When `nil`, font resource paths are
+    ///     used as-is.
+    /// - Returns: The complete CSS string for the theme.
+    public static func emit(
+        _ theme: some Theme,
+        assetManifest: AssetManifest? = nil
+    ) -> String {
         var css = ""
 
-        // Emit Google Fonts imports for named font families
-        let imports = extractGoogleFontImports(from: theme.fontFamilies)
-        for url in imports {
+        for url in theme.fontImports {
             css.append("@import url('\(url)');\n")
         }
+
+        emitFontFaces(theme.fontFaces, assetManifest: assetManifest, into: &css)
 
         css.append(":root {\n")
         emitProperties(theme, into: &css)
@@ -145,8 +157,11 @@ public struct ThemeCSSEmitter: Sendable {
         emitRule("body", declarations: bodyDecls, into: &css)
 
         if hasColor("accent") {
-            emitRule("a", declarations: ["color: var(--color-accent)", "text-decoration: none"], into: &css)
-            emitRule("a:hover", declarations: ["text-decoration: underline"], into: &css)
+            emitRule(
+                "a",
+                declarations: ["color: var(--color-accent)", "text-decoration: none"],
+                nested: [("&:hover", ["text-decoration: underline"])],
+                into: &css)
         }
 
         emitRule(
@@ -184,10 +199,8 @@ public struct ThemeCSSEmitter: Sendable {
                 declarations: [
                     "font-family: var(--font-mono)", "font-size: 12px",
                     "line-height: 1.7", "overflow-x: auto",
-                ], into: &css)
-            emitRule(
-                "pre code",
-                declarations: ["background: none", "padding: 0", "border: none", "font-size: 12px"],
+                ],
+                nested: [("code", ["background: none", "padding: 0", "border: none", "font-size: 12px"])],
                 into: &css)
         }
 
@@ -201,17 +214,6 @@ public struct ThemeCSSEmitter: Sendable {
               h2 { font-size: 18px; }
               h3 { font-size: 15px; }
               main { padding-inline: 16px; }
-              [data-sidebar-layout] { flex-direction: column; }
-              [data-sidebar] {
-                width: 100%;
-                position: static;
-                border-right: none;
-                border-bottom: 1px solid var(--color-border, #333);
-                padding-right: 0;
-                padding-bottom: 16px;
-                margin-bottom: 16px;
-              }
-              [data-sidebar] + article { padding-left: 0; }
             }\n
             """)
     }
@@ -227,8 +229,11 @@ public struct ThemeCSSEmitter: Sendable {
         if let bg = content.blockquoteBackground {
             blockquoteDecls.append("background: \(cssPropertyValue(for: bg))")
         }
-        emitRule("blockquote", declarations: blockquoteDecls, into: &css)
-        emitRule("blockquote p", declarations: ["margin: 4px 0"], into: &css)
+        emitRule(
+            "blockquote",
+            declarations: blockquoteDecls,
+            nested: [("p", ["margin: 4px 0"])],
+            into: &css)
 
         emitRule(
             "hr",
@@ -264,10 +269,22 @@ public struct ThemeCSSEmitter: Sendable {
         }
     }
 
-    private static func emitRule(_ selector: String, declarations: [String], into css: inout String) {
+    private static func emitRule(
+        _ selector: String,
+        declarations: [String],
+        nested: [(selector: String, declarations: [String])] = [],
+        into css: inout String
+    ) {
         css.append("\(selector) {\n")
         for decl in declarations {
             css.append("  \(decl);\n")
+        }
+        for child in nested {
+            css.append("  \(child.selector) {\n")
+            for decl in child.declarations {
+                css.append("    \(decl);\n")
+            }
+            css.append("  }\n")
         }
         css.append("}\n")
     }
@@ -284,32 +301,30 @@ public struct ThemeCSSEmitter: Sendable {
             : "\(value)"
     }
 
-    /// Known Google Fonts and their import URL patterns.
-    private static let googleFonts: [String: String] = [
-        "DM Mono": "https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&display=swap",
-        "Fraunces": "https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&display=swap",
-        "Inter": "https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap",
-        "JetBrains Mono": "https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap",
-        "Source Code Pro": "https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap",
-    ]
+    private static func emitFontFaces(
+        _ fontFaces: [FontFace],
+        assetManifest: AssetManifest?,
+        into css: inout String
+    ) {
+        for face in fontFaces {
+            let resolvedPath = assetManifest?.resolve(face.resource) ?? face.resource
+            let url = "/assets/\(resolvedPath)"
+            let style = face.isItalic ? "italic" : "normal"
 
-    /// Extracts Google Fonts import URLs from a font family map.
-    ///
-    /// Scans each font family string for known Google Font names and
-    /// returns deduplicated import URLs.
-    static func extractGoogleFontImports(
-        from families: [String: String]
-    ) -> [String] {
-        var seen: Set<String> = []
-        var urls: [String] = []
-        for (_, familyValue) in families.sorted(by: { $0.key < $1.key }) {
-            for (fontName, url) in googleFonts {
-                if familyValue.contains(fontName) && !seen.contains(fontName) {
-                    seen.insert(fontName)
-                    urls.append(url)
-                }
+            css.append("@font-face {\n")
+            css.append("  font-family: '\(face.family)';\n")
+
+            if let format = face.cssFormat {
+                css.append("  src: url('\(url)') format('\(format)');\n")
+            } else {
+                css.append("  src: url('\(url)');\n")
             }
+
+            css.append("  font-weight: \(face.cssWeight);\n")
+            css.append("  font-style: \(style);\n")
+            css.append("  font-display: swap;\n")
+            css.append("}\n")
         }
-        return urls.sorted()
     }
+
 }

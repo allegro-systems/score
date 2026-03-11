@@ -42,6 +42,14 @@ public struct DefaultTheme: Theme, Sendable {
         ]
     }
 
+    public var fontImports: [String] {
+        [
+            "https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&display=swap",
+            "https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&display=swap",
+            "https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap",
+        ]
+    }
+
     public var typeScaleBase: Double { 16 }
     public var typeScaleRatio: Double { 1.25 }
     public var spacingUnit: Double { 4 }

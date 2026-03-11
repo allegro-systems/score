@@ -60,7 +60,7 @@ public struct StateMacro: AccessorMacro, PeerMacro {
 
         let name = binding.pattern.trimmedDescription
         let initializer = binding.initializer?.value.trimmedDescription ?? "nil"
-        let storageKey = extractPersisted(from: node) ?? ""
+        let persistedKey = extractPersisted(from: node)
 
         let typeAnnotation: String
         if let explicitType = binding.typeAnnotation?.type.trimmedDescription {
@@ -78,15 +78,22 @@ public struct StateMacro: AccessorMacro, PeerMacro {
             private var _stateStorage_\(raw: name)\(raw: typeAnnotation) = \(raw: initializer)
             """)
 
-        if storageKey.isEmpty {
-            peers.append(
-                """
-                let _state_\(raw: name) = StateDescriptor(name: \(literal: name), jsInitialValue: \(literal: jsValue))
-                """)
+        if let key = persistedKey {
+            if key.isTheme {
+                peers.append(
+                    """
+                    let _state_\(raw: name) = StateDescriptor(name: \(literal: name), jsInitialValue: \(literal: jsValue), storageKey: \(literal: key.storageKey), isTheme: true)
+                    """)
+            } else {
+                peers.append(
+                    """
+                    let _state_\(raw: name) = StateDescriptor(name: \(literal: name), jsInitialValue: \(literal: jsValue), storageKey: \(literal: key.storageKey))
+                    """)
+            }
         } else {
             peers.append(
                 """
-                let _state_\(raw: name) = StateDescriptor(name: \(literal: name), jsInitialValue: \(literal: jsValue), storageKey: \(literal: storageKey))
+                let _state_\(raw: name) = StateDescriptor(name: \(literal: name), jsInitialValue: \(literal: jsValue))
                 """)
         }
 
@@ -100,19 +107,30 @@ public struct StateMacro: AccessorMacro, PeerMacro {
         return peers
     }
 
-    private static func extractPersisted(from node: AttributeSyntax) -> String? {
+    struct PersistedKey {
+        let storageKey: String
+        let isTheme: Bool
+    }
+
+    private static func extractPersisted(from node: AttributeSyntax) -> PersistedKey? {
         guard let arguments = node.arguments?.as(LabeledExprListSyntax.self) else {
             return nil
         }
         for argument in arguments {
             guard argument.label?.text == "persisted" else { continue }
-            guard let stringLiteral = argument.expression.as(StringLiteralExprSyntax.self) else {
-                continue
+
+            if let memberAccess = argument.expression.as(MemberAccessExprSyntax.self),
+                memberAccess.declName.baseName.text == "theme"
+            {
+                return PersistedKey(storageKey: "as-theme", isTheme: true)
             }
-            let content = stringLiteral.segments.compactMap { segment -> String? in
-                segment.as(StringSegmentSyntax.self)?.content.text
-            }.joined()
-            return content
+
+            if let stringLiteral = argument.expression.as(StringLiteralExprSyntax.self) {
+                let content = stringLiteral.segments.compactMap { segment -> String? in
+                    segment.as(StringSegmentSyntax.self)?.content.text
+                }.joined()
+                return PersistedKey(storageKey: content, isTheme: false)
+            }
         }
         return nil
     }

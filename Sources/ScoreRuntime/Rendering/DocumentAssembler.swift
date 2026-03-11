@@ -175,7 +175,12 @@ public struct DocumentAssembler: Sendable {
     /// `data-theme` on `<html>` if found.
     private static func themePersistenceScript(names: [String]) -> String {
         let allowed = names.map { "\"\($0.htmlEscaped)\"" }.joined(separator: ",")
+        let hasDark = names.contains("dark")
+        let systemFallback =
+            hasDark
+            ? "else if(window.matchMedia&&window.matchMedia(\"(prefers-color-scheme: dark)\").matches)document.documentElement.setAttribute(\"data-theme\",\"dark\")"
+            : ""
         return
-            "<script>!function(){var t=localStorage.getItem(\"as-theme\");if(t&&[\(allowed)].indexOf(t)!==-1)document.documentElement.setAttribute(\"data-theme\",t)}()</script>\n"
+            "<script>!function(){var t=localStorage.getItem(\"as-theme\");if(t===\"true\")t=\"dark\";if(t===\"false\")t=null;if(t&&[\(allowed)].indexOf(t)!==-1)document.documentElement.setAttribute(\"data-theme\",t)\(systemFallback)}()</script>\n"
     }
 }

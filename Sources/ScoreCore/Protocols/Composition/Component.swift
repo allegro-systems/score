@@ -5,18 +5,24 @@
 /// Components are the primary abstraction for building modular, reusable UI
 /// in Score.
 ///
-/// Because `Component` inherits from `Node`, every component has a `body`
-/// property built with `@NodeBuilder` that describes its internal node
-/// hierarchy. Components may nest other nodes or components arbitrarily deep.
+/// Components may be purely structural or they may own instance-scoped
+/// reactive state via `@State`, `@Computed`, and `@Action` property wrappers.
+/// When a component declares state, the compiler emits a factory function
+/// (`mountComponentName(el, props)`) that creates instance-scoped signals and
+/// returns a teardown handle. State is never shared between instances.
 ///
-/// Typical uses include:
-/// - Encapsulating a card, list item, or navigation bar into a named type
-/// - Sharing common UI patterns across multiple pages
-/// - Accepting configuration via stored properties
+/// ### Three-Level Scope Model (ADR-007)
+///
+/// | Protocol      | Scope            | JS Pattern                |
+/// |---------------|------------------|---------------------------|
+/// | `Application` | Global singleton | `export const` in app.js  |
+/// | `Page`        | Module-scoped    | `const` in page module    |
+/// | `Component`   | Instance-scoped  | `const` inside factory fn |
 ///
 /// ### Example
 ///
 /// ```swift
+/// // Stateless component — pure structure and styling
 /// struct UserCard: Component {
 ///     let username: String
 ///     let avatarURL: String
@@ -30,11 +36,23 @@
 ///     }
 /// }
 ///
-/// struct ProfilePage: Page {
-///     static var path: String { "/profile" }
+/// // Stateful component — instance-scoped signals
+/// struct QuantityPicker: Component {
+///     let product: Product
+///     let max: Int = 10
 ///
-///     var body: some Node {
-///         UserCard(username: "alice", avatarURL: "/avatars/alice.png")
+///     @State var count: Int = 0
+///
+///     @Computed var canIncrement: Bool { count < max }
+///
+///     @Action func increment() {
+///         guard canIncrement else { return }
+///         count += 1
+///     }
+///
+///     @Action func decrement() {
+///         guard count > 0 else { return }
+///         count -= 1
 ///     }
 /// }
 /// ```
@@ -45,4 +63,44 @@
 /// - Implement `var body: Body { get }` (inherited from `Node`), where `Body`
 ///   is any concrete `Node` type, typically expressed as `some Node`.
 /// - Satisfy `Sendable` (inherited transitively through `Node`).
+///
+/// - Note: Stateful component state is torn down on unmount. Each instance is
+///   fully isolated — no shared state between mounts.
 public protocol Component: Node {}
+
+/// Marks a struct as a `Component` and generates an initializer when needed.
+///
+/// Apply `@Component` to a struct to automatically add `Component` protocol
+/// conformance. If the struct declares a `content: Content` stored property,
+/// the macro also generates an `init` with a `@NodeBuilder` trailing-closure
+/// parameter for composing child nodes:
+///
+/// ```swift
+/// @Component
+/// struct Card {
+///     let content: Content
+///
+///     var body: some Node {
+///         Article { content }
+///     }
+/// }
+///
+/// // Usage — trailing-closure syntax:
+/// Card {
+///     Heading(.two) { "Hello" }
+///     Paragraph { "World" }
+/// }
+/// ```
+///
+/// Structs without a `content: Content` property receive only the conformance:
+///
+/// ```swift
+/// @Component
+/// struct Badge {
+///     let label: String
+///     var body: some Node { Text { label } }
+/// }
+/// ```
+@attached(member, names: named(init))
+@attached(extension, conformances: Component)
+public macro Component() = #externalMacro(module: "ScoreMacros", type: "ComponentMacro")

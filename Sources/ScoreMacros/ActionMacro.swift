@@ -211,11 +211,21 @@ struct SwiftToJSTranslator {
         let elements = Array(seq.elements)
         guard elements.count == 3 else { return nil }
 
-        guard let lhs = elements[0].as(DeclReferenceExprSyntax.self)?.baseName.text,
-            let op = elements[1].as(BinaryOperatorExprSyntax.self)?.operator.text
+        guard let lhs = elements[0].as(DeclReferenceExprSyntax.self)?.baseName.text
         else { return nil }
 
         let rhs = ExprSyntax(elements[2])
+
+        // Handle assignment via AssignmentExprSyntax (e.g. `x = true`)
+        if elements[1].is(AssignmentExprSyntax.self) {
+            if let rhsJS = translateValue(rhs) {
+                return "\(lhs).set(\(rhsJS))"
+            }
+            return nil
+        }
+
+        guard let op = elements[1].as(BinaryOperatorExprSyntax.self)?.operator.text
+        else { return nil }
 
         if op == "=" {
             if let rhsJS = translateValue(rhs) {

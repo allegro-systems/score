@@ -2,49 +2,6 @@ import Testing
 
 @testable import ScoreRuntime
 
-@Test func annotateComponentInDevelopment() {
-    let html = "<div>Hello</div>"
-    let result = DevToolsInjector.annotateComponent(
-        bodyHTML: html,
-        componentName: "HomePage",
-        sourceFile: "Sources/App/HomePage.swift",
-        sourceLine: 12,
-        environment: .development
-    )
-
-    #expect(result.contains("data-score-component=\"HomePage\""))
-    #expect(result.contains("data-score-file=\"Sources/App/HomePage.swift\""))
-    #expect(result.contains("data-score-line=\"12\""))
-}
-
-@Test func annotateComponentInProductionIsNoOp() {
-    let html = "<div>Hello</div>"
-    let result = DevToolsInjector.annotateComponent(
-        bodyHTML: html,
-        componentName: "HomePage",
-        sourceFile: "Sources/App/HomePage.swift",
-        sourceLine: 12,
-        environment: .production
-    )
-
-    #expect(result == html)
-    #expect(!result.contains("data-score-component"))
-}
-
-@Test func annotateComponentPreservesExistingAttributes() {
-    let html = "<div class=\"main\">Content</div>"
-    let result = DevToolsInjector.annotateComponent(
-        bodyHTML: html,
-        componentName: "TestPage",
-        sourceFile: "test.swift",
-        sourceLine: 1,
-        environment: .development
-    )
-
-    #expect(result.contains("class=\"main\""))
-    #expect(result.contains("data-score-component=\"TestPage\""))
-}
-
 @Test func scriptTagInDevelopment() {
     let tag = DevToolsInjector.scriptTag(environment: .development)
     #expect(tag.contains("score-devtools.js"))
@@ -56,33 +13,73 @@ import Testing
     #expect(tag.isEmpty)
 }
 
-@Test func stateMetadataScriptInDevelopment() {
-    let script = DevToolsInjector.stateMetadataScript(
-        stateNames: ["count", "name"],
-        computedNames: ["doubled"],
+@Test func metadataScriptInDevelopment() {
+    let states = [
+        JSEmitter.StateInfo(name: "count", initialValue: "0", storageKey: "", isTheme: false),
+        JSEmitter.StateInfo(name: "name", initialValue: "\"\"", storageKey: "", isTheme: false),
+    ]
+    let computeds = [JSEmitter.ComputedInfo(name: "doubled", body: "count.get()*2")]
+    let actions = [JSEmitter.ActionInfo(name: "increment", body: "count.set(count.get()+1)")]
+
+    let script = DevToolsInjector.metadataScript(
+        pageStates: states,
+        pageComputeds: computeds,
+        pageActions: actions,
+        componentScopes: [],
         environment: .development
     )
 
-    #expect(script.contains("__SCORE_DEV_META__"))
+    #expect(script.contains("__SCORE_DEV__"))
     #expect(script.contains("\"count\""))
     #expect(script.contains("\"name\""))
     #expect(script.contains("\"doubled\""))
+    #expect(script.contains("\"increment\""))
 }
 
-@Test func stateMetadataScriptInProductionIsEmpty() {
-    let script = DevToolsInjector.stateMetadataScript(
-        stateNames: ["count"],
-        computedNames: [],
+@Test func metadataScriptInProductionIsEmpty() {
+    let states = [JSEmitter.StateInfo(name: "count", initialValue: "0", storageKey: "", isTheme: false)]
+
+    let script = DevToolsInjector.metadataScript(
+        pageStates: states,
+        pageComputeds: [],
+        pageActions: [],
+        componentScopes: [],
         environment: .production
     )
     #expect(script.isEmpty)
 }
 
-@Test func stateMetadataScriptEmptyNamesIsEmpty() {
-    let script = DevToolsInjector.stateMetadataScript(
-        stateNames: [],
-        computedNames: [],
+@Test func metadataScriptEmptyContentIsEmpty() {
+    let script = DevToolsInjector.metadataScript(
+        pageStates: [],
+        pageComputeds: [],
+        pageActions: [],
+        componentScopes: [],
         environment: .development
     )
     #expect(script.isEmpty)
+}
+
+@Test func metadataScriptIncludesComponentScopes() {
+    var scope = JSEmitter.ComponentScope()
+    scope.name = "ThemeToggle"
+    scope.states = [JSEmitter.StateInfo(name: "isDark", initialValue: "false", storageKey: "as-theme", isTheme: true)]
+    scope.actions = [JSEmitter.ActionInfo(name: "toggle", body: "isDark.set(!isDark.get())")]
+
+    let script = DevToolsInjector.metadataScript(
+        pageStates: [],
+        pageComputeds: [],
+        pageActions: [],
+        componentScopes: [scope],
+        environment: .development
+    )
+
+    #expect(script.contains("ThemeToggle"))
+    #expect(script.contains("isDark"))
+    #expect(script.contains("toggle"))
+}
+
+@Test func clientScriptIsNonEmpty() {
+    #expect(!DevToolsInjector.clientScript.isEmpty)
+    #expect(DevToolsInjector.clientScript.contains("score-devtools-root"))
 }

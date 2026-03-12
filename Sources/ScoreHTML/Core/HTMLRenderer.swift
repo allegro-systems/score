@@ -83,6 +83,11 @@ public struct HTMLRenderer: Sendable {
     /// is wrapped in a `<div class="...">`.
     public var componentClassInjector: (@Sendable (Any) -> String?)?
 
+    /// When `true`, component wrapper elements include `data-score-component`
+    /// attributes for development tooling. Stateful components additionally
+    /// receive a `data-score-stateful` marker.
+    public var isDevMode: Bool = false
+
     /// An optional closure that checks whether a node is a stateful
     /// component requiring a `data-scope` wrapper.
     ///
@@ -141,8 +146,13 @@ public struct HTMLRenderer: Sendable {
 
         // Check if this is a stateful component needing a scope wrapper.
         if let scopeInfo = scopeInjector?(node) {
-            output.append("<div data-scope=\"\(scopeInfo.name.attributeEscaped)\">")
-            // Emit hidden state element with data-as-value attributes.
+            output.append("<div data-scope=\"\(scopeInfo.name.attributeEscaped)\"")
+            if isDevMode {
+                let name = baseTypeName(of: node)
+                output.append(" data-score-component=\"\(name.attributeEscaped)\"")
+                output.append(" data-score-stateful")
+            }
+            output.append(">")
             output.append("<div hidden aria-hidden=\"true\"")
             for (name, value) in scopeInfo.states {
                 output.append(" data-as-value:\(name)=\"\(value.attributeEscaped)\"")
@@ -151,7 +161,12 @@ public struct HTMLRenderer: Sendable {
             write(node.body, to: &output)
             output.append("</div>")
         } else if let semanticClass = componentClassInjector?(node) {
-            output.append("<div class=\"\(semanticClass.attributeEscaped)\" style=\"display:contents\">")
+            output.append("<div class=\"\(semanticClass.attributeEscaped)\" style=\"display:contents\"")
+            if isDevMode {
+                let name = baseTypeName(of: node)
+                output.append(" data-score-component=\"\(name.attributeEscaped)\"")
+            }
+            output.append(">")
             write(node.body, to: &output)
             output.append("</div>")
         } else {
@@ -184,6 +199,17 @@ public struct HTMLRenderer: Sendable {
                 output.append(" \(key)=\"\(value.attributeEscaped)\"")
             }
         }
+    }
+
+    /// Returns the base type name of a node, stripping generic parameters.
+    ///
+    /// For example, `Layout<TupleNode<Pack{Hero, Section}>>` becomes `Layout`.
+    func baseTypeName(of node: some Node) -> String {
+        let full = String(describing: type(of: node))
+        if let angleBracket = full.firstIndex(of: "<") {
+            return String(full[..<angleBracket])
+        }
+        return full
     }
 
     /// Checks whether a node is a leaf (has `Body == Never`) without

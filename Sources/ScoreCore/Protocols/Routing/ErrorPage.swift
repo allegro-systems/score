@@ -1,9 +1,9 @@
 /// A page rendered by the framework when an HTTP error occurs.
 ///
 /// `ErrorPage` is the Score equivalent of a custom error handler. Conform
-/// a type to this protocol and return it from ``Application/errorBody(for:)``
-/// to replace the framework's default plain-text error responses with your
-/// own styled pages.
+/// a type to this protocol and set ``Application/errorPage`` to replace
+/// the framework's default plain-text error responses with your own
+/// styled pages.
 ///
 /// Because `ErrorPage` refines ``Node``, it composes naturally with
 /// layouts, components, and the full modifier system.
@@ -28,9 +28,7 @@
 ///
 /// ```swift
 /// struct MyApp: Application {
-///     func errorBody(for context: ErrorContext) -> (any Node)? {
-///         SiteErrorPage(context: context)
-///     }
+///     var errorPage: (any ErrorPage.Type)? { SiteErrorPage.self }
 /// }
 /// ```
 ///

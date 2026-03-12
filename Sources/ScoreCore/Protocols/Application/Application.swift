@@ -20,6 +20,8 @@
 ///
 ///     var theme: (any Theme)? { MyTheme(name: "default") }
 ///
+///     var errorPage: (any ErrorPage.Type)? { SiteErrorPage.self }
+///
 ///     var controllers: [any Controller] {
 ///         [
 ///             UserController(),
@@ -83,23 +85,21 @@ public protocol Application: Sendable {
     /// Defaults to `"Resources"`.
     var resourcesDirectory: String { get }
 
-    /// Returns a node tree to render for the given error context.
+    /// The custom error page type used for error responses.
     ///
-    /// Override this method to provide a custom ``ErrorPage`` that replaces
-    /// the framework's default plain-text error responses. Return `nil`
-    /// to keep the default behavior.
+    /// Set this to your ``ErrorPage`` conforming type to replace the
+    /// framework's default plain-text error responses with styled pages.
+    /// Return `nil` to keep the default behavior.
     ///
     /// ```swift
-    /// func errorBody(for context: ErrorContext) -> (any Node)? {
-    ///     SiteErrorPage(context: context)
-    /// }
+    /// var errorPage: (any ErrorPage.Type)? { SiteErrorPage.self }
     /// ```
     ///
-    /// The framework calls this method:
+    /// The framework instantiates this type:
     /// - On the development server when a 404 occurs.
     /// - On the development server for 500 errors in production mode.
     /// - During static site generation to emit a `404.html` file.
-    func errorBody(for context: ErrorContext) -> (any Node)?
+    var errorPage: (any ErrorPage.Type)? { get }
 }
 
 extension Application {
@@ -139,5 +139,5 @@ extension Application {
     public var resourcesDirectory: String { "Resources" }
 
     /// Returns `nil`, keeping the framework's default error responses.
-    public func errorBody(for context: ErrorContext) -> (any Node)? { nil }
+    public var errorPage: (any ErrorPage.Type)? { nil }
 }

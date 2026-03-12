@@ -15,7 +15,7 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
     private let metadata: (any Metadata)?
     private let theme: (any Theme)?
     private let resourcesDirectory: String?
-    private let errorBodyFactory: @Sendable (ErrorContext) -> (any Node)?
+    private let errorPage: (any ErrorPage.Type)?
 
     /// Creates a request handler with the given configuration.
     public init(
@@ -24,14 +24,14 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
         metadata: (any Metadata)?,
         theme: (any Theme)?,
         resourcesDirectory: String? = nil,
-        errorBodyFactory: @escaping @Sendable (ErrorContext) -> (any Node)? = { _ in nil }
+        errorPage: (any ErrorPage.Type)? = nil
     ) {
         self.routeTable = routeTable
         self.pages = pages
         self.metadata = metadata
         self.theme = theme
         self.resourcesDirectory = resourcesDirectory
-        self.errorBodyFactory = errorBodyFactory
+        self.errorPage = errorPage
     }
 
     // MARK: - State
@@ -266,7 +266,8 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
     private func renderError(statusCode: Int, message: String, path: String) -> Response {
         let context = ErrorContext(statusCode: statusCode, message: message, path: path)
         let status = HTTPResponse.Status(code: statusCode)
-        if let body = errorBodyFactory(context) {
+        if let errorPage {
+            let body = errorPage.init(context: context)
             let html = PageRenderer.renderErrorBody(body, metadata: metadata, theme: theme)
             return Response.html(html, status: status)
         }

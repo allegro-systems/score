@@ -265,12 +265,11 @@ import Testing
     #expect(a != c)
 }
 
-@Test func applicationDefaultErrorBodyReturnsNil() {
+@Test func applicationDefaultErrorPageReturnsNil() {
     struct TestApp: Application {
         var pages: [any Page] { [] }
         init() {}
     }
     let app = TestApp()
-    let context = ErrorContext(statusCode: 404, message: "Not Found", path: "/")
-    #expect(app.errorBody(for: context) == nil)
+    #expect(app.errorPage == nil)
 }

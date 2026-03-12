@@ -179,9 +179,10 @@ private struct CompositeComponentPage: Page {
 }
 
 @Test func compositeComponentBodyIsWalked() {
-    let bindings = JSEmitter.extractEventBindings(from: CompositeComponentPage().body)
-    #expect(bindings.count == 1)
-    #expect(bindings[0].handler == "handleInner")
+    let (scopes, _, _) = JSEmitter.extractComponentScopes(from: CompositeComponentPage().body)
+    #expect(scopes.count == 1)
+    #expect(scopes[0].bindings.count == 1)
+    #expect(scopes[0].bindings[0].handler == "handleInner")
 }
 
 // MARK: - Event-Only Page (no reactive properties)

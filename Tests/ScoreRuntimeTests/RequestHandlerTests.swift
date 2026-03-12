@@ -69,6 +69,18 @@ private struct RuntimeApp: Application {
     var controllers: [any Controller] { [RuntimeController()] }
 }
 
+private struct RuntimeErrorPage: ErrorPage {
+    var context: ErrorContext
+
+    init(context: ErrorContext) {
+        self.context = context
+    }
+
+    var body: some Node {
+        Heading(.one) { Text(verbatim: "Error \(context.statusCode)") }
+    }
+}
+
 private struct CapturedResponse {
     let status: HTTPResponseStatus
     let headers: HTTPHeaders
@@ -82,7 +94,7 @@ private enum ResponseCaptureError: Error {
 }
 
 private func makeChannel(
-    errorBodyFactory: @escaping @Sendable (ErrorContext) -> (any Node)? = { _ in nil }
+    errorPage: (any ErrorPage.Type)? = nil
 ) async -> NIOAsyncTestingChannel {
     let app = RuntimeApp()
     return await NIOAsyncTestingChannel(
@@ -91,7 +103,7 @@ private func makeChannel(
             pages: [RuntimeHomePage.path: RuntimeHomePage()],
             metadata: app.metadata,
             theme: nil,
-            errorBodyFactory: errorBodyFactory
+            errorPage: errorPage
         )
     )
 }
@@ -100,9 +112,9 @@ private func performRequest(
     method: NIOHTTP1.HTTPMethod,
     uri: String,
     body: ByteBuffer? = nil,
-    errorBodyFactory: @escaping @Sendable (ErrorContext) -> (any Node)? = { _ in nil }
+    errorPage: (any ErrorPage.Type)? = nil
 ) async throws -> CapturedResponse {
-    let channel = await makeChannel(errorBodyFactory: errorBodyFactory)
+    let channel = await makeChannel(errorPage: errorPage)
     let head = HTTPRequestHead(version: .http1_1, method: method, uri: uri)
 
     try await channel.writeInbound(HTTPServerRequestPart.head(head))
@@ -222,9 +234,7 @@ private func readResponsePart(from channel: NIOAsyncTestingChannel) async throws
     let response = try await performRequest(
         method: NIOHTTP1.HTTPMethod.GET,
         uri: "/no-such-page",
-        errorBodyFactory: { context in
-            Heading(.one) { Text(verbatim: "Error \(context.statusCode)") }
-        }
+        errorPage: RuntimeErrorPage.self
     )
 
     #expect(response.status == HTTPResponseStatus.notFound)

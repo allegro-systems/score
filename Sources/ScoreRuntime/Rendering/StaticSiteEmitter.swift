@@ -421,15 +421,16 @@ public struct StaticSiteEmitter: Sendable {
 
     /// Writes a `404.html` file using the application's custom error page.
     ///
-    /// Only produces output when ``Application/errorBody(for:)`` returns
-    /// a non-nil node. Hosting platforms typically serve this file when
-    /// no matching route is found.
+    /// Only produces output when ``Application/errorPage`` is set.
+    /// Hosting platforms typically serve this file when no matching route
+    /// is found.
     private static func writeErrorPage(
         application: some Application,
         outputDirectory: String
     ) throws {
         let context = ErrorContext(statusCode: 404, message: "Not Found", path: "/404")
-        guard let body = application.errorBody(for: context) else { return }
+        guard let errorPage = application.errorPage else { return }
+        let body = errorPage.init(context: context)
 
         let html = PageRenderer.renderErrorBody(
             body,

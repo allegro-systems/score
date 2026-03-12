@@ -252,9 +252,7 @@ private struct EmitterAppWithErrorPage: Application {
     init() {}
     init(outputDirectory: String) { self.outputDirectory = outputDirectory }
 
-    func errorBody(for context: ErrorContext) -> (any Node)? {
-        TestErrorPage(context: context)
-    }
+    var errorPage: (any ErrorPage.Type)? { TestErrorPage.self }
 }
 
 @Test func emitCreates404HTMLWhenErrorPageProvided() throws {

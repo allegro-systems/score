@@ -39,19 +39,19 @@ public struct CodeBlock: Node {
     /// Defaults to ``SyntaxTheme/scoreDefault`` when not specified.
     public let theme: SyntaxTheme
 
-    /// Whether to display line numbers alongside the code.
-    public let showLineNumbers: Bool
+    /// Whether the block displays line numbers alongside the code.
+    public let showsLineNumbers: Bool
 
-    /// Whether to display a copy-to-clipboard button.
-    public let showCopyButton: Bool
+    /// Whether the block displays a copy-to-clipboard button.
+    public let showsCopyButton: Bool
 
-    /// Whether to display the header bar above the code.
+    /// Whether the block displays the header bar above the code.
     ///
     /// When `false`, the header bar (language label, filename, copy button) is
-    /// suppressed even if `language`, `filename`, or `showCopyButton` are set.
+    /// suppressed even if `language`, `filename`, or `showsCopyButton` are set.
     /// Use this when embedding a code block inside a container that provides
     /// its own header chrome.
-    public let showHeader: Bool
+    public let showsHeader: Bool
 
     /// Creates a code block with the given configuration.
     ///
@@ -60,25 +60,25 @@ public struct CodeBlock: Node {
     ///   - language: The language identifier for highlighting. Defaults to `nil`.
     ///   - filename: An optional filename shown in the header. Defaults to `nil`.
     ///   - theme: The syntax colour theme. Defaults to ``SyntaxTheme/scoreDefault``.
-    ///   - showLineNumbers: Whether to show line numbers. Defaults to `true`.
-    ///   - showCopyButton: Whether to show a copy button. Defaults to `true`.
-    ///   - showHeader: Whether to show the header bar. Defaults to `true`.
+    ///   - showsLineNumbers: Whether to show line numbers. Defaults to `true`.
+    ///   - showsCopyButton: Whether to show a copy button. Defaults to `true`.
+    ///   - showsHeader: Whether to show the header bar. Defaults to `true`.
     public init(
         code: String,
         language: String? = nil,
         filename: String? = nil,
         theme: SyntaxTheme = .scoreDefault,
-        showLineNumbers: Bool = true,
-        showCopyButton: Bool = true,
-        showHeader: Bool = true
+        showsLineNumbers: Bool = true,
+        showsCopyButton: Bool = true,
+        showsHeader: Bool = true
     ) {
         self.code = code
         self.language = language
         self.filename = filename
         self.theme = theme
-        self.showLineNumbers = showLineNumbers
-        self.showCopyButton = showCopyButton
-        self.showHeader = showHeader
+        self.showsLineNumbers = showsLineNumbers
+        self.showsCopyButton = showsCopyButton
+        self.showsHeader = showsHeader
     }
 
     public var body: some Node {
@@ -95,13 +95,13 @@ public struct CodeBlock: Node {
         let codeId = "cb-\(abs(trimmedCode.hashValue))"
 
         var html = ""
-        if showHeader {
+        if showsHeader {
             html.append("<div data-code-block>")
         } else {
             html.append("<div data-code-block data-code-embedded>")
         }
 
-        let hasHeader = showHeader && (filename != nil || language != nil || showCopyButton)
+        let hasHeader = showsHeader && (filename != nil || language != nil || showsCopyButton)
         if hasHeader {
             html.append("<div data-code-header>")
             html.append("<span data-code-label>")
@@ -111,7 +111,7 @@ public struct CodeBlock: Node {
                 html.append(escapeHTML(language))
             }
             html.append("</span>")
-            if showCopyButton {
+            if showsCopyButton {
                 html.append(
                     """
                     <button data-code-copy onclick="navigator.clipboard.writeText(\
@@ -128,14 +128,14 @@ public struct CodeBlock: Node {
             "<pre id=\"\(codeId)\" data-code-source>\(escapeHTML(trimmedCode))</pre>"
         )
 
-        let gridColumns = showLineNumbers ? "auto 1fr" : "1fr"
+        let gridColumns = showsLineNumbers ? "auto 1fr" : "1fr"
         html.append(
             "<div data-code-grid style=\"grid-template-columns: \(gridColumns);\">"
         )
 
         let lineHTMLs = splitTokensIntoLines(tokens: tokens, lineCount: max(lines.count, 1))
 
-        if showLineNumbers {
+        if showsLineNumbers {
             html.append("<div data-line-numbers>")
             for i in 0..<lineHTMLs.count {
                 html.append("<span data-line-number>\(i + 1)</span>")

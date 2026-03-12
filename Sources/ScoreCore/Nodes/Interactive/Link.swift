@@ -32,7 +32,7 @@
 ///   clear without surrounding context. For image-only links, ensure the image
 ///   carries a descriptive `alt` attribute so screen readers can announce the
 ///   link destination.
-public struct Link<Content: Node>: Node {
+public struct Link<Content: Node>: Node, SourceLocatable {
 
     /// The URL or path that the link navigates to when activated.
     ///
@@ -47,14 +47,16 @@ public struct Link<Content: Node>: Node {
     /// The entire content area is interactive and activates the link when
     /// clicked or tapped.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a hyperlink that navigates to the given destination.
-    ///
-    /// - Parameters:
-    ///   - destination: The URL or path the link navigates to.
-    ///   - content: A node builder closure providing the clickable content.
-    public init(to destination: String, @NodeBuilder content: () -> Content) {
+    public init(
+        to destination: String,
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
         self.destination = destination
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 

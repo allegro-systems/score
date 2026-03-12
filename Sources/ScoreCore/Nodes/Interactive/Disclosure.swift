@@ -18,17 +18,19 @@
 /// - Important: If a ``Details`` element does not contain a `Summary`, the
 ///   browser renders a default label (typically "Details"). Always supply a
 ///   meaningful `Summary` to make the disclosure widget understandable.
-public struct Summary<Content: Node>: Node {
+public struct Summary<Content: Node>: Node, SourceLocatable {
 
     /// The label content displayed as the clickable toggle for the enclosing
     /// ``Details`` element.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a summary label for a ``Details`` disclosure widget.
-    ///
-    /// - Parameter content: A node builder closure providing the visible heading text
-    ///     or inline content.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -72,7 +74,7 @@ public struct Summary<Content: Node>: Node {
 ///   conform to the HTML specification. Assistive technologies rely on the
 ///   `<summary>` element to announce the toggle's current state
 ///   (expanded/collapsed).
-public struct Details<SummaryContent: Node, Content: Node>: Node {
+public struct Details<SummaryContent: Node, Content: Node>: Node, SourceLocatable {
 
     /// Whether the disclosure widget is expanded and its body is visible when
     /// first rendered.
@@ -88,22 +90,17 @@ public struct Details<SummaryContent: Node, Content: Node>: Node {
     /// The body content that is shown when the widget is open and hidden when
     /// it is closed.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a disclosure widget.
-    ///
-    /// - Parameters:
-    ///   - open: When `true`, the widget is rendered in the expanded state.
-    ///     Defaults to `false`.
-    ///   - summary: A node builder closure providing a ``Summary`` node that
-    ///     serves as the clickable toggle label.
-    ///   - content: A node builder closure providing the body content shown
-    ///     when the widget is expanded.
     public init(
         open: Bool = false,
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
         @NodeBuilder summary: () -> SummaryContent,
         @NodeBuilder content: () -> Content
     ) {
         self.isOpen = open
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.summary = summary()
         self.content = content()
     }

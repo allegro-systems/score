@@ -25,7 +25,7 @@
 ///   browsers that do not support the `<progress>` element. Assistive
 ///   technologies use `value` and `max` to compute and announce a percentage,
 ///   so always supply both when the completion amount is known.
-public struct Progress: Node {
+public struct Progress: Node, SourceLocatable {
 
     /// The current amount of work that has been completed.
     ///
@@ -40,16 +40,13 @@ public struct Progress: Node {
     /// when omitted. If `nil`, the browser uses its default maximum.
     public let max: Double?
 
+    public let sourceLocation: SourceLocation
+
     /// Creates a progress indicator.
-    ///
-    /// - Parameters:
-    ///   - value: The current progress amount. Pass `nil` (the default) to
-    ///     display an indeterminate bar.
-    ///   - max: The value representing 100 % completion. Pass `nil` to use the
-    ///     browser's default maximum of `1.0`.
-    public init(value: Double? = nil, max: Double? = nil) {
+    public init(value: Double? = nil, max: Double? = nil, file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column) {
         self.value = value
         self.max = max
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
     }
 
     public var body: Never { fatalError() }
@@ -81,7 +78,7 @@ public struct Progress: Node {
 /// - Important: Do not use `Meter` to indicate task progress; use ``Progress``
 ///   instead. `Meter` is intended for measurements whose ranges have meaningful
 ///   semantic interpretations (low, high, optimum).
-public struct Meter: Node {
+public struct Meter: Node, SourceLocatable {
 
     /// The current numeric measurement being represented.
     ///
@@ -121,26 +118,17 @@ public struct Meter: Node {
     /// of the current `value` and may colour the meter accordingly.
     public let optimum: Double?
 
+    public let sourceLocation: SourceLocation
+
     /// Creates a scalar measurement gauge.
-    ///
-    /// - Parameters:
-    ///   - value: The current measurement. Must be between `min` and `max`.
-    ///   - min: The minimum value of the range. Defaults to `nil` (browser
-    ///     default of `0`).
-    /// - Parameters:
-    ///   - max: The maximum value of the range. Defaults to `nil` (browser
-    ///     default of `1`).
-    /// - Parameters:
-    ///   - low: The threshold below which the value is considered low.
-    ///   - high: The threshold above which the value is considered high.
-    ///   - optimum: The ideal value within the range.
     public init(
         value: Double,
         min: Double? = nil,
         max: Double? = nil,
         low: Double? = nil,
         high: Double? = nil,
-        optimum: Double? = nil
+        optimum: Double? = nil,
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column
     ) {
         self.value = value
         self.min = min
@@ -148,6 +136,7 @@ public struct Meter: Node {
         self.low = low
         self.high = high
         self.optimum = optimum
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
     }
 
     public var body: Never { fatalError() }

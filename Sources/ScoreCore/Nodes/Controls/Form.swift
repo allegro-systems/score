@@ -97,7 +97,7 @@ public enum FormEncoding: String, Sendable {
 ///
 /// - Note: Always choose the most specific `HTTPMethod` for the intended
 ///   server-side operation. Prefer `.post` over `.get` for sensitive data.
-public struct Form<Content: Node>: Node {
+public struct Form<Content: Node>: Node, SourceLocatable {
 
     /// The URL to which the form data is sent upon submission.
     ///
@@ -125,28 +125,22 @@ public struct Form<Content: Node>: Node {
     /// The child nodes that constitute the form's controls and layout.
     public let content: Content
 
+    public let sourceLocation: SourceLocation
+
     /// Creates a form with the given submission target and child content.
-    ///
-    /// - Parameters:
-    ///   - action: The URL that will process the form submission.
-    ///   - method: The HTTP method used to send the data.
-    ///   - encoding: The MIME type for encoding the data. Defaults to `nil`,
-    ///     which lets the browser choose an appropriate default.
-    ///   - id: An optional identifier for the form element, enabling external
-    ///     buttons to associate themselves with this form. Defaults to `nil`.
-    ///   - content: A node builder closure that produces the form's input
-    ///     controls and other child nodes.
     public init(
         action: String,
         method: HTTPMethod,
         encoding: FormEncoding? = nil,
         id: String? = nil,
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
         @NodeBuilder content: () -> Content
     ) {
         self.action = action
         self.method = method
         self.encoding = encoding
         self.id = id
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 

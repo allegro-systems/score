@@ -97,7 +97,7 @@ public enum ImageDecoding: String, Sendable {
 ///
 /// - Important: Always supply meaningful `alt` text. An empty string is only
 ///   appropriate for purely decorative images that convey no information.
-public struct Image: Node {
+public struct Image: Node, SourceLocatable {
 
     /// The URL or path to the image resource.
     ///
@@ -141,26 +141,20 @@ public struct Image: Node {
     /// When `nil`, no `decoding` attribute is emitted and the browser uses
     /// its default behaviour, which is equivalent to `.auto`.
     public let decoding: ImageDecoding?
+    public let sourceLocation: SourceLocation
 
     /// Creates an image node with a literal source URL.
     ///
     /// Use this initialiser when the image path is known at compile time and
     /// does not require localisation.
-    ///
-    /// - Parameters:
-    ///   - src: The URL or path to the image resource.
-    ///   - alt: A short description of the image for accessibility.
-    ///   - width: The intrinsic width in CSS pixels. Defaults to `nil`.
-    ///   - height: The intrinsic height in CSS pixels. Defaults to `nil`.
-    ///   - loading: The browser loading strategy. Defaults to `nil`.
-    ///   - decoding: The browser decoding strategy. Defaults to `nil`.
     public init(
         src: String,
         alt: String,
         width: Int? = nil,
         height: Int? = nil,
         loading: ImageLoading? = nil,
-        decoding: ImageDecoding? = nil
+        decoding: ImageDecoding? = nil,
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column
     ) {
         self.src = src
         self.alt = alt
@@ -169,6 +163,7 @@ public struct Image: Node {
         self.height = height
         self.loading = loading
         self.decoding = decoding
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
     }
 
     /// Creates an image node whose source URL is resolved from a localisation
@@ -176,21 +171,14 @@ public struct Image: Node {
     ///
     /// The renderer uses `key` to look up the actual image URL at render time,
     /// allowing different asset paths to be served per locale.
-    ///
-    /// - Parameters:
-    ///   - key: The localisation key used to resolve the image URL.
-    ///   - alt: A short description of the image for accessibility.
-    ///   - width: The intrinsic width in CSS pixels. Defaults to `nil`.
-    ///   - height: The intrinsic height in CSS pixels. Defaults to `nil`.
-    ///   - loading: The browser loading strategy. Defaults to `nil`.
-    ///   - decoding: The browser decoding strategy. Defaults to `nil`.
     public init(
         localized key: String,
         alt: String,
         width: Int? = nil,
         height: Int? = nil,
         loading: ImageLoading? = nil,
-        decoding: ImageDecoding? = nil
+        decoding: ImageDecoding? = nil,
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column
     ) {
         self.src = key
         self.alt = alt
@@ -199,6 +187,7 @@ public struct Image: Node {
         self.height = height
         self.loading = loading
         self.decoding = decoding
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
     }
 
     /// `Image` is a primitive node and does not compose a `body`.

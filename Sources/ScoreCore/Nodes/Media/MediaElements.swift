@@ -59,7 +59,7 @@ public enum MediaPreload: String, Sendable {
 ///     Image(src: "/images/hero.jpg", alt: "Hero image")
 /// }
 /// ```
-public struct Source: Node {
+public struct Source: Node, SourceLocatable {
 
     /// The URL of the media resource.
     public let src: String
@@ -77,18 +77,14 @@ public struct Source: Node {
     /// When `nil`, no `media` attribute is emitted and the source is always
     /// a candidate.
     public let media: String?
+    public let sourceLocation: SourceLocation
 
     /// Creates a source node for use inside a `Picture`, `Audio`, or `Video`.
-    ///
-    /// - Parameters:
-    ///   - src: The URL of the media resource.
-    ///   - type: The MIME type of the resource. Defaults to `nil`.
-    ///   - media: A CSS media query that gates selection of this source.
-    ///     Defaults to `nil`.
-    public init(src: String, type: String? = nil, media: String? = nil) {
+    public init(src: String, type: String? = nil, media: String? = nil, file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column) {
         self.src = src
         self.type = type
         self.media = media
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
     }
 
     /// `Source` is a primitive node and does not compose a `body`.
@@ -124,7 +120,7 @@ public struct Source: Node {
 ///     )
 /// }
 /// ```
-public struct Track: Node {
+public struct Track: Node, SourceLocatable {
 
     /// The URL of the WebVTT or TTML track file.
     public let src: String
@@ -151,24 +147,20 @@ public struct Track: Node {
     /// Only one `Track` per media element should set `isDefault` to `true`.
     /// Corresponds to the boolean `default` attribute on `<track>`.
     public let isDefault: Bool
+    public let sourceLocation: SourceLocation
 
     /// Creates a track node for use inside a `Video` or `Audio` element.
-    ///
-    /// - Parameters:
-    ///   - src: The URL of the track file.
-    ///   - kind: The track category. Defaults to `nil`.
-    ///   - label: A human-readable title shown in the browser UI. Defaults to
-    ///     `nil`.
-    ///   - languageCode: The BCP 47 language tag for the track. Mapped to the
-    ///     HTML `srclang` attribute. Defaults to `nil`.
-    ///   - isDefault: Whether the track is active by default. Defaults to
-    ///     `false`.
-    public init(src: String, kind: TrackKind? = nil, label: String? = nil, languageCode: String? = nil, isDefault: Bool = false) {
+    public init(
+        src: String, kind: TrackKind? = nil, label: String? = nil, languageCode: String? = nil, isDefault: Bool = false, file: String = #fileID, filePath: String = #filePath,
+        line: Int = #line,
+        column: Int = #column
+    ) {
         self.src = src
         self.kind = kind
         self.label = label
         self.languageCode = languageCode
         self.isDefault = isDefault
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
     }
 
     /// `Track` is a primitive node and does not compose a `body`.
@@ -201,7 +193,7 @@ public struct Track: Node {
 ///
 /// - Important: Avoid using `autoplay: true` without `muted: true` as most
 ///   browsers block audible autoplay by default.
-public struct Audio<Content: Node>: Node {
+public struct Audio<Content: Node>: Node, SourceLocatable {
 
     /// The URL of the audio resource.
     ///
@@ -241,22 +233,12 @@ public struct Audio<Content: Node>: Node {
     ///
     /// Typically contains `Source` and `Track` nodes.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates an audio node.
-    ///
-    /// - Parameters:
-    ///   - src: An optional URL for the audio source. Defaults to `nil`.
-    ///   - showsControls: Whether to show built-in browser controls. Defaults
-    ///     to `true`.
-    ///   - autoplays: Whether playback starts automatically. Defaults to
-    ///     `false`.
-    ///   - loops: Whether playback loops continuously. Defaults to `false`.
-    ///   - isMuted: Whether audio output is silenced. Defaults to `false`.
-    ///   - preload: A preload hint for the browser. Defaults to `nil`.
-    ///   - content: A `@NodeBuilder` closure providing child `Source` and
-    ///     `Track` nodes. Defaults to an `EmptyNode`.
     public init(
         src: String? = nil, showsControls: Bool = true, autoplays: Bool = false, loops: Bool = false, isMuted: Bool = false, preload: MediaPreload? = nil,
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
         @NodeBuilder content: () -> Content = { EmptyNode() }
     ) {
         self.src = src
@@ -265,6 +247,7 @@ public struct Audio<Content: Node>: Node {
         self.loops = loops
         self.isMuted = isMuted
         self.preload = preload
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -303,7 +286,7 @@ public struct Audio<Content: Node>: Node {
 ///
 /// - Important: Always provide at least one `Track` with captions or subtitles
 ///   for videos that contain meaningful audio content.
-public struct Video<Content: Node>: Node {
+public struct Video<Content: Node>: Node, SourceLocatable {
 
     /// The URL of the video resource.
     ///
@@ -359,27 +342,14 @@ public struct Video<Content: Node>: Node {
     ///
     /// Typically contains `Source` and `Track` nodes.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a video node.
-    ///
-    /// - Parameters:
-    ///   - src: The URL of the video resource. Defaults to `nil`.
-    ///   - showsControls: Whether to show built-in browser controls. Defaults
-    ///     to `true`.
-    ///   - autoplays: Whether playback starts automatically. Defaults to
-    ///     `false`.
-    ///   - loops: Whether playback loops continuously. Defaults to `false`.
-    ///   - isMuted: Whether audio output is silenced. Defaults to `false`.
-    ///   - preload: A preload hint for the browser. Defaults to `nil`.
-    ///   - poster: URL of a poster image displayed before playback. Defaults
-    ///     to `nil`.
-    ///   - width: The display width in CSS pixels. Defaults to `nil`.
-    ///   - height: The display height in CSS pixels. Defaults to `nil`.
-    ///   - content: A `@NodeBuilder` closure providing child `Source` and
-    ///     `Track` nodes. Defaults to an `EmptyNode`.
     public init(
         src: String? = nil, showsControls: Bool = true, autoplays: Bool = false, loops: Bool = false, isMuted: Bool = false, preload: MediaPreload? = nil, poster: String? = nil,
-        width: Int? = nil, height: Int? = nil, @NodeBuilder content: () -> Content = { EmptyNode() }
+        width: Int? = nil, height: Int? = nil,
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content = { EmptyNode() }
     ) {
         self.src = src
         self.showsControls = showsControls
@@ -390,6 +360,7 @@ public struct Video<Content: Node>: Node {
         self.poster = poster
         self.width = width
         self.height = height
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -421,19 +392,21 @@ public struct Video<Content: Node>: Node {
 ///     Image(src: "/images/hero.jpg", alt: "Hero landscape photo", width: 1600, height: 900)
 /// }
 /// ```
-public struct Picture<Content: Node>: Node {
+public struct Picture<Content: Node>: Node, SourceLocatable {
 
     /// The child node or node tree nested inside the picture element.
     ///
     /// Should contain one or more `Source` nodes followed by a single fallback
     /// `Image` node.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a picture node containing the given content.
-    ///
-    /// - Parameter content: A `@NodeBuilder` closure that produces the child
-    ///   `Source` and fallback `Image` nodes.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -462,7 +435,7 @@ public struct Picture<Content: Node>: Node {
 /// - Important: `<canvas>` provides no built-in accessibility information.
 ///   Ensure fallback content is meaningful and consider exposing an ARIA role
 ///   and label via the accessibility modifier.
-public struct Canvas<Content: Node>: Node {
+public struct Canvas<Content: Node>: Node, SourceLocatable {
 
     /// The width of the canvas drawing surface in CSS pixels.
     ///
@@ -482,17 +455,17 @@ public struct Canvas<Content: Node>: Node {
     /// Use it to provide a meaningful alternative such as a static image or
     /// descriptive text.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a canvas node with optional dimensions and fallback content.
-    ///
-    /// - Parameters:
-    ///   - width: The drawing surface width in CSS pixels. Defaults to `nil`.
-    ///   - height: The drawing surface height in CSS pixels. Defaults to `nil`.
-    ///   - content: A `@NodeBuilder` closure that produces the fallback content
-    ///     displayed in browsers that do not support `<canvas>`.
-    public init(width: Int? = nil, height: Int? = nil, @NodeBuilder content: () -> Content) {
+    public init(
+        width: Int? = nil, height: Int? = nil,
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
         self.width = width
         self.height = height
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 

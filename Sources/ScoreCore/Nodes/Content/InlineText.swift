@@ -19,10 +19,11 @@
 ///
 /// - Note: Use `Strong` for semantic importance, not merely for visual
 ///   boldness. For purely decorative bold styling, prefer a CSS approach.
-public struct Strong<Content: Node>: Node {
+public struct Strong<Content: Node>: Node, SourceLocatable {
 
     /// The child node that provides the content rendered inside `<strong>`.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a strong-importance node from a node-builder closure.
     ///
@@ -32,9 +33,11 @@ public struct Strong<Content: Node>: Node {
     /// Strong { Text(verbatim: "Warning:") }
     /// ```
     ///
-    /// - Parameter content: A `@NodeBuilder` closure that produces the
-    ///   child node rendered inside the `<strong>` element.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -67,10 +70,11 @@ public struct Strong<Content: Node>: Node {
 ///
 /// - Note: Use `Emphasis` for semantic stress, not merely for visual
 ///   italics. For decorative italic styling, prefer a CSS approach.
-public struct Emphasis<Content: Node>: Node {
+public struct Emphasis<Content: Node>: Node, SourceLocatable {
 
     /// The child node that provides the content rendered inside `<em>`.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates an emphasis node from a node-builder closure.
     ///
@@ -80,9 +84,11 @@ public struct Emphasis<Content: Node>: Node {
     /// Emphasis { Text(verbatim: "Optional") }
     /// ```
     ///
-    /// - Parameter content: A `@NodeBuilder` closure that produces the
-    ///   child node rendered inside the `<em>` element.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -112,10 +118,11 @@ public struct Emphasis<Content: Node>: Node {
 ///     Text(verbatim: "© 2026 Score contributors. MIT License.")
 /// }
 /// ```
-public struct Small<Content: Node>: Node {
+public struct Small<Content: Node>: Node, SourceLocatable {
 
     /// The child node that provides the content rendered inside `<small>`.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a small node from a node-builder closure.
     ///
@@ -125,9 +132,11 @@ public struct Small<Content: Node>: Node {
     /// Small { Text(verbatim: "* Terms and conditions apply.") }
     /// ```
     ///
-    /// - Parameter content: A `@NodeBuilder` closure that produces the
-    ///   child node rendered inside the `<small>` element.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -156,10 +165,11 @@ public struct Small<Content: Node>: Node {
 ///     Text(verbatim: ":")
 /// }
 /// ```
-public struct Mark<Content: Node>: Node {
+public struct Mark<Content: Node>: Node, SourceLocatable {
 
     /// The child node that provides the content rendered inside `<mark>`.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a mark node from a node-builder closure.
     ///
@@ -169,9 +179,11 @@ public struct Mark<Content: Node>: Node {
     /// Mark { Text(verbatim: "highlighted term") }
     /// ```
     ///
-    /// - Parameter content: A `@NodeBuilder` closure that produces the
-    ///   child node rendered inside the `<mark>` element.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -204,10 +216,11 @@ public struct Mark<Content: Node>: Node {
 ///
 /// - Note: For multi-line or block-level code samples, use ``Preformatted``
 ///   (which renders as `<pre>`) wrapping a `Code` node.
-public struct Code<Content: Node>: Node {
+public struct Code<Content: Node>: Node, SourceLocatable {
 
     /// The child node that provides the content rendered inside `<code>`.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a code node from a node-builder closure.
     ///
@@ -217,9 +230,11 @@ public struct Code<Content: Node>: Node {
     /// Code { Text(verbatim: "let page = Page { … }") }
     /// ```
     ///
-    /// - Parameter content: A `@NodeBuilder` closure that produces the
-    ///   child node rendered inside the `<code>` element.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -260,10 +275,11 @@ public struct Code<Content: Node>: Node {
 ///
 /// - Note: `Preformatted` is a block-level element. Do not nest it inside
 ///   other block-level elements that forbid block children (e.g., `<p>`).
-public struct Preformatted<Content: Node>: Node {
+public struct Preformatted<Content: Node>: Node, SourceLocatable {
 
     /// The child node that provides the content rendered inside `<pre>`.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a preformatted node from a node-builder closure.
     ///
@@ -275,9 +291,11 @@ public struct Preformatted<Content: Node>: Node {
     /// }
     /// ```
     ///
-    /// - Parameter content: A `@NodeBuilder` closure that produces the
-    ///   child node rendered inside the `<pre>` element.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -310,10 +328,11 @@ public struct Preformatted<Content: Node>: Node {
 ///
 /// - Note: If the source of the quotation is known, consider adding a
 ///   `cite` attribute via a modifier to credit the original author or work.
-public struct Blockquote<Content: Node>: Node {
+public struct Blockquote<Content: Node>: Node, SourceLocatable {
 
     /// The child node that provides the content rendered inside `<blockquote>`.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a blockquote node from a node-builder closure.
     ///
@@ -325,9 +344,11 @@ public struct Blockquote<Content: Node>: Node {
     /// }
     /// ```
     ///
-    /// - Parameter content: A `@NodeBuilder` closure that produces the
-    ///   child node rendered inside the `<blockquote>` element.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 

@@ -18,7 +18,9 @@
 ///
 /// - Note: `HorizontalRule` is a void element and has no children. Its
 ///   visual appearance can be controlled entirely through CSS.
-public struct HorizontalRule: Node {
+public struct HorizontalRule: Node, SourceLocatable {
+
+    public let sourceLocation: SourceLocation
 
     /// Creates a horizontal rule node.
     ///
@@ -27,7 +29,9 @@ public struct HorizontalRule: Node {
     /// ```swift
     /// HorizontalRule()
     /// ```
-    public init() {}
+    public init(file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
+    }
 
     /// The body of this node.
     ///
@@ -70,7 +74,9 @@ public struct HorizontalRule: Node {
 ///   paragraphs or sections. Use separate ``Paragraph`` nodes or CSS margin
 ///   instead. `LineBreak` is only appropriate where the line ending itself
 ///   carries meaning.
-public struct LineBreak: Node {
+public struct LineBreak: Node, SourceLocatable {
+
+    public let sourceLocation: SourceLocation
 
     /// Creates a line break node.
     ///
@@ -79,7 +85,9 @@ public struct LineBreak: Node {
     /// ```swift
     /// LineBreak()
     /// ```
-    public init() {}
+    public init(file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
+    }
 
     /// The body of this node.
     ///

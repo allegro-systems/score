@@ -29,7 +29,7 @@
 /// - Important: Every visible `Input` should have an associated `Label`.
 ///   Omitting labels is a common accessibility failure that prevents screen
 ///   reader users from understanding the purpose of a form field.
-public struct Label<Content: Node>: Node {
+public struct Label<Content: Node>: Node, SourceLocatable {
 
     /// The `id` of the form control this label is associated with.
     ///
@@ -41,15 +41,16 @@ public struct Label<Content: Node>: Node {
     /// The child nodes that form the visible caption of the label.
     public let content: Content
 
+    public let sourceLocation: SourceLocation
+
     /// Creates a label with an optional control association and the given child content.
-    ///
-    /// - Parameters:
-    ///   - forID: The `id` of the form control to associate with this label.
-    ///     Pass `nil` (the default) to create an unassociated label.
-    ///   - content: A node builder closure that produces the label's visible
-    ///     caption content.
-    public init(for forID: String? = nil, @NodeBuilder content: () -> Content) {
+    public init(
+        for forID: String? = nil,
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
         self.forID = forID
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 

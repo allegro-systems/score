@@ -137,7 +137,7 @@ public enum InputType: String, Sendable {
 ///
 /// - Important: Always associate visible inputs with a `Label` via the
 ///   input's `id` to meet accessibility standards.
-public struct Input: Node {
+public struct Input: Node, SourceLocatable {
 
     /// The data type and widget style of this input control.
     ///
@@ -213,25 +213,9 @@ public struct Input: Node {
     /// Corresponds to the `list` attribute on the HTML `<input>` element.
     public let list: String?
 
+    public let sourceLocation: SourceLocation
+
     /// Creates an input control with the given configuration.
-    ///
-    /// - Parameters:
-    ///   - type: The data type and widget style of the control.
-    ///   - name: The key used when submitting this field's value. Defaults to `nil`.
-    ///   - placeholder: Hint text shown when the control has no value. Defaults to `nil`.
-    ///   - value: The initial or programmatic value of the control. Defaults to `nil`.
-    ///   - id: A unique identifier that allows a `Label` to reference this
-    ///     input. Defaults to `nil`.
-    ///   - required: Whether the field must have a value before form
-    ///     submission. Defaults to `false`.
-    ///   - disabled: Whether the field is non-interactive and excluded from
-    ///     submission. Defaults to `false`.
-    ///   - readOnly: Whether the field is visible and submitted but not
-    ///     editable. Defaults to `false`.
-    ///   - checked: Whether a checkbox or radio is initially selected. Defaults to `false`.
-    ///   - min: The minimum acceptable value. Defaults to `nil`.
-    ///   - max: The maximum acceptable value. Defaults to `nil`.
-    ///   - list: The identifier of a `DataList` providing suggestions. Defaults to `nil`.
     public init(
         type: InputType,
         name: String? = nil,
@@ -244,7 +228,8 @@ public struct Input: Node {
         checked: Bool = false,
         min: String? = nil,
         max: String? = nil,
-        list: String? = nil
+        list: String? = nil,
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column
     ) {
         self.type = type
         self.name = name
@@ -258,6 +243,7 @@ public struct Input: Node {
         self.min = min
         self.max = max
         self.list = list
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
     }
 
     /// This node is rendered directly by the Score runtime and does not have a

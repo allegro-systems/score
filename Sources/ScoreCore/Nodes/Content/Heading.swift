@@ -83,7 +83,7 @@ public enum HeadingLevel: Int, Sendable {
 /// - Important: Do not skip heading levels (e.g., jumping from `.one`
 ///   directly to `.three`) as this harms accessibility and document
 ///   semantics.
-public struct Heading<Content: Node>: Node {
+public struct Heading<Content: Node>: Node, SourceLocatable {
 
     /// The heading level that determines which HTML element is rendered.
     ///
@@ -93,6 +93,7 @@ public struct Heading<Content: Node>: Node {
 
     /// The child node that provides the heading's rendered content.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a heading node at the specified level.
     ///
@@ -104,12 +105,12 @@ public struct Heading<Content: Node>: Node {
     /// }
     /// ```
     ///
-    /// - Parameters:
-    ///   - level: The heading level from ``HeadingLevel/one`` (most prominent)
-    ///     to ``HeadingLevel/six`` (least prominent).
-    ///   - content: A `@NodeBuilder` closure that produces the child node
-    ///     rendered inside the heading element.
-    public init(_ level: HeadingLevel, @NodeBuilder content: () -> Content) {
+    public init(
+        _ level: HeadingLevel,
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.level = level
         self.content = content()
     }

@@ -16,15 +16,18 @@
 ///     ListItem { "SwiftUI" }
 /// }
 /// ```
-public struct UnorderedList<Content: Node>: Node {
+public struct UnorderedList<Content: Node>: Node, SourceLocatable {
 
     /// The ``ListItem`` children that make up the list's entries.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates an unordered (bulleted) list.
-    ///
-    /// - Parameter content: A node builder closure providing ``ListItem`` children.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -58,7 +61,7 @@ public struct UnorderedList<Content: Node>: Node {
 ///     ListItem { "Three" }
 /// }
 /// ```
-public struct OrderedList<Content: Node>: Node {
+public struct OrderedList<Content: Node>: Node, SourceLocatable {
 
     /// The integer value at which the list numbering begins.
     ///
@@ -74,18 +77,17 @@ public struct OrderedList<Content: Node>: Node {
 
     /// The ``ListItem`` children that make up the numbered entries.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates an ordered (numbered) list.
-    ///
-    /// - Parameters:
-    ///   - start: The starting number for the list. Defaults to `nil` (starts
-    ///     at 1).
-    ///   - isReversed: When `true`, numbers descend rather than ascend.
-    ///     Defaults to `false`.
-    ///   - content: A node builder closure providing ``ListItem`` children.
-    public init(start: Int? = nil, isReversed: Bool = false, @NodeBuilder content: () -> Content) {
+    public init(
+        start: Int? = nil, isReversed: Bool = false,
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
         self.start = start
         self.isReversed = isReversed
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -116,15 +118,18 @@ public struct OrderedList<Content: Node>: Node {
 ///     }
 /// }
 /// ```
-public struct ListItem<Content: Node>: Node {
+public struct ListItem<Content: Node>: Node, SourceLocatable {
 
     /// The content displayed inside the list item.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a list item.
-    ///
-    /// - Parameter content: A node builder closure providing the item's content.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -154,17 +159,19 @@ public struct ListItem<Content: Node>: Node {
 ///     DescriptionDetails { "2024-01-15" }
 /// }
 /// ```
-public struct DescriptionList<Content: Node>: Node {
+public struct DescriptionList<Content: Node>: Node, SourceLocatable {
 
     /// The ``DescriptionTerm`` and ``DescriptionDetails`` children that form
     /// the term–description pairs.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a description list.
-    ///
-    /// - Parameter content: A node builder closure providing alternating
-    ///     ``DescriptionTerm`` and ``DescriptionDetails`` children.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -186,16 +193,18 @@ public struct DescriptionList<Content: Node>: Node {
 ///     DescriptionDetails { "Score" }
 /// }
 /// ```
-public struct DescriptionTerm<Content: Node>: Node {
+public struct DescriptionTerm<Content: Node>: Node, SourceLocatable {
 
     /// The term or label content rendered inside the `<dt>` element.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a description term.
-    ///
-    /// - Parameter content: A node builder closure providing the term's text or inline
-    ///     content.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -221,16 +230,18 @@ public struct DescriptionTerm<Content: Node>: Node {
 ///     DescriptionDetails { "Linux" }
 /// }
 /// ```
-public struct DescriptionDetails<Content: Node>: Node {
+public struct DescriptionDetails<Content: Node>: Node, SourceLocatable {
 
     /// The definition or value content rendered inside the `<dd>` element.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a description details node.
-    ///
-    /// - Parameter content: A node builder closure providing the description's text or
-    ///     inline content.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 

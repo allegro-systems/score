@@ -21,16 +21,18 @@
 /// - Note: Prefer semantic containers such as `Section` or `Article` when the
 ///   content has meaningful document structure, as they convey intent to both
 ///   browsers and assistive technologies.
-public struct Stack<Content: Node>: Node {
+public struct Stack<Content: Node>: Node, SourceLocatable {
 
     /// The child nodes contained within this stack.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a stack with the given child content.
-    ///
-    /// - Parameter content: A node builder closure that produces the children to be
-    ///     grouped inside the stack.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 

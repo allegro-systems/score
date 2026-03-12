@@ -27,10 +27,11 @@
 ///     Text(verbatim: " in your Swift file.")
 /// }
 /// ```
-public struct Paragraph<Content: Node>: Node {
+public struct Paragraph<Content: Node>: Node, SourceLocatable {
 
     /// The child node that provides the paragraph's rendered content.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a paragraph node from a node-builder closure.
     ///
@@ -47,9 +48,11 @@ public struct Paragraph<Content: Node>: Node {
     /// }
     /// ```
     ///
-    /// - Parameter content: A `@NodeBuilder` closure that produces the
-    ///   child node rendered inside the `<p>` element.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 

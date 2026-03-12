@@ -23,7 +23,7 @@
 /// - Important: Always pair `Select` with a visible `<label>` element whose
 ///   `for` attribute matches the select's `id` so that assistive technologies
 ///   can announce the control correctly.
-public struct Select<Content: Node>: Node {
+public struct Select<Content: Node>: Node, SourceLocatable {
 
     /// The name submitted with the form data when the form is posted.
     ///
@@ -56,22 +56,16 @@ public struct Select<Content: Node>: Node {
     /// ``OptionGroup`` nodes.
     public let content: Content
 
+    public let sourceLocation: SourceLocation
+
     /// Creates a drop-down selection control.
-    ///
-    /// - Parameters:
-    ///   - name: The form field name submitted with the selection.
-    ///   - id: An optional unique identifier for the element.
-    ///   - required: When `true`, a selection is required for form submission.
-    ///   - disabled: When `true`, the control is non-interactive.
-    ///   - multiple: When `true`, multiple options may be selected simultaneously.
-    ///   - content: A node builder closure providing ``Option`` and/or
-    ///     ``OptionGroup`` children.
     public init(
         name: String? = nil,
         id: String? = nil,
         required: Bool = false,
         disabled: Bool = false,
         multiple: Bool = false,
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
         @NodeBuilder content: () -> Content
     ) {
         self.name = name
@@ -79,6 +73,7 @@ public struct Select<Content: Node>: Node {
         self.isRequired = required
         self.isDisabled = disabled
         self.isMultiple = multiple
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -100,7 +95,7 @@ public struct Select<Content: Node>: Node {
 ///     Option(value: "l") { "Large" }
 /// }
 /// ```
-public struct Option<Content: Node>: Node {
+public struct Option<Content: Node>: Node, SourceLocatable {
 
     /// The value submitted with the form when this option is selected.
     ///
@@ -121,23 +116,20 @@ public struct Option<Content: Node>: Node {
     /// The visible label content rendered inside the option element.
     public let content: Content
 
+    public let sourceLocation: SourceLocation
+
     /// Creates a selectable option.
-    ///
-    /// - Parameters:
-    ///   - value: The value submitted when this option is selected. Defaults
-    ///     to `nil`, which causes the text content to be used instead.
-    ///   - selected: When `true`, this option is pre-selected on page load.
-    ///   - disabled: When `true`, the option cannot be interacted with.
-    ///   - content: A node builder closure providing the visible label.
     public init(
         value: String? = nil,
         selected: Bool = false,
         disabled: Bool = false,
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
         @NodeBuilder content: () -> Content
     ) {
         self.value = value
         self.isSelected = selected
         self.isDisabled = disabled
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -167,7 +159,7 @@ public struct Option<Content: Node>: Node {
 ///
 /// - Important: `OptionGroup` labels are not submitted as form values; they
 ///   exist solely to annotate the visual grouping for the user.
-public struct OptionGroup<Content: Node>: Node {
+public struct OptionGroup<Content: Node>: Node, SourceLocatable {
 
     /// The visible heading text displayed above the grouped options.
     ///
@@ -183,15 +175,18 @@ public struct OptionGroup<Content: Node>: Node {
     /// The ``Option`` nodes that belong to this group.
     public let content: Content
 
+    public let sourceLocation: SourceLocation
+
     /// Creates a labeled group of options.
-    ///
-    /// - Parameters:
-    ///   - label: The heading text displayed above the grouped options.
-    ///   - disabled: When `true`, all options in the group are non-interactive.
-    ///   - content: A node builder closure providing the ``Option`` children.
-    public init(label: String, disabled: Bool = false, @NodeBuilder content: () -> Content) {
+    public init(
+        label: String,
+        disabled: Bool = false,
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
         self.label = label
         self.isDisabled = disabled
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 

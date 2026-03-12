@@ -48,7 +48,12 @@ extension HTMLContainerElement {
     var htmlAttributes: [(String, String)] { [] }
 
     func renderHTML(into output: inout String, renderer: HTMLRenderer) {
-        renderer.tag(htmlTagName, htmlAttributes, content: content, to: &output)
+        var attrs = htmlAttributes
+        if renderer.isDevMode, let loc = (self as? SourceLocatable)?.sourceLocation {
+            attrs.append(("data-source", "\(loc.fileID):\(loc.line):\(loc.column)"))
+            attrs.append(("data-source-path", "\(loc.filePath):\(loc.line):\(loc.column)"))
+        }
+        renderer.tag(htmlTagName, attrs, content: content, to: &output)
     }
 
     func renderHTML(
@@ -56,7 +61,11 @@ extension HTMLContainerElement {
         into output: inout String,
         renderer: HTMLRenderer
     ) {
-        let merged = Self.mergeAttributes(htmlAttributes, extraAttributes)
+        var merged = Self.mergeAttributes(htmlAttributes, extraAttributes)
+        if renderer.isDevMode, let loc = (self as? SourceLocatable)?.sourceLocation {
+            merged.append(("data-source", "\(loc.fileID):\(loc.line):\(loc.column)"))
+            merged.append(("data-source-path", "\(loc.filePath):\(loc.line):\(loc.column)"))
+        }
         renderer.tag(htmlTagName, merged, content: content, to: &output)
     }
 }
@@ -77,7 +86,12 @@ extension HTMLVoidElement {
     var htmlAttributes: [(String, String)] { [] }
 
     func renderHTML(into output: inout String, renderer: HTMLRenderer) {
-        renderer.voidTag(htmlTagName, htmlAttributes, to: &output)
+        var attrs = htmlAttributes
+        if renderer.isDevMode, let loc = (self as? SourceLocatable)?.sourceLocation {
+            attrs.append(("data-source", "\(loc.fileID):\(loc.line):\(loc.column)"))
+            attrs.append(("data-source-path", "\(loc.filePath):\(loc.line):\(loc.column)"))
+        }
+        renderer.voidTag(htmlTagName, attrs, to: &output)
     }
 
     func renderHTML(
@@ -85,7 +99,11 @@ extension HTMLVoidElement {
         into output: inout String,
         renderer: HTMLRenderer
     ) {
-        let merged = Self.mergeAttributes(htmlAttributes, extraAttributes)
+        var merged = Self.mergeAttributes(htmlAttributes, extraAttributes)
+        if renderer.isDevMode, let loc = (self as? SourceLocatable)?.sourceLocation {
+            merged.append(("data-source", "\(loc.fileID):\(loc.line):\(loc.column)"))
+            merged.append(("data-source-path", "\(loc.filePath):\(loc.line):\(loc.column)"))
+        }
         renderer.voidTag(htmlTagName, merged, to: &output)
     }
 }

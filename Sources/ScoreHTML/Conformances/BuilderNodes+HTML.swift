@@ -69,6 +69,10 @@ extension ModifiedNode: HTMLRenderable {
             if let injectable = innerContent as? HTMLAttributeInjectable {
                 injectable.renderHTML(merging: extraAttributes, into: &output, renderer: renderer)
             } else {
+                if renderer.isDevMode, let loc = (innerContent as? SourceLocatable)?.sourceLocation {
+                    extraAttributes.append(("data-source", "\(loc.fileID):\(loc.line):\(loc.column)"))
+                    extraAttributes.append(("data-source-path", "\(loc.filePath):\(loc.line):\(loc.column)"))
+                }
                 output.append("<div")
                 renderer.writeAttributes(extraAttributes, to: &output)
                 output.append(">")
@@ -121,6 +125,14 @@ extension ModifiedNode: HTMLRenderable {
             }
         }
         return (result, hasEvents, hasReactive)
+    }
+}
+
+/// Renders the type-erased wrapped node.
+extension Content: HTMLRenderable {
+    /// Delegates rendering to the underlying wrapped node.
+    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
+        renderer.write(wrapped, to: &output)
     }
 }
 

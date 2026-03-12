@@ -249,3 +249,28 @@ import Testing
     let variadicMarginMod = variadicMargin.modifiers[0] as? MarginModifier
     #expect(variadicMarginMod?.edges == [.leading, .trailing])
 }
+
+@Test func errorContextStoresAllFields() {
+    let context = ErrorContext(statusCode: 404, message: "Not Found", path: "/missing")
+    #expect(context.statusCode == 404)
+    #expect(context.message == "Not Found")
+    #expect(context.path == "/missing")
+}
+
+@Test func errorContextEquality() {
+    let a = ErrorContext(statusCode: 404, message: "Not Found", path: "/x")
+    let b = ErrorContext(statusCode: 404, message: "Not Found", path: "/x")
+    let c = ErrorContext(statusCode: 500, message: "Error", path: "/x")
+    #expect(a == b)
+    #expect(a != c)
+}
+
+@Test func applicationDefaultErrorBodyReturnsNil() {
+    struct TestApp: Application {
+        var pages: [any Page] { [] }
+        init() {}
+    }
+    let app = TestApp()
+    let context = ErrorContext(statusCode: 404, message: "Not Found", path: "/")
+    #expect(app.errorBody(for: context) == nil)
+}

@@ -18,19 +18,21 @@
 ///     }
 /// }
 /// ```
-public struct Figure<Content: Node>: Node {
+public struct Figure<Content: Node>: Node, SourceLocatable {
 
     /// The child node or node tree nested inside the figure element.
     ///
     /// Typically contains an `Image`, `Picture`, `Video`, or similar media
     /// node, optionally followed by a `FigureCaption`.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a figure node containing the given content.
-    ///
-    /// - Parameter content: A `@NodeBuilder` closure that produces the child
-    ///   content to nest inside the `<figure>` element.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -58,17 +60,19 @@ public struct Figure<Content: Node>: Node {
 ///     }
 /// }
 /// ```
-public struct FigureCaption<Content: Node>: Node {
+public struct FigureCaption<Content: Node>: Node, SourceLocatable {
 
     /// The child node or node tree that forms the caption text and inline
     /// content.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a figure caption node containing the given content.
-    ///
-    /// - Parameter content: A `@NodeBuilder` closure that produces the
-    ///   caption content to nest inside the `<figcaption>` element.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 

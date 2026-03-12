@@ -390,6 +390,67 @@ import Testing
     #expect(html.contains("<canvas width=\"300\" height=\"150\">fallback</canvas>"))
 }
 
+// MARK: - Source location in dev mode
+
+@Test func devModeEmitsDataSourceOnContainerElement() {
+    var renderer = HTMLRenderer()
+    renderer.isDevMode = true
+    let html = renderer.render(Paragraph(file: "App/Home.swift", line: 42, column: 5) { TextNode("hello") })
+    #expect(html.contains("data-source=\"App/Home.swift:42:5\""))
+    #expect(html.contains("<p"))
+}
+
+@Test func nonDevModeOmitsDataSource() {
+    let renderer = HTMLRenderer()
+    let html = renderer.render(Paragraph(file: "App/Home.swift", line: 42, column: 5) { TextNode("hello") })
+    #expect(!html.contains("data-source"))
+}
+
+@Test func devModeEmitsDataSourceOnVoidElement() {
+    var renderer = HTMLRenderer()
+    renderer.isDevMode = true
+    let html = renderer.render(HorizontalRule(file: "App/Home.swift", line: 10, column: 1))
+    #expect(html.contains("data-source=\"App/Home.swift:10:1\""))
+    #expect(html.contains("<hr"))
+}
+
+@Test func devModeEmitsDataSourceOnHeading() {
+    var renderer = HTMLRenderer()
+    renderer.isDevMode = true
+    let html = renderer.render(
+        Heading(.one, file: "App/Home.swift", line: 5, column: 9) { TextNode("Title") }
+    )
+    #expect(html.contains("data-source=\"App/Home.swift:5:9\""))
+    #expect(html.contains(">Title</h1>"))
+}
+
+@Test func devModeEmitsDataSourceOnImage() {
+    var renderer = HTMLRenderer()
+    renderer.isDevMode = true
+    let html = renderer.render(Image(src: "/img.png", alt: "Test", file: "App/Page.swift", line: 20, column: 3))
+    #expect(html.contains("data-source=\"App/Page.swift:20:3\""))
+    #expect(html.contains("<img"))
+}
+
+@Test func devModeDataSourceWorksWithModifiedNode() {
+    var renderer = HTMLRenderer()
+    renderer.isDevMode = true
+    renderer.classInjector = { _ in "styled" }
+    let node = Paragraph(file: "App/Home.swift", line: 15, column: 1) { TextNode("text") }
+        .padding(8)
+    let html = renderer.render(node)
+    #expect(html.contains("data-source=\"App/Home.swift:15:1\""))
+    #expect(html.contains("class=\"styled\""))
+}
+
+@Test func devModeDataSourceOnStack() {
+    var renderer = HTMLRenderer()
+    renderer.isDevMode = true
+    let html = renderer.render(Stack(file: "App/Layout.swift", line: 7, column: 2) { TextNode("x") })
+    #expect(html.contains("data-source=\"App/Layout.swift:7:2\""))
+    #expect(html.contains("<div"))
+}
+
 // MARK: - Additional high-coverage paths
 
 @Test func textInlineAndBlockSemanticsRenderTags() {

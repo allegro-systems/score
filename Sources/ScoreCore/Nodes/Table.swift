@@ -37,17 +37,19 @@
 /// - Important: Only use `Table` for genuinely tabular data. Using tables for
 ///   layout purposes is an accessibility anti-pattern and will mislead screen
 ///   reader users.
-public struct Table<Content: Node>: Node {
+public struct Table<Content: Node>: Node, SourceLocatable {
 
     /// The child nodes that make up the table, such as ``TableCaption``,
     /// ``TableHead``, ``TableBody``, and ``TableFooter``.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a table.
-    ///
-    /// - Parameter content: A node builder closure providing the table's structural
-    ///     children.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -77,16 +79,18 @@ public struct Table<Content: Node>: Node {
 /// - Important: Always include a `TableCaption` to help users of assistive
 ///   technologies understand the purpose of the table before navigating its
 ///   cells.
-public struct TableCaption<Content: Node>: Node {
+public struct TableCaption<Content: Node>: Node, SourceLocatable {
 
     /// The caption text or inline content that titles the table.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a table caption.
-    ///
-    /// - Parameter content: A node builder closure providing the caption text or
-    ///     inline content.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -110,16 +114,18 @@ public struct TableCaption<Content: Node>: Node {
 ///     }
 /// }
 /// ```
-public struct TableHead<Content: Node>: Node {
+public struct TableHead<Content: Node>: Node, SourceLocatable {
 
     /// The ``TableRow`` children that form the table's header section.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a table head section.
-    ///
-    /// - Parameter content: A node builder closure providing the header ``TableRow``
-    ///     children.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -146,16 +152,18 @@ public struct TableHead<Content: Node>: Node {
 ///     }
 /// }
 /// ```
-public struct TableBody<Content: Node>: Node {
+public struct TableBody<Content: Node>: Node, SourceLocatable {
 
     /// The ``TableRow`` children that form the table's body section.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a table body section.
-    ///
-    /// - Parameter content: A node builder closure providing the data ``TableRow``
-    ///     children.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -178,16 +186,18 @@ public struct TableBody<Content: Node>: Node {
 ///     }
 /// }
 /// ```
-public struct TableFooter<Content: Node>: Node {
+public struct TableFooter<Content: Node>: Node, SourceLocatable {
 
     /// The ``TableRow`` children that form the table's footer section.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a table footer section.
-    ///
-    /// - Parameter content: A node builder closure providing the footer ``TableRow``
-    ///     children.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -209,16 +219,18 @@ public struct TableFooter<Content: Node>: Node {
 ///     TableCell { "98 %" }
 /// }
 /// ```
-public struct TableRow<Content: Node>: Node {
+public struct TableRow<Content: Node>: Node, SourceLocatable {
 
     /// The ``TableCell`` and/or ``TableHeaderCell`` children that fill this row.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a table row.
-    ///
-    /// - Parameter content: A node builder closure providing the cell children for
-    ///     this row.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -272,7 +284,7 @@ public enum TableHeaderScope: String, Sendable {
 ///     TableHeaderCell(scope: .column) { "In Stock" }
 /// }
 /// ```
-public struct TableHeaderCell<Content: Node>: Node {
+public struct TableHeaderCell<Content: Node>: Node, SourceLocatable {
 
     /// The axis of data cells this header applies to.
     ///
@@ -283,15 +295,16 @@ public struct TableHeaderCell<Content: Node>: Node {
 
     /// The heading text or content rendered inside the `<th>` element.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a table header cell.
-    ///
-    /// - Parameters:
-    ///   - scope: The axis of cells this header describes. Defaults to `nil`.
-    ///   - content: A node builder closure providing the header's label
-    ///     content.
-    public init(scope: TableHeaderScope? = nil, @NodeBuilder content: () -> Content) {
+    public init(
+        scope: TableHeaderScope? = nil,
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
         self.scope = scope
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -313,15 +326,18 @@ public struct TableHeaderCell<Content: Node>: Node {
 ///     TableCell { "Yes" }
 /// }
 /// ```
-public struct TableCell<Content: Node>: Node {
+public struct TableCell<Content: Node>: Node, SourceLocatable {
 
     /// The data content rendered inside the `<td>` element.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a table data cell.
-    ///
-    /// - Parameter content: A node builder closure providing the cell's data content.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -355,7 +371,7 @@ public struct TableCell<Content: Node>: Node {
 /// - Important: `TableColumnGroup` and ``TableColumn`` do not render visible
 ///   content; they exist purely to carry CSS classes or styles that are
 ///   applied to the grouped columns.
-public struct TableColumnGroup<Content: Node>: Node {
+public struct TableColumnGroup<Content: Node>: Node, SourceLocatable {
 
     /// The number of consecutive table columns this group spans.
     ///
@@ -366,15 +382,16 @@ public struct TableColumnGroup<Content: Node>: Node {
 
     /// Optional ``TableColumn`` children that further subdivide the group.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a column group.
-    ///
-    /// - Parameters:
-    ///   - span: The number of columns this group spans. Defaults to `nil`.
-    ///   - content: A node builder closure providing optional ``TableColumn``
-    ///     children.
-    public init(span: Int? = nil, @NodeBuilder content: () -> Content) {
+    public init(
+        span: Int? = nil,
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
         self.span = span
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -397,20 +414,19 @@ public struct TableColumnGroup<Content: Node>: Node {
 ///     TableColumn(span: 2)  // next two columns share the same styling
 /// }
 /// ```
-public struct TableColumn: Node {
+public struct TableColumn: Node, SourceLocatable {
 
     /// The number of consecutive columns this element represents.
     ///
     /// Rendered as the HTML `span` attribute. If `nil`, the element applies to
     /// exactly one column (the browser default).
     public let span: Int?
+    public let sourceLocation: SourceLocation
 
     /// Creates a column descriptor.
-    ///
-    /// - Parameter span: The number of columns this descriptor covers. Defaults to
-    ///     `nil` (one column).
-    public init(span: Int? = nil) {
+    public init(span: Int? = nil, file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column) {
         self.span = span
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
     }
 
     public var body: Never { fatalError() }

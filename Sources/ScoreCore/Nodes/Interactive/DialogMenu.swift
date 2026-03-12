@@ -25,7 +25,7 @@
 /// - Important: On the server side, `open` controls the initial rendered
 ///   visibility. Browser-side JavaScript (e.g. `dialog.showModal()`) is
 ///   typically used to open modal dialogs dynamically after page load.
-public struct Dialog<Content: Node>: Node {
+public struct Dialog<Content: Node>: Node, SourceLocatable {
 
     /// Whether the dialog is visible when the page is first rendered.
     ///
@@ -36,16 +36,16 @@ public struct Dialog<Content: Node>: Node {
     /// The content displayed inside the dialog, such as headings, text, and
     /// action buttons.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a dialog element.
-    ///
-    /// - Parameters:
-    ///   - open: When `true`, the dialog is rendered in the visible/open state.
-    ///     Defaults to `false`.
-    ///   - content: A node builder closure providing the dialog's interior
-    ///     content.
-    public init(open: Bool = false, @NodeBuilder content: () -> Content) {
+    public init(
+        open: Bool = false,
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
         self.isOpen = open
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -79,16 +79,18 @@ public struct Dialog<Content: Node>: Node {
 ///     }
 /// }
 /// ```
-public struct Menu<Content: Node>: Node {
+public struct Menu<Content: Node>: Node, SourceLocatable {
 
     /// The list items that make up the menu's commands or options.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a menu of interactive commands.
-    ///
-    /// - Parameter content: A node builder closure providing the menu's list items
-    ///     and their associated interactive controls.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 

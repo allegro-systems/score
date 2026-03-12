@@ -25,7 +25,7 @@
 /// - Important: Placing a ``Legend`` as the first child of a `Fieldset` is
 ///   strongly recommended; it is the primary mechanism by which assistive
 ///   technologies identify the purpose of the group.
-public struct Fieldset<Content: Node>: Node {
+public struct Fieldset<Content: Node>: Node, SourceLocatable {
 
     /// Whether all descendant form controls within this fieldset are disabled.
     ///
@@ -38,15 +38,16 @@ public struct Fieldset<Content: Node>: Node {
     /// followed by one or more form controls.
     public let content: Content
 
+    public let sourceLocation: SourceLocation
+
     /// Creates a fieldset that groups related form controls.
-    ///
-    /// - Parameters:
-    ///   - disabled: When `true`, all descendant controls are disabled and
-    ///     their values are excluded from form submission.
-    ///   - content: A node builder closure providing the fieldset's children,
-    ///     ideally starting with a ``Legend``.
-    public init(disabled: Bool = false, @NodeBuilder content: () -> Content) {
+    public init(
+        disabled: Bool = false,
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
         self.isDisabled = disabled
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -68,16 +69,19 @@ public struct Fieldset<Content: Node>: Node {
 ///     Input(type: .text, name: "expiry", placeholder: "MM/YY")
 /// }
 /// ```
-public struct Legend<Content: Node>: Node {
+public struct Legend<Content: Node>: Node, SourceLocatable {
 
     /// The caption content displayed as the fieldset's title.
     public let content: Content
 
+    public let sourceLocation: SourceLocation
+
     /// Creates a legend caption for a ``Fieldset``.
-    ///
-    /// - Parameter content: A node builder closure providing the legend's text or
-    ///     inline content.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -101,7 +105,7 @@ public struct Legend<Content: Node>: Node {
 ///
 /// - Important: `Output` is not a form-submission field. Its content is
 ///   presented to the user but is not sent with the form data.
-public struct Output<Content: Node>: Node {
+public struct Output<Content: Node>: Node, SourceLocatable {
 
     /// The `id` of the form control whose value this output represents.
     ///
@@ -112,14 +116,16 @@ public struct Output<Content: Node>: Node {
     /// The content displayed as the computed result.
     public let content: Content
 
+    public let sourceLocation: SourceLocation
+
     /// Creates an output element associated with a form control.
-    ///
-    /// - Parameters:
-    ///   - forID: The `id` of the control that produces this output. Defaults
-    ///     to `nil`.
-    ///   - content: A node builder closure providing the displayed result value.
-    public init(for forID: String? = nil, @NodeBuilder content: () -> Content) {
+    public init(
+        for forID: String? = nil,
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
         self.forID = forID
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 

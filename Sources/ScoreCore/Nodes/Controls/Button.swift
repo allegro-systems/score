@@ -64,7 +64,7 @@ public enum ButtonType: String, Sendable {
 ///
 /// - Note: Prefer `Button(type: .submit)` over JavaScript-driven submission
 ///   where possible, as it provides better browser and accessibility support.
-public struct Button<Content: Node>: Node {
+public struct Button<Content: Node>: Node, SourceLocatable {
 
     /// The behavioural role of the button within a form context.
     ///
@@ -98,24 +98,16 @@ public struct Button<Content: Node>: Node {
     /// The child nodes that form the visible content of the button.
     public let content: Content
 
+    public let sourceLocation: SourceLocation
+
     /// Creates a button with the given configuration and child content.
-    ///
-    /// - Parameters:
-    ///   - type: The behavioural role of the button. Defaults to `.button`.
-    ///   - form: The `id` of the form this button is associated with. Defaults
-    ///     to `nil`, which associates the button with its ancestor form.
-    ///   - name: The name key submitted with form data. Defaults to `nil`.
-    ///   - value: The value submitted alongside `name`. Defaults to `nil`.
-    ///   - disabled: Whether the button is disabled and non-interactive.
-    ///     Defaults to `false`.
-    ///   - content: A node builder closure that produces the button's label or
-    ///     other visual content.
     public init(
         type: ButtonType = .button,
         form: String? = nil,
         name: String? = nil,
         value: String? = nil,
         disabled: Bool = false,
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
         @NodeBuilder content: () -> Content
     ) {
         self.type = type
@@ -123,6 +115,7 @@ public struct Button<Content: Node>: Node {
         self.name = name
         self.value = value
         self.isDisabled = disabled
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 

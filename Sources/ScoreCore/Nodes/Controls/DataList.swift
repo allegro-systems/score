@@ -25,7 +25,7 @@
 ///
 /// - Important: The `id` of the `DataList` must match the `list` attribute of
 ///   the associated input for the browser to display the suggestions.
-public struct DataList<Content: Node>: Node {
+public struct DataList<Content: Node>: Node, SourceLocatable {
 
     /// The unique identifier that links this datalist to an input's `list`
     /// attribute.
@@ -37,15 +37,16 @@ public struct DataList<Content: Node>: Node {
     /// The ``Option`` nodes that define the autocomplete suggestions.
     public let content: Content
 
+    public let sourceLocation: SourceLocation
+
     /// Creates a datalist of autocomplete suggestions.
-    ///
-    /// - Parameters:
-    ///   - id: A unique identifier that matches the `list` attribute of the
-    ///     input field this datalist serves.
-    ///   - content: A node builder closure providing ``Option`` children that
-    ///     represent the suggested values.
-    public init(id: String? = nil, @NodeBuilder content: () -> Content) {
+    public init(
+        id: String? = nil,
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
         self.id = id
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 

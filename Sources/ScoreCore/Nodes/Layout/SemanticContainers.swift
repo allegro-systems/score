@@ -19,16 +19,18 @@
 ///
 /// - Important: Do not nest `Main` inside another `Main`. Only one instance
 ///   should be present in the document at a time.
-public struct Main<Content: Node>: Node {
+public struct Main<Content: Node>: Node, SourceLocatable {
 
     /// The child nodes that form the primary content of the document.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a main content container with the given child content.
-    ///
-    /// - Parameter content: A node builder closure that produces the children to be
-    ///     rendered inside the `<main>` element.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -55,16 +57,18 @@ public struct Main<Content: Node>: Node {
 ///
 /// - Note: If the content could stand alone as an independent piece (such as a
 ///   blog post or news item), prefer `Article` instead.
-public struct Section<Content: Node>: Node {
+public struct Section<Content: Node>: Node, SourceLocatable {
 
     /// The child nodes that form the body of this section.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a section container with the given child content.
-    ///
-    /// - Parameter content: A node builder closure that produces the children to be
-    ///     rendered inside the `<section>` element.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -90,16 +94,18 @@ public struct Section<Content: Node>: Node {
 ///
 /// - Note: An `Article` may contain multiple `Section` nodes to subdivide its
 ///   content further.
-public struct Article<Content: Node>: Node {
+public struct Article<Content: Node>: Node, SourceLocatable {
 
     /// The child nodes that form the body of this article.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates an article container with the given child content.
-    ///
-    /// - Parameter content: A node builder closure that produces the children to be
-    ///     rendered inside the `<article>` element.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -131,16 +137,18 @@ public struct Article<Content: Node>: Node {
 /// - Note: `Header` can appear multiple times in a document — once at the page
 ///   level and again inside each `Article` or `Section` that warrants its own
 ///   introduction.
-public struct Header<Content: Node>: Node {
+public struct Header<Content: Node>: Node, SourceLocatable {
 
     /// The child nodes that form the header's introductory content.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a header container with the given child content.
-    ///
-    /// - Parameter content: A node builder closure that produces the children to be
-    ///     rendered inside the `<header>` element.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -168,16 +176,18 @@ public struct Header<Content: Node>: Node {
 ///
 /// - Note: Like `Header`, a `Footer` may appear inside `Article` or `Section`
 ///   nodes in addition to the outermost page level.
-public struct Footer<Content: Node>: Node {
+public struct Footer<Content: Node>: Node, SourceLocatable {
 
     /// The child nodes that form the footer's content.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a footer container with the given child content.
-    ///
-    /// - Parameter content: A node builder closure that produces the children to be
-    ///     rendered inside the `<footer>` element.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -204,16 +214,18 @@ public struct Footer<Content: Node>: Node {
 ///
 /// - Note: When an `Aside` appears at the top level of a page, assistive
 ///   technologies expose it as a `complementary` landmark.
-public struct Aside<Content: Node>: Node {
+public struct Aside<Content: Node>: Node, SourceLocatable {
 
     /// The child nodes that form the aside's tangential content.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates an aside container with the given child content.
-    ///
-    /// - Parameter content: A node builder closure that produces the children to be
-    ///     rendered inside the `<aside>` element.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 
@@ -242,16 +254,18 @@ public struct Aside<Content: Node>: Node {
 /// - Note: Not every group of links needs to be wrapped in `Navigation`. Reserve
 ///   it for the major navigational blocks of a page to avoid cluttering the
 ///   landmark map presented to screen-reader users.
-public struct Navigation<Content: Node>: Node {
+public struct Navigation<Content: Node>: Node, SourceLocatable {
 
     /// The child nodes that form the navigation links or structure.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates a navigation container with the given child content.
-    ///
-    /// - Parameter content: A node builder closure that produces the children to be
-    ///     rendered inside the `<nav>` element.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 

@@ -24,7 +24,7 @@
 ///
 /// - Important: Always associate a `<label>` with the textarea's `id` so that
 ///   screen readers can identify the control correctly.
-public struct TextArea: Node {
+public struct TextArea: Node, SourceLocatable {
 
     /// The name submitted with the form data when the form is posted.
     ///
@@ -79,20 +79,9 @@ public struct TextArea: Node {
     /// form submissions, unlike `isDisabled`.
     public let isReadOnly: Bool
 
+    public let sourceLocation: SourceLocation
+
     /// Creates a multi-line text editing control.
-    ///
-    /// - Parameters:
-    ///   - name: The form field name submitted with the textarea's content.
-    ///   - placeholder: Short hint text shown when the control is empty.
-    ///   - value: Pre-filled text content displayed inside the control.
-    ///   - rows: The visible number of text lines. Defaults to `nil` (browser default).
-    ///   - columns: The visible character-width of the control. Defaults to `nil`
-    ///     (browser default).
-    ///   - id: An optional unique identifier for the element.
-    ///   - required: When `true`, the user must fill in the field before submitting.
-    ///   - disabled: When `true`, the control is non-interactive and excluded from
-    ///     form submission.
-    ///   - readOnly: When `true`, the content cannot be edited but is still submitted.
     public init(
         name: String? = nil,
         placeholder: String? = nil,
@@ -102,7 +91,8 @@ public struct TextArea: Node {
         id: String? = nil,
         required: Bool = false,
         disabled: Bool = false,
-        readOnly: Bool = false
+        readOnly: Bool = false,
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column
     ) {
         self.name = name
         self.placeholder = placeholder
@@ -113,6 +103,7 @@ public struct TextArea: Node {
         self.isRequired = required
         self.isDisabled = disabled
         self.isReadOnly = readOnly
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
     }
 
     public var body: Never { fatalError() }

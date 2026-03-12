@@ -35,10 +35,11 @@
 ///   or its nearest section. Do not place headings, sections, or other
 ///   block-level content (beyond what is appropriate for contact details)
 ///   inside `Address`.
-public struct Address<Content: Node>: Node {
+public struct Address<Content: Node>: Node, SourceLocatable {
 
     /// The child node that provides the content rendered inside `<address>`.
     public let content: Content
+    public let sourceLocation: SourceLocation
 
     /// Creates an address node from a node-builder closure.
     ///
@@ -54,9 +55,11 @@ public struct Address<Content: Node>: Node {
     /// }
     /// ```
     ///
-    /// - Parameter content: A `@NodeBuilder` closure that produces the
-    ///   child node rendered inside the `<address>` element.
-    public init(@NodeBuilder content: () -> Content) {
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }
 

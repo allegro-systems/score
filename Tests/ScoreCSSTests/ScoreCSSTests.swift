@@ -1,7 +1,7 @@
 import Testing
 
-@testable import ScoreCore
 @testable import ScoreCSS
+@testable import ScoreCore
 
 // MARK: - CSSDeclaration
 
@@ -169,16 +169,18 @@ import Testing
 
 // MARK: - CSSEmitter: transitions and animations
 
-@Test func transitionEmitterProducesDuration() {
+@Test func transitionEmitterProducesShorthand() {
     let decls = CSSEmitter.declarations(for: TransitionModifier(property: .opacity, duration: 0.3))
-    let dur = decls.first { $0.property == "transition-duration" }
-    #expect(dur?.value == "0.3s")
+    #expect(decls.count == 1)
+    #expect(decls[0].property == "transition")
+    #expect(decls[0].value == "opacity 0.3s")
 }
 
-@Test func transitionEmitterWithTiming() {
+@Test func transitionEmitterShorthandIncludesTiming() {
     let decls = CSSEmitter.declarations(for: TransitionModifier(property: .color, duration: 0.2, timing: .easeInOut))
-    let timing = decls.first { $0.property == "transition-timing-function" }
-    #expect(timing?.value == "ease-in-out")
+    #expect(decls.count == 1)
+    #expect(decls[0].property == "transition")
+    #expect(decls[0].value == "color 0.2s ease-in-out")
 }
 
 @Test func animationEmitterProducesShorthand() {
@@ -673,4 +675,98 @@ private struct CardComponent: Component {
 
     let border = CSSEmitter.declarations(for: BoxSizingModifier(.borderBox))
     #expect(border == [CSSDeclaration(property: "box-sizing", value: "border-box")])
+}
+
+// MARK: - Transition merging
+
+@Test func multipleTransitionsAreMergedIntoShorthand() {
+    let node = Article { TextNode("card") }
+        .transition(property: .borderColor, duration: 0.15, timing: .ease)
+        .transition(property: .backgroundColor, duration: 0.15, timing: .ease)
+
+    var collector = CSSCollector()
+    collector.pageName = "test"
+    collector.collect(from: node)
+    let result = collector.renderStylesheet()
+    #expect(result.css.contains("transition: background-color 0.15s ease, border-color 0.15s ease"))
+}
+
+@Test func singleTransitionIsNotCommaSeparated() {
+    let node = Article { TextNode("btn") }
+        .transition(property: .opacity, duration: 0.3)
+
+    var collector = CSSCollector()
+    collector.pageName = "test"
+    collector.collect(from: node)
+    let result = collector.renderStylesheet()
+    #expect(result.css.contains("transition: opacity 0.3s"))
+    #expect(!result.css.contains(","))
+}
+
+@Test func transitionMergerPreservesOtherDeclarations() {
+    let merged = CSSCollector.mergeTransitions([
+        CSSDeclaration(property: "padding", value: "16px"),
+        CSSDeclaration(property: "transition", value: "opacity 0.3s"),
+        CSSDeclaration(property: "transition", value: "color 0.2s ease"),
+        CSSDeclaration(property: "margin", value: "8px"),
+    ])
+    #expect(merged.count == 3)
+    #expect(merged[0] == CSSDeclaration(property: "padding", value: "16px"))
+    #expect(merged[1] == CSSDeclaration(property: "margin", value: "8px"))
+    #expect(merged[2] == CSSDeclaration(property: "transition", value: "opacity 0.3s, color 0.2s ease"))
+}
+
+// MARK: - Breakpoint media queries
+
+@Test func compactBreakpointEmitsMediaQuery() {
+    let node = Stack { TextNode("content") }
+        .flex(.row, gap: 16)
+        .compact { $0.flex(.column, gap: 8) }
+
+    var collector = CSSCollector()
+    collector.pageName = "test"
+    collector.collect(from: node)
+    let result = collector.renderStylesheet()
+    #expect(result.css.contains("@media (max-width: 768px)"))
+    #expect(result.css.contains("flex-direction: column"))
+}
+
+@Test func desktopBreakpointEmitsMinWidthQuery() {
+    let node = Stack { TextNode("x") }
+        .padding(8)
+        .desktop { $0.padding(24) }
+
+    var collector = CSSCollector()
+    collector.pageName = "test"
+    collector.collect(from: node)
+    let result = collector.renderStylesheet()
+    #expect(result.css.contains("@media (min-width: 1280px)"))
+    #expect(result.css.contains("padding: 24px"))
+}
+
+private struct ResponsiveCard: Component {
+    var body: some Node {
+        Article {
+            TextNode("card")
+        }
+        .padding(16)
+        .compact { $0.padding(8) }
+    }
+}
+
+@Test func breakpointInsideComponentScopeEmitsNestedMediaQuery() {
+    var collector = CSSCollector()
+    collector.collect(from: ResponsiveCard())
+    let result = collector.renderStylesheet()
+    #expect(result.css.contains(".responsive-card {"))
+    #expect(result.css.contains("@media (max-width: 768px)"))
+    #expect(result.css.contains("padding: 8px"))
+}
+
+@Test func breakpointMediaQueryValues() {
+    #expect(Breakpoint.compact.mediaQuery == "max-width: 768px")
+    #expect(Breakpoint.tablet.mediaQuery == "max-width: 1024px")
+    #expect(Breakpoint.large.mediaQuery == "min-width: 1025px")
+    #expect(Breakpoint.desktop.mediaQuery == "min-width: 1280px")
+    #expect(Breakpoint.cinema.mediaQuery == "min-width: 1920px")
 }

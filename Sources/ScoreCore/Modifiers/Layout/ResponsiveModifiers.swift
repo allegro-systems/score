@@ -11,40 +11,52 @@ public enum Breakpoint: String, Sendable {
 
     /// Targets compact viewports, typically narrow mobile screens.
     ///
-    /// Equivalent to a small-width CSS media query (e.g. `@media (max-width: ...)`).
+    /// CSS equivalent: `@media (max-width: 768px)`.
     case compact
 
     /// Targets wide mobile or small tablet viewports.
     ///
-    /// Equivalent to a CSS media query for slightly wider viewports.
+    /// CSS equivalent: `@media (min-width: 769px) and (max-width: 1024px)`.
     case wide
 
-    /// Targets tablet-sized viewports.
+    /// Targets tablet-sized viewports and below.
     ///
-    /// Equivalent to a CSS media query for mid-range viewport widths.
+    /// CSS equivalent: `@media (max-width: 1024px)`.
     case tablet
 
-    /// Targets large tablet or small desktop viewports.
+    /// Targets large tablet or small desktop viewports and above.
     ///
-    /// Equivalent to a CSS media query for larger viewport widths.
+    /// CSS equivalent: `@media (min-width: 1025px)`.
     case large
 
-    /// Targets standard desktop viewports.
+    /// Targets standard desktop viewports and above.
     ///
-    /// Equivalent to a CSS media query for typical desktop viewport widths.
+    /// CSS equivalent: `@media (min-width: 1280px)`.
     case desktop
 
     /// Targets very wide or cinema-display viewports.
     ///
-    /// Equivalent to a CSS media query for extra-large viewport widths.
+    /// CSS equivalent: `@media (min-width: 1920px)`.
     case cinema
+
+    /// The CSS media query condition for this breakpoint.
+    public var mediaQuery: String {
+        switch self {
+        case .compact: "max-width: 768px"
+        case .wide: "min-width: 769px) and (max-width: 1024px"
+        case .tablet: "max-width: 1024px"
+        case .large: "min-width: 1025px"
+        case .desktop: "min-width: 1280px"
+        case .cinema: "min-width: 1920px"
+        }
+    }
 }
 
-/// A modifier that applies a transformed version of a node at a specific viewport breakpoint.
+/// A modifier that applies CSS overrides at a specific viewport breakpoint.
 ///
-/// `BreakpointModifier` wraps a breakpoint and a transformed node, enabling Score's
-/// rendering engine to emit `@media` queries that activate the contained styles only
-/// when the viewport matches the specified breakpoint.
+/// `BreakpointModifier` stores a breakpoint and a set of modifier overrides.
+/// The CSS collector emits the overrides inside an `@media` query that
+/// activates only when the viewport matches the specified breakpoint.
 ///
 /// ### Example
 ///
@@ -58,22 +70,22 @@ public enum Breakpoint: String, Sendable {
 /// ### CSS Mapping
 ///
 /// Maps to a CSS `@media` width query wrapping the modified styles.
-public struct BreakpointModifier<Content: Node>: ModifierValue {
+public struct BreakpointModifier: ModifierValue {
 
     /// The viewport breakpoint at which the contained styles become active.
     public let breakpoint: Breakpoint
 
-    /// The transformed node whose styles are applied at the breakpoint.
-    public let content: Content
+    /// The CSS modifier overrides to apply at this breakpoint.
+    public let overrides: [any ModifierValue]
 
     /// Creates a breakpoint modifier.
     ///
     /// - Parameters:
     ///   - breakpoint: The viewport breakpoint to target.
-    ///   - content: The transformed node to render at the breakpoint.
-    public init(_ breakpoint: Breakpoint, content: Content) {
+    ///   - overrides: The modifier values to apply at the breakpoint.
+    public init(_ breakpoint: Breakpoint, overrides: [any ModifierValue]) {
         self.breakpoint = breakpoint
-        self.content = content
+        self.overrides = overrides
     }
 }
 
@@ -196,8 +208,8 @@ extension Node {
     ///
     /// - Parameter transform: A closure that receives the node and returns its modified form.
     /// - Returns: A modified node that activates the transformation at the compact breakpoint.
-    public func compact<Modified: Node>(@NodeBuilder _ transform: (Self) -> Modified) -> ModifiedNode<Self> {
-        ModifiedNode(content: self, modifiers: [BreakpointModifier(.compact, content: transform(self))])
+    public func compact(@NodeBuilder _ transform: (Self) -> some Node) -> ModifiedNode<Self> {
+        breakpointModified(.compact, transform)
     }
 
     /// Applies a transformed version of the node when the viewport matches the wide breakpoint.
@@ -217,8 +229,8 @@ extension Node {
     ///
     /// - Parameter transform: A closure that receives the node and returns its modified form.
     /// - Returns: A modified node that activates the transformation at the wide breakpoint.
-    public func wide<Modified: Node>(@NodeBuilder _ transform: (Self) -> Modified) -> ModifiedNode<Self> {
-        ModifiedNode(content: self, modifiers: [BreakpointModifier(.wide, content: transform(self))])
+    public func wide(@NodeBuilder _ transform: (Self) -> some Node) -> ModifiedNode<Self> {
+        breakpointModified(.wide, transform)
     }
 
     /// Applies a transformed version of the node when the viewport matches the tablet breakpoint.
@@ -238,8 +250,8 @@ extension Node {
     ///
     /// - Parameter transform: A closure that receives the node and returns its modified form.
     /// - Returns: A modified node that activates the transformation at the tablet breakpoint.
-    public func tablet<Modified: Node>(@NodeBuilder _ transform: (Self) -> Modified) -> ModifiedNode<Self> {
-        ModifiedNode(content: self, modifiers: [BreakpointModifier(.tablet, content: transform(self))])
+    public func tablet(@NodeBuilder _ transform: (Self) -> some Node) -> ModifiedNode<Self> {
+        breakpointModified(.tablet, transform)
     }
 
     /// Applies a transformed version of the node when the viewport matches the large breakpoint.
@@ -259,8 +271,8 @@ extension Node {
     ///
     /// - Parameter transform: A closure that receives the node and returns its modified form.
     /// - Returns: A modified node that activates the transformation at the large breakpoint.
-    public func large<Modified: Node>(@NodeBuilder _ transform: (Self) -> Modified) -> ModifiedNode<Self> {
-        ModifiedNode(content: self, modifiers: [BreakpointModifier(.large, content: transform(self))])
+    public func large(@NodeBuilder _ transform: (Self) -> some Node) -> ModifiedNode<Self> {
+        breakpointModified(.large, transform)
     }
 
     /// Applies a transformed version of the node when the viewport matches the desktop breakpoint.
@@ -280,8 +292,8 @@ extension Node {
     ///
     /// - Parameter transform: A closure that receives the node and returns its modified form.
     /// - Returns: A modified node that activates the transformation at the desktop breakpoint.
-    public func desktop<Modified: Node>(@NodeBuilder _ transform: (Self) -> Modified) -> ModifiedNode<Self> {
-        ModifiedNode(content: self, modifiers: [BreakpointModifier(.desktop, content: transform(self))])
+    public func desktop(@NodeBuilder _ transform: (Self) -> some Node) -> ModifiedNode<Self> {
+        breakpointModified(.desktop, transform)
     }
 
     /// Applies a transformed version of the node when the viewport matches the cinema breakpoint.
@@ -301,8 +313,8 @@ extension Node {
     ///
     /// - Parameter transform: A closure that receives the node and returns its modified form.
     /// - Returns: A modified node that activates the transformation at the cinema breakpoint.
-    public func cinema<Modified: Node>(@NodeBuilder _ transform: (Self) -> Modified) -> ModifiedNode<Self> {
-        ModifiedNode(content: self, modifiers: [BreakpointModifier(.cinema, content: transform(self))])
+    public func cinema(@NodeBuilder _ transform: (Self) -> some Node) -> ModifiedNode<Self> {
+        breakpointModified(.cinema, transform)
     }
 
     /// Applies a transformed version of the node when the user's system is in light mode.
@@ -373,5 +385,14 @@ extension Node {
     /// - Returns: A modified node that activates the transformation under the named theme.
     public func theme<Modified: Node>(_ name: String, @NodeBuilder _ transform: (Self) -> Modified) -> ModifiedNode<Self> {
         ModifiedNode(content: self, modifiers: [NamedThemeModifier(name, content: transform(self))])
+    }
+
+    private func breakpointModified(_ breakpoint: Breakpoint, @NodeBuilder _ transform: (Self) -> some Node) -> ModifiedNode<Self> {
+        let transformed = transform(self)
+        let overrides = VariantModifier.extractOverrides(
+            from: transformed,
+            originalModifierCount: VariantModifier.modifierCount(in: self)
+        )
+        return ModifiedNode(content: self, modifiers: [BreakpointModifier(breakpoint, overrides: overrides)])
     }
 }

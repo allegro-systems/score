@@ -11,15 +11,12 @@ extension TransformModifier: CSSRepresentable {
 
 /// Enables CSS emission for `TransitionModifier` modifiers.
 extension TransitionModifier: CSSRepresentable {
-    /// Converts this modifier into one or more CSS declarations.
+    /// Converts this modifier into a single `transition` shorthand declaration.
     func cssDeclarations() -> [CSSDeclaration] {
-        var result: [CSSDeclaration] = [
-            .init(property: "transition-property", value: property.rawValue),
-            .init(property: "transition-duration", value: CSSEmitter.seconds(duration)),
-        ]
-        if let v = timing { result.append(.init(property: "transition-timing-function", value: v.rawValue)) }
-        if let v = delay { result.append(.init(property: "transition-delay", value: CSSEmitter.seconds(v))) }
-        return result
+        var parts = [property.rawValue, CSSEmitter.seconds(duration)]
+        if let v = timing { parts.append(v.rawValue) }
+        if let v = delay { parts.append(CSSEmitter.seconds(v)) }
+        return [.init(property: "transition", value: parts.joined(separator: " "))]
     }
 }
 

@@ -88,7 +88,7 @@ import Testing
 }
 
 @Test func breakpointAndSchemeModifierInitializersStoreState() {
-    let bp = BreakpointModifier(.desktop, content: TextNode("d"))
+    let bp = BreakpointModifier(.desktop, overrides: [])
     #expect(bp.breakpoint == .desktop)
 
     let cs = ColorSchemeModifier(.dark, content: TextNode("x"))
@@ -102,27 +102,27 @@ import Testing
     let base = TextNode("x")
 
     let compact = base.compact { $0 }
-    let compactMod = compact.modifiers[0] as? BreakpointModifier<TextNode>
+    let compactMod = compact.modifiers[0] as? BreakpointModifier
     #expect(compactMod?.breakpoint == .compact)
 
     let wide = base.wide { $0 }
-    let wideMod = wide.modifiers[0] as? BreakpointModifier<TextNode>
+    let wideMod = wide.modifiers[0] as? BreakpointModifier
     #expect(wideMod?.breakpoint == .wide)
 
     let tablet = base.tablet { $0 }
-    let tabletMod = tablet.modifiers[0] as? BreakpointModifier<TextNode>
+    let tabletMod = tablet.modifiers[0] as? BreakpointModifier
     #expect(tabletMod?.breakpoint == .tablet)
 
     let large = base.large { $0 }
-    let largeMod = large.modifiers[0] as? BreakpointModifier<TextNode>
+    let largeMod = large.modifiers[0] as? BreakpointModifier
     #expect(largeMod?.breakpoint == .large)
 
     let desktop = base.desktop { $0 }
-    let desktopMod = desktop.modifiers[0] as? BreakpointModifier<TextNode>
+    let desktopMod = desktop.modifiers[0] as? BreakpointModifier
     #expect(desktopMod?.breakpoint == .desktop)
 
     let cinema = base.cinema { $0 }
-    let cinemaMod = cinema.modifiers[0] as? BreakpointModifier<TextNode>
+    let cinemaMod = cinema.modifiers[0] as? BreakpointModifier
     #expect(cinemaMod?.breakpoint == .cinema)
 
     let light = base.light { $0 }

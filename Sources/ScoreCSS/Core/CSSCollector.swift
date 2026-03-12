@@ -93,6 +93,7 @@ public struct CSSCollector: Sendable {
         let componentScope: String?
         let htmlTag: String?
         let variantName: String?
+        let mediaQuery: String?
     }
 
     private var entries: [Entry] = []
@@ -149,8 +150,9 @@ public struct CSSCollector: Sendable {
         var componentBlocks: [String: String] = [:]
 
         for (scope, groupEntries) in componentGroups {
-            let baseEntries = groupEntries.filter { $0.variantName == nil }
+            let baseEntries = groupEntries.filter { $0.variantName == nil && $0.mediaQuery == nil }
             let variantEntries = groupEntries.filter { $0.variantName != nil }
+            let mediaEntries = groupEntries.filter { $0.mediaQuery != nil }
 
             var tagDeclarationKeys: [String: Set<String>] = [:]
             for entry in baseEntries where !entry.declarations.isEmpty {
@@ -232,13 +234,16 @@ public struct CSSCollector: Sendable {
                 blockCSS.append("  }\n")
             }
 
+            emitMediaEntries(mediaEntries, indent: "  ", into: &blockCSS)
+
             blockCSS.append("}\n")
             componentBlocks[scope] = blockCSS
             css.append(blockCSS)
         }
 
-        let flatBase = flatEntries.filter { $0.variantName == nil }
+        let flatBase = flatEntries.filter { $0.variantName == nil && $0.mediaQuery == nil }
         let flatVariants = flatEntries.filter { $0.variantName != nil }
+        let flatMedia = flatEntries.filter { $0.mediaQuery != nil }
 
         var flatCSS = ""
         var flatTagOrdinals: [String: Int] = [:]
@@ -281,6 +286,11 @@ public struct CSSCollector: Sendable {
                 css.append(rule)
             }
         }
+
+        var flatMediaCSS = ""
+        emitMediaEntries(flatMedia, indent: "", into: &flatMediaCSS)
+        flatCSS.append(flatMediaCSS)
+        css.append(flatMediaCSS)
 
         return StylesheetResult(
             css: css,
@@ -360,12 +370,15 @@ public struct CSSCollector: Sendable {
         var baseModifiers: [any ModifierValue] = []
         var pseudoModifiers: [PseudoClassModifier] = []
         var variantModifiers: [VariantModifier] = []
+        var breakpointModifiers: [BreakpointModifier] = []
 
         for modifier in modifiers {
             if let pseudo = modifier as? PseudoClassModifier {
                 pseudoModifiers.append(pseudo)
             } else if let variant = modifier as? VariantModifier {
                 variantModifiers.append(variant)
+            } else if let bp = modifier as? BreakpointModifier {
+                breakpointModifiers.append(bp)
             } else {
                 baseModifiers.append(modifier)
             }
@@ -375,6 +388,7 @@ public struct CSSCollector: Sendable {
         for modifier in baseModifiers {
             declarations.append(contentsOf: CSSEmitter.declarations(for: modifier))
         }
+        declarations = Self.mergeTransitions(declarations)
 
         var pseudoEntries: [PseudoEntry] = []
         for pseudo in pseudoModifiers {
@@ -403,13 +417,18 @@ public struct CSSCollector: Sendable {
                         pseudoEntries: pseudoEntries,
                         componentScope: scope,
                         htmlTag: htmlTag,
-                        variantName: nil
+                        variantName: nil,
+                        mediaQuery: nil
                     ))
             }
         }
 
         for variant in variantModifiers {
             registerVariantOverrides(variant, htmlTag: htmlTag)
+        }
+
+        for bp in breakpointModifiers {
+            registerBreakpointOverrides(bp, htmlTag: htmlTag)
         }
     }
 
@@ -444,11 +463,88 @@ public struct CSSCollector: Sendable {
                 pseudoEntries: pseudoEntries,
                 componentScope: scope,
                 htmlTag: htmlTag,
-                variantName: variant.name
+                variantName: variant.name,
+                mediaQuery: nil
+            ))
+    }
+
+    private mutating func registerBreakpointOverrides(_ bp: BreakpointModifier, htmlTag: String?) {
+        var declarations: [CSSDeclaration] = []
+        var pseudoEntries: [PseudoEntry] = []
+
+        for modifier in bp.overrides {
+            if let pseudo = modifier as? PseudoClassModifier {
+                let decls = pseudo.styles.map { $0.cssDeclaration() }
+                if !decls.isEmpty {
+                    pseudoEntries.append(PseudoEntry(pseudoClass: pseudo.pseudoClass, declarations: decls))
+                }
+            } else {
+                declarations.append(contentsOf: CSSEmitter.declarations(for: modifier))
+            }
+        }
+        declarations = Self.mergeTransitions(declarations)
+
+        guard !declarations.isEmpty || !pseudoEntries.isEmpty else { return }
+
+        let declarationKey = declarations.isEmpty ? "" : CSSDeclaration.lookupKey(for: declarations)
+        let query = bp.breakpoint.mediaQuery
+        let scope = componentStack.last
+        let dedupKey = "media:\(query)|\(scope ?? "")|\(htmlTag ?? "")|\(declarationKey)"
+
+        guard !seenEntries.contains(dedupKey) else { return }
+        seenEntries.insert(dedupKey)
+
+        entries.append(
+            Entry(
+                declarations: declarations,
+                declarationKey: declarationKey,
+                pseudoEntries: pseudoEntries,
+                componentScope: scope,
+                htmlTag: htmlTag,
+                variantName: nil,
+                mediaQuery: query
             ))
     }
 
     // MARK: - Helpers
+
+    private func emitMediaEntries(_ entries: [Entry], indent: String, into css: inout String) {
+        var mediaGroups: [(query: String, entries: [Entry])] = []
+        var mediaIndex: [String: Int] = [:]
+        for entry in entries {
+            guard let query = entry.mediaQuery else { continue }
+            if let idx = mediaIndex[query] {
+                mediaGroups[idx].entries.append(entry)
+            } else {
+                mediaIndex[query] = mediaGroups.count
+                mediaGroups.append((query, [entry]))
+            }
+        }
+        for (query, mEntries) in mediaGroups {
+            css.append("\(indent)@media (\(query)) {\n")
+            for entry in mEntries {
+                if !entry.declarations.isEmpty {
+                    let decls = renderDeclarations(entry.declarations, indent: "\(indent)      ")
+                    if let tag = entry.htmlTag {
+                        css.append("\(indent)    \(tag) {\n\(decls)")
+                        emitNestedPseudoRules(entry.pseudoEntries, indent: "\(indent)      ", into: &css)
+                        css.append("\n\(indent)    }\n")
+                    } else {
+                        css.append(decls)
+                        emitNestedPseudoRules(entry.pseudoEntries, indent: "\(indent)      ", into: &css)
+                        css.append("\n")
+                    }
+                } else if !entry.pseudoEntries.isEmpty {
+                    if let tag = entry.htmlTag {
+                        css.append("\(indent)    \(tag) {\n")
+                        emitNestedPseudoRules(entry.pseudoEntries, indent: "\(indent)      ", into: &css)
+                        css.append("\n\(indent)    }\n")
+                    }
+                }
+            }
+            css.append("\(indent)}\n")
+        }
+    }
 
     private func emitNestedPseudoRules(_ pseudoEntries: [PseudoEntry], indent: String, into css: inout String) {
         for pseudo in pseudoEntries {
@@ -480,6 +576,25 @@ public struct CSSCollector: Sendable {
         let base = pageName ?? "scope"
         let name = "\(base)-\(tagName)"
         return ordinal > 1 ? "\(name)-\(ordinal)" : name
+    }
+
+    /// Merges multiple `transition` shorthand declarations into a single
+    /// comma-separated declaration, preventing later values from overwriting
+    /// earlier ones.
+    static func mergeTransitions(_ declarations: [CSSDeclaration]) -> [CSSDeclaration] {
+        var transitionValues: [String] = []
+        var result: [CSSDeclaration] = []
+        for decl in declarations {
+            if decl.property == "transition" {
+                transitionValues.append(decl.value)
+            } else {
+                result.append(decl)
+            }
+        }
+        if !transitionValues.isEmpty {
+            result.append(CSSDeclaration(property: "transition", value: transitionValues.joined(separator: ", ")))
+        }
+        return result
     }
 
     /// Generic container tags that always receive class names instead of

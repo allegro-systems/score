@@ -5,8 +5,8 @@ public struct CSSNaming: Sendable {
 
     /// Converts a Swift type name to a kebab-case CSS class name.
     ///
-    /// Strips common suffixes (`Page`, `Component`, `Element`, `Layout`,
-    /// `View`) and converts `UpperCamelCase` to `kebab-case`.
+    /// Strips common suffixes (`Page`, `Component`, `Layout`, `View`) and
+    /// converts `UpperCamelCase` to `kebab-case`.
     ///
     /// ```swift
     /// CSSNaming.className(from: "FeatureCard")   // "feature-card"
@@ -24,7 +24,7 @@ public struct CSSNaming: Sendable {
         }
 
         // Strip common suffixes
-        for suffix in ["Page", "Component", "Element", "Layout", "View"] {
+        for suffix in ["Page", "Component", "Layout", "View"] {
             if name.hasSuffix(suffix) && name.count > suffix.count {
                 name = String(name.dropLast(suffix.count))
                 break

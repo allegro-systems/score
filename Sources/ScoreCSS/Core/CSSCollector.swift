@@ -92,6 +92,7 @@ public struct CSSCollector: Sendable {
         let pseudoEntries: [PseudoEntry]
         let componentScope: String?
         let htmlTag: String?
+        let variantName: String?
     }
 
     private var entries: [Entry] = []
@@ -148,8 +149,11 @@ public struct CSSCollector: Sendable {
         var componentBlocks: [String: String] = [:]
 
         for (scope, groupEntries) in componentGroups {
+            let baseEntries = groupEntries.filter { $0.variantName == nil }
+            let variantEntries = groupEntries.filter { $0.variantName != nil }
+
             var tagDeclarationKeys: [String: Set<String>] = [:]
-            for entry in groupEntries where !entry.declarations.isEmpty {
+            for entry in baseEntries where !entry.declarations.isEmpty {
                 guard let tag = entry.htmlTag else { continue }
                 tagDeclarationKeys[tag, default: []].insert(entry.declarationKey)
             }
@@ -160,7 +164,7 @@ public struct CSSCollector: Sendable {
 
             var tagOrdinals: [String: Int] = [:]
 
-            for entry in groupEntries {
+            for entry in baseEntries {
                 if !entry.declarations.isEmpty {
                     let decls = renderDeclarations(entry.declarations, indent: "    ")
 
@@ -191,14 +195,54 @@ public struct CSSCollector: Sendable {
                 }
             }
 
+            var variantGroups: [(name: String, entries: [Entry])] = []
+            var variantIndex: [String: Int] = [:]
+            for entry in variantEntries {
+                guard let name = entry.variantName else { continue }
+                if let idx = variantIndex[name] {
+                    variantGroups[idx].entries.append(entry)
+                } else {
+                    variantIndex[name] = variantGroups.count
+                    variantGroups.append((name, [entry]))
+                }
+            }
+
+            for (variantName, vEntries) in variantGroups {
+                blockCSS.append("  &[data-variant~=\"\(variantName)\"] {\n")
+                for entry in vEntries {
+                    if !entry.declarations.isEmpty {
+                        let decls = renderDeclarations(entry.declarations, indent: "      ")
+                        if let tag = entry.htmlTag {
+                            blockCSS.append("    \(tag) {\n\(decls)")
+                            emitNestedPseudoRules(entry.pseudoEntries, indent: "      ", into: &blockCSS)
+                            blockCSS.append("\n    }\n")
+                        } else {
+                            blockCSS.append(decls)
+                            emitNestedPseudoRules(entry.pseudoEntries, indent: "      ", into: &blockCSS)
+                            blockCSS.append("\n")
+                        }
+                    } else if !entry.pseudoEntries.isEmpty {
+                        if let tag = entry.htmlTag {
+                            blockCSS.append("    \(tag) {\n")
+                            emitNestedPseudoRules(entry.pseudoEntries, indent: "      ", into: &blockCSS)
+                            blockCSS.append("\n    }\n")
+                        }
+                    }
+                }
+                blockCSS.append("  }\n")
+            }
+
             blockCSS.append("}\n")
             componentBlocks[scope] = blockCSS
             css.append(blockCSS)
         }
 
+        let flatBase = flatEntries.filter { $0.variantName == nil }
+        let flatVariants = flatEntries.filter { $0.variantName != nil }
+
         var flatCSS = ""
         var flatTagOrdinals: [String: Int] = [:]
-        for entry in flatEntries {
+        for entry in flatBase {
             let tagKey = entry.htmlTag ?? "div"
             let ordinal = (flatTagOrdinals[tagKey] ?? 0) + 1
             flatTagOrdinals[tagKey] = ordinal
@@ -219,6 +263,18 @@ public struct CSSCollector: Sendable {
                 classLookup[entry.declarationKey] = className
             } else if !entry.pseudoEntries.isEmpty {
                 var rule = ".\(className) {\n"
+                emitNestedPseudoRules(entry.pseudoEntries, indent: "  ", into: &rule)
+                rule.append("\n}\n")
+                flatCSS.append(rule)
+                css.append(rule)
+            }
+        }
+
+        for entry in flatVariants {
+            guard let variantName = entry.variantName else { continue }
+            if !entry.declarations.isEmpty {
+                let decls = renderDeclarations(entry.declarations, indent: "  ")
+                var rule = "[data-variant~=\"\(variantName)\"] {\n\(decls)"
                 emitNestedPseudoRules(entry.pseudoEntries, indent: "  ", into: &rule)
                 rule.append("\n}\n")
                 flatCSS.append(rule)
@@ -303,10 +359,13 @@ public struct CSSCollector: Sendable {
     private mutating func registerModifiers(_ modifiers: [any ModifierValue], htmlTag: String?) {
         var baseModifiers: [any ModifierValue] = []
         var pseudoModifiers: [PseudoClassModifier] = []
+        var variantModifiers: [VariantModifier] = []
 
         for modifier in modifiers {
             if let pseudo = modifier as? PseudoClassModifier {
                 pseudoModifiers.append(pseudo)
+            } else if let variant = modifier as? VariantModifier {
+                variantModifiers.append(variant)
             } else {
                 baseModifiers.append(modifier)
             }
@@ -325,16 +384,55 @@ public struct CSSCollector: Sendable {
             }
         }
 
+        if !declarations.isEmpty || !pseudoEntries.isEmpty {
+            let declarationKey = declarations.isEmpty ? "" : CSSDeclaration.lookupKey(for: declarations)
+            let pseudoKeyParts = pseudoEntries.map {
+                "\($0.pseudoClass.rawValue):\(CSSDeclaration.lookupKey(for: $0.declarations))"
+            }
+            let fullKey = ([declarationKey] + pseudoKeyParts).joined(separator: "|")
+
+            let scope = componentStack.last
+            let dedupKey = "\(scope ?? "")|\(htmlTag ?? "")|\(fullKey)"
+
+            if !seenEntries.contains(dedupKey) {
+                seenEntries.insert(dedupKey)
+                entries.append(
+                    Entry(
+                        declarations: declarations,
+                        declarationKey: declarationKey,
+                        pseudoEntries: pseudoEntries,
+                        componentScope: scope,
+                        htmlTag: htmlTag,
+                        variantName: nil
+                    ))
+            }
+        }
+
+        for variant in variantModifiers {
+            registerVariantOverrides(variant, htmlTag: htmlTag)
+        }
+    }
+
+    private mutating func registerVariantOverrides(_ variant: VariantModifier, htmlTag: String?) {
+        var declarations: [CSSDeclaration] = []
+        var pseudoEntries: [PseudoEntry] = []
+
+        for modifier in variant.overrides {
+            if let pseudo = modifier as? PseudoClassModifier {
+                let decls = pseudo.styles.map { $0.cssDeclaration() }
+                if !decls.isEmpty {
+                    pseudoEntries.append(PseudoEntry(pseudoClass: pseudo.pseudoClass, declarations: decls))
+                }
+            } else {
+                declarations.append(contentsOf: CSSEmitter.declarations(for: modifier))
+            }
+        }
+
         guard !declarations.isEmpty || !pseudoEntries.isEmpty else { return }
 
         let declarationKey = declarations.isEmpty ? "" : CSSDeclaration.lookupKey(for: declarations)
-        let pseudoKeyParts = pseudoEntries.map {
-            "\($0.pseudoClass.rawValue):\(CSSDeclaration.lookupKey(for: $0.declarations))"
-        }
-        let fullKey = ([declarationKey] + pseudoKeyParts).joined(separator: "|")
-
         let scope = componentStack.last
-        let dedupKey = "\(scope ?? "")|\(htmlTag ?? "")|\(fullKey)"
+        let dedupKey = "variant:\(variant.name)|\(scope ?? "")|\(htmlTag ?? "")|\(declarationKey)"
 
         guard !seenEntries.contains(dedupKey) else { return }
         seenEntries.insert(dedupKey)
@@ -345,7 +443,8 @@ public struct CSSCollector: Sendable {
                 declarationKey: declarationKey,
                 pseudoEntries: pseudoEntries,
                 componentScope: scope,
-                htmlTag: htmlTag
+                htmlTag: htmlTag,
+                variantName: variant.name
             ))
     }
 

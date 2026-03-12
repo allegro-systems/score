@@ -1,5 +1,6 @@
 import Testing
 
+@testable import ScoreCore
 @testable import ScoreCSS
 
 // MARK: - CSSDeclaration
@@ -567,6 +568,103 @@ import Testing
     #expect(result.css.contains("margin: 3px"))
     #expect(result.css.contains("opacity: 0.5"))
     #expect(result.css.contains("padding: 4px"))
+}
+
+// MARK: - Variant Modifier
+
+private struct CardComponent: Component {
+    var body: some Node {
+        Article {
+            Text(verbatim: "Card")
+        }
+        .padding(16)
+        .variant("compact") { $0.padding(8) }
+    }
+}
+
+@Test func variantModifierExtractsOverrides() {
+    let base = Stack { TextNode("hi") }.padding(16)
+    let transformed = base.padding(8)
+    let overrides = VariantModifier.extractOverrides(
+        from: transformed,
+        originalModifierCount: VariantModifier.modifierCount(in: base)
+    )
+    #expect(overrides.count == 1)
+    let decls = CSSEmitter.declarations(for: overrides[0])
+    #expect(decls.contains(CSSDeclaration(property: "padding", value: "8px")))
+}
+
+@Test func variantModifierCountsModifiers() {
+    let node = Stack { TextNode("a") }.padding(8).margin(4)
+    #expect(VariantModifier.modifierCount(in: node) == 2)
+}
+
+@Test func variantModifierProducesNoBaseDeclarations() {
+    let decls = CSSEmitter.declarations(for: VariantModifier(name: "test", overrides: []))
+    #expect(decls.isEmpty)
+}
+
+@Test func collectorEmitsVariantCSS() {
+    let node = Stack { TextNode("hi") }
+        .padding(16)
+        .variant("compact") { $0.padding(8) }
+
+    var collector = CSSCollector()
+    collector.pageName = "test"
+    collector.collect(from: node)
+    let result = collector.renderStylesheet()
+    #expect(result.css.contains("padding: 16px"))
+    #expect(result.css.contains("padding: 8px"))
+    #expect(result.css.contains("data-variant~=\"compact\""))
+}
+
+@Test func collectorEmitsVariantInsideComponentScope() {
+    var collector = CSSCollector()
+    collector.collect(from: CardComponent())
+    let result = collector.renderStylesheet()
+    #expect(result.css.contains(".card {"))
+    #expect(result.css.contains("padding: 16px"))
+    #expect(result.css.contains("data-variant~=\"compact\""))
+    #expect(result.css.contains("padding: 8px"))
+}
+
+@Test func collectorDeduplicatesIdenticalVariants() {
+    let node = Stack {
+        Stack { TextNode("a") }
+            .padding(16)
+            .variant("small") { $0.padding(8) }
+        Stack { TextNode("b") }
+            .padding(16)
+            .variant("small") { $0.padding(8) }
+    }
+
+    var collector = CSSCollector()
+    collector.collect(from: node)
+    let result = collector.renderStylesheet()
+    let occurrences = result.css.components(separatedBy: "data-variant~=\"small\"").count - 1
+    #expect(occurrences == 1)
+}
+
+@Test func variantWithMultipleOverrides() {
+    let node = Article { TextNode("hi") }
+        .padding(16)
+        .variant("dense") { $0.padding(4).margin(2) }
+
+    var collector = CSSCollector()
+    collector.pageName = "test"
+    collector.collect(from: node)
+    let result = collector.renderStylesheet()
+    #expect(result.css.contains("data-variant~=\"dense\""))
+    #expect(result.css.contains("padding: 4px"))
+    #expect(result.css.contains("margin: 2px"))
+}
+
+@Test func cssVariantProtocolUsesRawValue() {
+    enum Size: String, CSSVariant {
+        case small, large
+    }
+    #expect(Size.small.variantName == "small")
+    #expect(Size.large.variantName == "large")
 }
 
 @Test func boxSizingEmitterCoversContentAndBorderBox() {

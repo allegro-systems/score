@@ -82,6 +82,24 @@ public protocol Application: Sendable {
     /// ``Theme/fontFaces`` automatically generate `@font-face` declarations.
     /// Defaults to `"Resources"`.
     var resourcesDirectory: String { get }
+
+    /// Returns a node tree to render for the given error context.
+    ///
+    /// Override this method to provide a custom ``ErrorPage`` that replaces
+    /// the framework's default plain-text error responses. Return `nil`
+    /// to keep the default behavior.
+    ///
+    /// ```swift
+    /// func errorBody(for context: ErrorContext) -> (any Node)? {
+    ///     SiteErrorPage(context: context)
+    /// }
+    /// ```
+    ///
+    /// The framework calls this method:
+    /// - On the development server when a 404 occurs.
+    /// - On the development server for 500 errors in production mode.
+    /// - During static site generation to emit a `404.html` file.
+    func errorBody(for context: ErrorContext) -> (any Node)?
 }
 
 extension Application {
@@ -119,4 +137,7 @@ extension Application {
     ///
     /// Defaults to `"Resources"`.
     public var resourcesDirectory: String { "Resources" }
+
+    /// Returns `nil`, keeping the framework's default error responses.
+    public func errorBody(for context: ErrorContext) -> (any Node)? { nil }
 }

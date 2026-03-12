@@ -205,3 +205,39 @@ private struct ForEachEventPage: Page {
     #expect(bindings.count == 3)
     #expect(bindings.allSatisfy { $0.handler == "go" })
 }
+
+// MARK: - Component Scope Isolation
+
+private struct ToggleComponent: Component {
+    @State(persisted: .theme) var isDark = false
+    @Computed var icon: String { isDark ? "\u{2600}" : "\u{263E}" }
+
+    @Action
+    mutating func toggle() {
+        isDark.toggle()
+    }
+
+    var body: some Node {
+        Button { $icon }
+            .on(.click, action: "toggle")
+    }
+}
+
+private struct TogglePage: Page {
+    static let path = "/toggle"
+    var body: some Node {
+        ToggleComponent()
+    }
+}
+
+@Test func componentBindingsStayInScope() {
+    let result = JSEmitter.emitPageScript(page: TogglePage())
+    #expect(result.pageLevelJS.isEmpty, "No page-level JS should leak from component scope")
+    #expect(result.scopeBlocks.count == 1)
+    let scope = result.componentScopes[0]
+    #expect(scope.states.count == 1)
+    #expect(scope.computeds.count == 1)
+    #expect(scope.actions.count == 1)
+    #expect(scope.bindings.count == 1)
+    #expect(scope.reactiveBindings.count == 1)
+}

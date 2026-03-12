@@ -76,6 +76,8 @@ public struct PageRenderer: Sendable {
             nestedKeys: stylesheetResult.nestedKeys
         )
 
+        let environment = Environment.current
+
         var renderer = HTMLRenderer(classInjector: { modifiers in
             classMap.className(for: modifiers)
         })
@@ -85,13 +87,14 @@ public struct PageRenderer: Sendable {
             }
             return nil
         }
+        renderer.isDevMode = environment == .development
         let bodyHTML = renderer.render(page.body)
 
         // Emit client-side JavaScript for reactive bindings
         let jsResult = JSEmitter.emitPageScript(page: page)
 
         // Use external script links when provided, otherwise inline
-        let inlineScripts: [String]?
+        var inlineScripts: [String]?
         let resolvedScriptLinks: [String]
         if !scriptLinks.isEmpty && !jsResult.pageJS.isEmpty {
             inlineScripts = nil
@@ -109,6 +112,27 @@ public struct PageRenderer: Sendable {
             resolvedScriptLinks = []
         }
 
+        // Inject dev tools metadata and script tag in development mode
+        var preScripts: [String] = []
+        if environment == .development {
+            let meta = DevToolsInjector.metadataScript(
+                pageStates: jsResult.pageStates,
+                pageComputeds: jsResult.pageComputeds,
+                pageActions: jsResult.pageActions,
+                componentScopes: jsResult.componentScopes,
+                environment: environment
+            )
+            if !meta.isEmpty {
+                preScripts.append(meta)
+            }
+            let devTag = DevToolsInjector.scriptTag(environment: environment)
+            if inlineScripts != nil {
+                inlineScripts?.append(devTag)
+            } else {
+                inlineScripts = [devTag]
+            }
+        }
+
         let parts = DocumentAssembler.Parts(
             title: title,
             description: description,
@@ -121,7 +145,8 @@ public struct PageRenderer: Sendable {
             canonicalURL: canonicalURL,
             ogSiteName: ogSiteName,
             themeNames: theme.map { Array($0.named.keys) } ?? [],
-            scriptLinks: resolvedScriptLinks
+            scriptLinks: resolvedScriptLinks,
+            preScripts: preScripts
         )
 
         return RenderResult(
@@ -135,6 +160,77 @@ public struct PageRenderer: Sendable {
             jsScopeBlocks: jsResult.scopeBlocks,
             needsRuntime: jsResult.needsRuntime
         )
+    }
+
+    /// Renders an error page body into a complete HTML document.
+    ///
+    /// Uses application-level metadata and theme to produce a styled error
+    /// page with inline CSS. Unlike ``render(page:metadata:theme:cssLinks:scriptLinks:)``,
+    /// this method inlines all styles since error pages are standalone.
+    ///
+    /// - Parameters:
+    ///   - body: The node tree to render (typically from ``Application/errorBody(for:)``).
+    ///   - metadata: Application-level metadata for title and description.
+    ///   - theme: The active theme.
+    /// - Returns: A complete HTML document string.
+    public static func renderErrorBody(
+        _ body: some Node,
+        metadata: (any Metadata)?,
+        theme: (any Theme)?
+    ) -> String {
+        let title = metadata?.title ?? metadata?.site
+        let site = metadata?.site
+
+        var collector = CSSCollector()
+        collector.pageName = "error"
+        collector.collect(from: body)
+        let stylesheetResult = collector.renderStylesheet()
+
+        let classMap = ClassMap(
+            classLookup: stylesheetResult.classLookup,
+            nestedKeys: stylesheetResult.nestedKeys
+        )
+
+        var renderer = HTMLRenderer(classInjector: { modifiers in
+            classMap.className(for: modifiers)
+        })
+        renderer.componentClassInjector = { node in
+            if node is any Component {
+                return CSSNaming.className(from: String(describing: type(of: node)))
+            }
+            return nil
+        }
+        let bodyHTML = renderer.render(body)
+
+        let themeCSS = theme.map { ThemeCSSEmitter.emit($0) } ?? ""
+        var inlineCSS = themeCSS
+        if !stylesheetResult.css.isEmpty {
+            inlineCSS.append("\n")
+            inlineCSS.append(stylesheetResult.css)
+        }
+
+        var inlineStyles: String?
+        if !inlineCSS.isEmpty {
+            inlineStyles = "<style>\(inlineCSS)</style>"
+        }
+
+        let parts = DocumentAssembler.Parts(
+            title: title,
+            bodyHTML: bodyHTML,
+            activeTheme: theme?.name,
+            ogSiteName: site,
+            themeNames: theme.map { Array($0.named.keys) } ?? []
+        )
+
+        var html = DocumentAssembler.assemble(parts)
+        if let inlineStyles {
+            html = html.replacingOccurrences(
+                of: "</head>",
+                with: "\(inlineStyles)\n</head>"
+            )
+        }
+
+        return html
     }
 
 }

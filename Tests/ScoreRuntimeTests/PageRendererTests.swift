@@ -61,7 +61,7 @@ private struct StyledPage: Page {
 @Test func renderSimplePage() {
     let result = PageRenderer.render(page: SimplePage(), metadata: nil, theme: nil)
     #expect(result.html.contains("<!DOCTYPE html>"))
-    #expect(result.html.contains("<h1>Hello</h1>"))
+    #expect(result.html.contains("<h1") && result.html.contains(">Hello</h1>"))
 }
 
 @Test func renderPageWithSiteMetadata() {

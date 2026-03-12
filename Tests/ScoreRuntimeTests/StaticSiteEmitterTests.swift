@@ -155,6 +155,138 @@ private struct EmptyEmitterApp: Application {
     #expect(html.contains("global.css"))
 }
 
+private struct EmitterAppWithBaseURL: Application {
+    var pages: [any Page] { [EmitterHomePage(), EmitterAboutPage()] }
+    var controllers: [any Controller] { [] }
+    var theme: (any Theme)? { MinimalEmitterTheme() }
+    var metadata: (any Metadata)? { SiteMetadata(baseURL: "https://example.com") }
+    var outputDirectory: String = ""
+
+    init() {}
+    init(outputDirectory: String) { self.outputDirectory = outputDirectory }
+}
+
+private struct StatusPage: Page {
+    static let path = "/404"
+    var body: some Node {
+        Heading(.one) { Text(verbatim: "Not Found") }
+    }
+}
+
+private struct EmitterAppWithStatusPage: Application {
+    var pages: [any Page] { [EmitterHomePage(), StatusPage()] }
+    var controllers: [any Controller] { [] }
+    var theme: (any Theme)? { MinimalEmitterTheme() }
+    var metadata: (any Metadata)? { SiteMetadata(baseURL: "https://example.com") }
+    var outputDirectory: String = ""
+
+    init() {}
+    init(outputDirectory: String) { self.outputDirectory = outputDirectory }
+}
+
+@Test func emitCreatesSitemapWhenBaseURLIsSet() throws {
+    let tempDir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("score-emitter-test-\(UUID().uuidString)")
+        .path
+    defer { try? FileManager.default.removeItem(atPath: tempDir) }
+
+    let app = EmitterAppWithBaseURL(outputDirectory: tempDir)
+    try StaticSiteEmitter.emit(application: app)
+
+    let sitemapPath = "\(tempDir)/sitemap.xml"
+    #expect(FileManager.default.fileExists(atPath: sitemapPath))
+
+    let xml = try String(contentsOfFile: sitemapPath, encoding: .utf8)
+    #expect(xml.contains("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">"))
+    #expect(xml.contains("<loc>https://example.com/</loc>"))
+    #expect(xml.contains("<loc>https://example.com/about</loc>"))
+}
+
+@Test func emitSkipsSitemapWithoutBaseURL() throws {
+    let tempDir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("score-emitter-test-\(UUID().uuidString)")
+        .path
+    defer { try? FileManager.default.removeItem(atPath: tempDir) }
+
+    let app = EmitterApp(outputDirectory: tempDir)
+    try StaticSiteEmitter.emit(application: app)
+
+    let sitemapPath = "\(tempDir)/sitemap.xml"
+    #expect(!FileManager.default.fileExists(atPath: sitemapPath))
+}
+
+@Test func emitExcludesStatusPagesFromSitemap() throws {
+    let tempDir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("score-emitter-test-\(UUID().uuidString)")
+        .path
+    defer { try? FileManager.default.removeItem(atPath: tempDir) }
+
+    let app = EmitterAppWithStatusPage(outputDirectory: tempDir)
+    try StaticSiteEmitter.emit(application: app)
+
+    let xml = try String(contentsOfFile: "\(tempDir)/sitemap.xml", encoding: .utf8)
+    #expect(xml.contains("<loc>https://example.com/</loc>"))
+    #expect(!xml.contains("404"))
+}
+
+private struct TestErrorPage: ErrorPage {
+    var context: ErrorContext
+
+    init(context: ErrorContext) {
+        self.context = context
+    }
+
+    var body: some Node {
+        Heading(.one) { Text(verbatim: "Error \(context.statusCode)") }
+        Paragraph { Text(verbatim: context.message) }
+    }
+}
+
+private struct EmitterAppWithErrorPage: Application {
+    var pages: [any Page] { [EmitterHomePage()] }
+    var controllers: [any Controller] { [] }
+    var theme: (any Theme)? { MinimalEmitterTheme() }
+    var metadata: (any Metadata)? { nil }
+    var outputDirectory: String = ""
+
+    init() {}
+    init(outputDirectory: String) { self.outputDirectory = outputDirectory }
+
+    func errorBody(for context: ErrorContext) -> (any Node)? {
+        TestErrorPage(context: context)
+    }
+}
+
+@Test func emitCreates404HTMLWhenErrorPageProvided() throws {
+    let tempDir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("score-emitter-test-\(UUID().uuidString)")
+        .path
+    defer { try? FileManager.default.removeItem(atPath: tempDir) }
+
+    let app = EmitterAppWithErrorPage(outputDirectory: tempDir)
+    try StaticSiteEmitter.emit(application: app)
+
+    let errorPath = "\(tempDir)/404.html"
+    #expect(FileManager.default.fileExists(atPath: errorPath))
+
+    let html = try String(contentsOfFile: errorPath, encoding: .utf8)
+    #expect(html.contains("Error 404"))
+    #expect(html.contains("Not Found"))
+}
+
+@Test func emitSkips404HTMLWithoutErrorPage() throws {
+    let tempDir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("score-emitter-test-\(UUID().uuidString)")
+        .path
+    defer { try? FileManager.default.removeItem(atPath: tempDir) }
+
+    let app = EmitterApp(outputDirectory: tempDir)
+    try StaticSiteEmitter.emit(application: app)
+
+    let errorPath = "\(tempDir)/404.html"
+    #expect(!FileManager.default.fileExists(atPath: errorPath))
+}
+
 @Test func missingResourceErrorDescription() {
     let error = StaticSiteEmitterError.missingResource("signal-polyfill")
     #expect(error.description.contains("signal-polyfill"))

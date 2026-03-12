@@ -92,28 +92,31 @@ struct BlockNodeView: Node {
         case .rawHTML(let html):
             Text { html }
         case .table(let headers, let rows):
-            Table {
-                TableHead {
-                    TableRow {
-                        ForEachNode(IndexedCollection(headers)) { indexed in
-                            TableHeaderCell {
-                                InlineNodesView(inlines: indexed.element)
+            Stack {
+                Table {
+                    TableHead {
+                        TableRow {
+                            ForEachNode(IndexedCollection(headers)) { indexed in
+                                TableHeaderCell {
+                                    InlineNodesView(inlines: indexed.element)
+                                }
                             }
                         }
                     }
-                }
-                TableBody {
-                    ForEachNode(IndexedCollection(rows)) { indexed in
-                        TableRow {
-                            ForEachNode(IndexedCollection(indexed.element)) { inner in
-                                TableCell {
-                                    InlineNodesView(inlines: inner.element)
+                    TableBody {
+                        ForEachNode(IndexedCollection(rows)) { indexed in
+                            TableRow {
+                                ForEachNode(IndexedCollection(indexed.element)) { inner in
+                                    TableCell {
+                                        InlineNodesView(inlines: inner.element)
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
+            .overflow(x: .auto)
         }
     }
 }

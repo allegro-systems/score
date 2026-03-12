@@ -15,6 +15,7 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
     private let metadata: (any Metadata)?
     private let theme: (any Theme)?
     private let resourcesDirectory: String?
+    private let errorBodyFactory: @Sendable (ErrorContext) -> (any Node)?
 
     /// Creates a request handler with the given configuration.
     public init(
@@ -22,13 +23,15 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
         pages: [String: any Page],
         metadata: (any Metadata)?,
         theme: (any Theme)?,
-        resourcesDirectory: String? = nil
+        resourcesDirectory: String? = nil,
+        errorBodyFactory: @escaping @Sendable (ErrorContext) -> (any Node)? = { _ in nil }
     ) {
         self.routeTable = routeTable
         self.pages = pages
         self.metadata = metadata
         self.theme = theme
         self.resourcesDirectory = resourcesDirectory
+        self.errorBodyFactory = errorBodyFactory
     }
 
     // MARK: - State
@@ -120,6 +123,9 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
         if path == "/score.js" {
             return Response.javascript(JSEmitter.clientRuntime)
         }
+        if path == "/static/score-devtools.js" && Environment.current == .development {
+            return Response.javascript(DevToolsInjector.clientScript)
+        }
         if path.hasPrefix("/scripts/") && path.hasSuffix(".js") {
             return servePageScript(for: path)
         }
@@ -192,7 +198,7 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
         } catch let error as RoutingError {
             switch error {
             case .notFound:
-                return Response.text("Not Found", status: .notFound)
+                return renderError(statusCode: 404, message: "Not Found", path: path)
             case .methodNotAllowed(_, let allowed):
                 let allowHeader = allowed.map(\.rawValue).joined(separator: ", ")
                 var response = Response.text("Method Not Allowed", status: .methodNotAllowed)
@@ -200,12 +206,20 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
                 return response
             }
         } catch {
-            let html = ErrorOverlay.render(
-                error,
-                path: path,
-                environment: .development
+            let environment = Environment.current
+            if environment == .development {
+                let html = ErrorOverlay.render(
+                    error,
+                    path: path,
+                    environment: environment
+                )
+                return Response.html(html, status: .internalServerError)
+            }
+            return renderError(
+                statusCode: 500,
+                message: "Internal Server Error",
+                path: path
             )
-            return Response.html(html, status: .internalServerError)
         }
     }
 
@@ -247,6 +261,16 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
             }
         }
         return Response.text("Not Found", status: .notFound)
+    }
+
+    private func renderError(statusCode: Int, message: String, path: String) -> Response {
+        let context = ErrorContext(statusCode: statusCode, message: message, path: path)
+        let status = HTTPResponse.Status(code: statusCode)
+        if let body = errorBodyFactory(context) {
+            let html = PageRenderer.renderErrorBody(body, metadata: metadata, theme: theme)
+            return Response.html(html, status: status)
+        }
+        return Response.text(message, status: status)
     }
 
     /// Derives a CSS file name from a page path.

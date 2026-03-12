@@ -1,5 +1,12 @@
 import ScoreCore
 
+/// Walks the type-erased wrapped node for CSS collection.
+extension Content: CSSWalkable {
+    func walkChildren(collector: inout CSSCollector) {
+        collector.collect(from: wrapped)
+    }
+}
+
 extension EmptyNode: CSSLeafNode {}
 extension TextNode: CSSLeafNode {}
 extension RawTextNode: CSSLeafNode {}

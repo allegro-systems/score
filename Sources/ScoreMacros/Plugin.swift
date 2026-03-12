@@ -5,8 +5,8 @@ import SwiftSyntaxMacros
 struct ScoreMacrosPlugin: CompilerPlugin {
     let providingMacros: [Macro.Type] = [
         ActionMacro.self,
+        ComponentMacro.self,
         ComputedMacro.self,
-        ContentInitMacro.self,
         StateMacro.self,
     ]
 }

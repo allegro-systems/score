@@ -52,7 +52,6 @@ import Testing
     #expect(html.contains("<meta name=\"keywords\" content=\"swift, web\">"))
 }
 
-
 @Test func assembleIncludesBody() {
     let parts = DocumentAssembler.Parts(bodyHTML: "<h1>Hello</h1>")
     let html = DocumentAssembler.assemble(parts)

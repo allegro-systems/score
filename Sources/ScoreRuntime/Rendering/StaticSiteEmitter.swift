@@ -263,6 +263,17 @@ public struct StaticSiteEmitter: Sendable {
             try fm.createDirectory(atPath: dirPath, withIntermediateDirectories: true)
             try Minifier.minifyHTML(html).write(toFile: filePath, atomically: true, encoding: .utf8)
         }
+
+        try writeSitemap(
+            pages: application.pages,
+            baseURL: application.metadata?.baseURL,
+            outputDirectory: outputDir
+        )
+
+        try writeErrorPage(
+            application: application,
+            outputDirectory: outputDir
+        )
     }
 
     /// Writes deduplicated JS files. Element scope blocks are grouped by
@@ -406,6 +417,72 @@ public struct StaticSiteEmitter: Sendable {
         }
         used.insert(name)
         return name
+    }
+
+    /// Writes a `404.html` file using the application's custom error page.
+    ///
+    /// Only produces output when ``Application/errorBody(for:)`` returns
+    /// a non-nil node. Hosting platforms typically serve this file when
+    /// no matching route is found.
+    private static func writeErrorPage(
+        application: some Application,
+        outputDirectory: String
+    ) throws {
+        let context = ErrorContext(statusCode: 404, message: "Not Found", path: "/404")
+        guard let body = application.errorBody(for: context) else { return }
+
+        let html = PageRenderer.renderErrorBody(
+            body,
+            metadata: application.metadata,
+            theme: application.theme
+        )
+
+        try Minifier.minifyHTML(html).write(
+            toFile: "\(outputDirectory)/404.html",
+            atomically: true,
+            encoding: .utf8
+        )
+    }
+
+    /// Writes a `sitemap.xml` file listing all page URLs.
+    ///
+    /// Sitemaps require absolute URLs, so this method only produces output
+    /// when the application metadata includes a ``Metadata/baseURL``.
+    /// Status-code pages (e.g. `/404`) are excluded automatically.
+    private static func writeSitemap(
+        pages: [any Page],
+        baseURL: String?,
+        outputDirectory: String
+    ) throws {
+        guard let baseURL, !baseURL.isEmpty else { return }
+
+        let base = baseURL.hasSuffix("/") ? String(baseURL.dropLast()) : baseURL
+
+        var xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        xml.append("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n")
+
+        for page in pages {
+            let path = page.path
+            if isStatusPage(path) { continue }
+
+            let loc = path == "/" ? base + "/" : base + path
+            xml.append("  <url>\n    <loc>\(loc)</loc>\n  </url>\n")
+        }
+
+        xml.append("</urlset>\n")
+
+        try xml.write(
+            toFile: "\(outputDirectory)/sitemap.xml",
+            atomically: true,
+            encoding: .utf8
+        )
+    }
+
+    /// Returns `true` when the path represents an HTTP status page
+    /// (e.g. `/404`, `/500`) that should not appear in the sitemap.
+    private static func isStatusPage(_ path: String) -> Bool {
+        let segment = path.drop(while: { $0 == "/" })
+        return segment.count == 3 && segment.allSatisfy(\.isNumber)
     }
 
     /// Maps a page path to a file path.

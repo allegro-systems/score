@@ -49,6 +49,10 @@ public struct Server: Sendable {
         let pages = Dictionary(
             uniqueKeysWithValues: application.pages.map { ($0.path, $0) }
         )
+        let app = self.application
+        let errorBodyFactory: @Sendable (ErrorContext) -> (any Node)? = { context in
+            app.errorBody(for: context)
+        }
 
         let bootstrap = ServerBootstrap(group: group)
             .serverChannelOption(.backlog, value: 256)
@@ -59,9 +63,10 @@ public struct Server: Sendable {
                         RequestHandler(
                             routeTable: routeTable,
                             pages: pages,
-                            metadata: self.application.metadata,
-                            theme: self.application.theme,
-                            resourcesDirectory: self.application.resourcesDirectory
+                            metadata: app.metadata,
+                            theme: app.theme,
+                            resourcesDirectory: app.resourcesDirectory,
+                            errorBodyFactory: errorBodyFactory
                         )
                     )
                 }

@@ -220,6 +220,7 @@ public struct ThemeCSSEmitter: Sendable {
 
     private static func emitContentStyles(_ theme: some Theme, into css: inout String) {
         let content = theme.contentStyle
+        let syntax = theme.syntaxTheme
 
         var blockquoteDecls: [String] = [
             "border-left: 3px solid \(cssPropertyValue(for: content.blockquoteBorderColor))",
@@ -254,6 +255,136 @@ public struct ThemeCSSEmitter: Sendable {
         if let headerBg = content.tableHeaderBackground {
             emitRule("th", declarations: ["background: \(cssPropertyValue(for: headerBg))"], into: &css)
         }
+
+        // Code block styles
+        let codeBlockBg =
+            content.codeBlockBackground
+            .map { cssPropertyValue(for: $0) }
+            ?? syntax.background.cssValue
+
+        emitRule(
+            "[data-code-block]",
+            declarations: [
+                "background: \(codeBlockBg)",
+                "border-radius: \(cleanedPixelValue(content.codeBlockRadius))",
+                "overflow: hidden",
+                "margin: 16px 0",
+            ], into: &css)
+
+        emitRule(
+            "[data-code-embedded]",
+            declarations: [
+                "margin: 0",
+                "border-radius: 0",
+            ], into: &css)
+
+        emitRule(
+            "[data-code-header]",
+            declarations: [
+                "display: flex",
+                "align-items: center",
+                "justify-content: space-between",
+                "padding: 6px 16px",
+                "border-bottom: 1px solid rgba(255,255,255,0.12)",
+            ], into: &css)
+
+        emitRule(
+            "[data-code-label]",
+            declarations: [
+                "color: \(syntax.comment.cssValue)",
+                "font-family: var(--font-mono, monospace)",
+                "font-size: 11px",
+                "text-transform: uppercase",
+                "letter-spacing: 0.05em",
+            ], into: &css)
+
+        emitRule(
+            "[data-code-copy]",
+            declarations: [
+                "background: none",
+                "border: 1px solid rgba(255,255,255,0.15)",
+                "color: \(syntax.variable.cssValue)",
+                "font-size: 10px",
+                "padding: 2px 8px",
+                "border-radius: 3px",
+                "cursor: pointer",
+                "font-family: var(--font-mono, monospace)",
+            ], into: &css)
+
+        emitRule(
+            "[data-code-source]",
+            declarations: [
+                "position: absolute",
+                "left: -9999px",
+            ], into: &css)
+
+        emitRule(
+            "[data-code-grid]",
+            declarations: [
+                "display: grid",
+                "overflow-x: auto",
+            ], into: &css)
+
+        emitRule(
+            "[data-line-numbers]",
+            declarations: [
+                "display: flex",
+                "flex-direction: column",
+                "border-right: 1px solid rgba(255,255,255,0.10)",
+            ], into: &css)
+
+        emitRule(
+            "[data-line-number]",
+            declarations: [
+                "font-family: var(--font-mono, monospace)",
+                "font-size: 13px",
+                "line-height: 1.5",
+                "padding: 0 12px",
+                "color: \(syntax.comment.cssValue)",
+                "text-align: right",
+                "user-select: none",
+                "-webkit-user-select: none",
+            ], into: &css)
+
+        emitRule(
+            "[data-line-number]:first-child",
+            declarations: ["padding-top: 12px"],
+            into: &css)
+
+        emitRule(
+            "[data-line-number]:last-child",
+            declarations: ["padding-bottom: 12px"],
+            into: &css)
+
+        emitRule(
+            "[data-code-lines]",
+            declarations: [
+                "display: flex",
+                "flex-direction: column",
+            ], into: &css)
+
+        emitRule(
+            "[data-code-line]",
+            declarations: [
+                "font-family: var(--font-mono, monospace)",
+                "font-size: 13px",
+                "line-height: 1.5",
+                "padding: 0 16px",
+                "white-space: pre",
+                "background: none",
+                "border: none",
+                "border-radius: 0",
+            ], into: &css)
+
+        emitRule(
+            "[data-code-line]:first-child",
+            declarations: ["padding-top: 12px"],
+            into: &css)
+
+        emitRule(
+            "[data-code-line]:last-child",
+            declarations: ["padding-bottom: 12px"],
+            into: &css)
     }
 
     private static func cssPropertyValue(for token: ColorToken) -> String {

@@ -81,14 +81,17 @@ private enum ResponseCaptureError: Error {
     case invalidBody
 }
 
-private func makeChannel() async -> NIOAsyncTestingChannel {
+private func makeChannel(
+    errorBodyFactory: @escaping @Sendable (ErrorContext) -> (any Node)? = { _ in nil }
+) async -> NIOAsyncTestingChannel {
     let app = RuntimeApp()
     return await NIOAsyncTestingChannel(
         handler: RequestHandler(
             routeTable: RouteTable(app),
             pages: [RuntimeHomePage.path: RuntimeHomePage()],
             metadata: app.metadata,
-            theme: nil
+            theme: nil,
+            errorBodyFactory: errorBodyFactory
         )
     )
 }
@@ -96,9 +99,10 @@ private func makeChannel() async -> NIOAsyncTestingChannel {
 private func performRequest(
     method: NIOHTTP1.HTTPMethod,
     uri: String,
-    body: ByteBuffer? = nil
+    body: ByteBuffer? = nil,
+    errorBodyFactory: @escaping @Sendable (ErrorContext) -> (any Node)? = { _ in nil }
 ) async throws -> CapturedResponse {
-    let channel = await makeChannel()
+    let channel = await makeChannel(errorBodyFactory: errorBodyFactory)
     let head = HTTPRequestHead(version: .http1_1, method: method, uri: uri)
 
     try await channel.writeInbound(HTTPServerRequestPart.head(head))
@@ -212,4 +216,28 @@ private func readResponsePart(from channel: NIOAsyncTestingChannel) async throws
     #expect(response.status == HTTPResponseStatus.created)
     #expect(response.headers["x-custom"].first == "yes")
     #expect(response.body == "created")
+}
+
+@Test func requestHandlerRendersCustomErrorPageFor404() async throws {
+    let response = try await performRequest(
+        method: NIOHTTP1.HTTPMethod.GET,
+        uri: "/no-such-page",
+        errorBodyFactory: { context in
+            Heading(.one) { Text(verbatim: "Error \(context.statusCode)") }
+        }
+    )
+
+    #expect(response.status == HTTPResponseStatus.notFound)
+    #expect(response.headers["Content-Type"].first == "text/html; charset=utf-8")
+    #expect(response.body.contains("Error 404"))
+}
+
+@Test func requestHandlerFallsBackToPlainTextWithoutErrorPage() async throws {
+    let response = try await performRequest(
+        method: NIOHTTP1.HTTPMethod.GET,
+        uri: "/no-such-page"
+    )
+
+    #expect(response.status == HTTPResponseStatus.notFound)
+    #expect(response.body == "Not Found")
 }

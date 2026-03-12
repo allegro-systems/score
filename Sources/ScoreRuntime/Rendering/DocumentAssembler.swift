@@ -36,6 +36,8 @@ public struct DocumentAssembler: Sendable {
         public var themeNames: [String]
         /// External JavaScript file paths to link before `</body>`.
         public var scriptLinks: [String]
+        /// Inline scripts emitted before external script links (e.g., dev tools metadata).
+        public var preScripts: [String]
 
         /// Creates document parts.
         public init(
@@ -51,7 +53,8 @@ public struct DocumentAssembler: Sendable {
             ogSiteName: String? = nil,
             headLinks: [String] = [],
             themeNames: [String] = [],
-            scriptLinks: [String] = []
+            scriptLinks: [String] = [],
+            preScripts: [String] = []
         ) {
             self.title = title
             self.description = description
@@ -66,6 +69,7 @@ public struct DocumentAssembler: Sendable {
             self.headLinks = headLinks
             self.themeNames = themeNames
             self.scriptLinks = scriptLinks
+            self.preScripts = preScripts
         }
     }
 
@@ -153,6 +157,10 @@ public struct DocumentAssembler: Sendable {
         }
         html.append("\n")
 
+        for script in parts.preScripts {
+            html.append(script)
+            html.append("\n")
+        }
         for link in parts.scriptLinks {
             html.append("<script src=\"\(link)\"></script>\n")
         }
@@ -178,9 +186,9 @@ public struct DocumentAssembler: Sendable {
         let hasDark = names.contains("dark")
         let systemFallback =
             hasDark
-            ? "else if(window.matchMedia&&window.matchMedia(\"(prefers-color-scheme: dark)\").matches)document.documentElement.setAttribute(\"data-theme\",\"dark\")"
+            ? "else if(window.matchMedia&&window.matchMedia(\"(prefers-color-scheme: dark)\").matches){document.documentElement.setAttribute(\"data-theme\",\"dark\")}"
             : ""
         return
-            "<script>!function(){var t=localStorage.getItem(\"as-theme\");if(t===\"true\")t=\"dark\";if(t===\"false\")t=null;if(t&&[\(allowed)].indexOf(t)!==-1)document.documentElement.setAttribute(\"data-theme\",t)\(systemFallback)}()</script>\n"
+            "<script>!function(){var t=localStorage.getItem(\"as-theme\");if(t===\"true\")t=\"dark\";if(t===\"false\")t=null;if(t&&[\(allowed)].indexOf(t)!==-1){document.documentElement.setAttribute(\"data-theme\",t)}\(systemFallback)}()</script>\n"
     }
 }

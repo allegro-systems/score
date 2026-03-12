@@ -118,7 +118,7 @@ extension SyntaxTheme {
     /// Uses the OKLCH equivalents of the handbook's Syntax Highlighting
     /// colours for perceptual consistency across all Allegro properties.
     public static let scoreDefault = SyntaxTheme(
-        background: .oklch(0.18, 0.01, 92),
+        background: .oklch(0.17, 0.014, 240),
         keyword: .oklch(0.65, 0.13, 348),
         string: .oklch(0.76, 0.12, 153),
         comment: .oklch(0.46, 0.02, 80),

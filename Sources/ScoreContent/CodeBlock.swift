@@ -45,6 +45,14 @@ public struct CodeBlock: Node {
     /// Whether to display a copy-to-clipboard button.
     public let showCopyButton: Bool
 
+    /// Whether to display the header bar above the code.
+    ///
+    /// When `false`, the header bar (language label, filename, copy button) is
+    /// suppressed even if `language`, `filename`, or `showCopyButton` are set.
+    /// Use this when embedding a code block inside a container that provides
+    /// its own header chrome.
+    public let showHeader: Bool
+
     /// Creates a code block with the given configuration.
     ///
     /// - Parameters:
@@ -54,13 +62,15 @@ public struct CodeBlock: Node {
     ///   - theme: The syntax colour theme. Defaults to ``SyntaxTheme/scoreDefault``.
     ///   - showLineNumbers: Whether to show line numbers. Defaults to `true`.
     ///   - showCopyButton: Whether to show a copy button. Defaults to `true`.
+    ///   - showHeader: Whether to show the header bar. Defaults to `true`.
     public init(
         code: String,
         language: String? = nil,
         filename: String? = nil,
         theme: SyntaxTheme = .scoreDefault,
         showLineNumbers: Bool = true,
-        showCopyButton: Bool = true
+        showCopyButton: Bool = true,
+        showHeader: Bool = true
     ) {
         self.code = code
         self.language = language
@@ -68,6 +78,7 @@ public struct CodeBlock: Node {
         self.theme = theme
         self.showLineNumbers = showLineNumbers
         self.showCopyButton = showCopyButton
+        self.showHeader = showHeader
     }
 
     public var body: some Node {
@@ -84,13 +95,16 @@ public struct CodeBlock: Node {
         let codeId = "cb-\(abs(trimmedCode.hashValue))"
 
         var html = ""
-        html.append("<div style=\"background: \(theme.background.cssValue); border-radius: 6px; overflow: hidden; margin: 16px 0;\">")
+        if showHeader {
+            html.append("<div data-code-block>")
+        } else {
+            html.append("<div data-code-block data-code-embedded>")
+        }
 
-        let hasHeader = filename != nil || language != nil || showCopyButton
+        let hasHeader = showHeader && (filename != nil || language != nil || showCopyButton)
         if hasHeader {
-            html.append("<div style=\"display: flex; align-items: center; justify-content: space-between; padding: 6px 16px; border-bottom: 1px solid rgba(255,255,255,0.12);\">")
-            html.append(
-                "<span style=\"color: \(theme.comment.cssValue); font-family: var(--font-mono, monospace); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;\">")
+            html.append("<div data-code-header>")
+            html.append("<span data-code-label>")
             if let filename {
                 html.append(escapeHTML(filename))
             } else if let language {
@@ -100,39 +114,40 @@ public struct CodeBlock: Node {
             if showCopyButton {
                 html.append(
                     """
-                    <button onclick="navigator.clipboard.writeText(document.getElementById(&quot;\(codeId)&quot;).textContent).then(function(){var b=this;b.textContent=&quot;Copied!&quot;;setTimeout(function(){b.textContent=&quot;Copy&quot;},1500)}.bind(this))" style="background: none; border: 1px solid rgba(255,255,255,0.15); color: \(theme.variable.cssValue); font-size: 10px; padding: 2px 8px; border-radius: 3px; cursor: pointer; font-family: var(--font-mono, monospace);">Copy</button>
+                    <button data-code-copy onclick="navigator.clipboard.writeText(\
+                    document.getElementById(&quot;\(codeId)&quot;).textContent)\
+                    .then(function(){var b=this;b.textContent=&quot;Copied!&quot;;\
+                    setTimeout(function(){b.textContent=&quot;Copy&quot;},1500)}\
+                    .bind(this))">Copy</button>
                     """)
             }
             html.append("</div>")
         }
 
-        // Hidden element for copy button
         html.append(
-            "<pre id=\"\(codeId)\" style=\"position:absolute;left:-9999px;\">\(escapeHTML(trimmedCode))</pre>"
+            "<pre id=\"\(codeId)\" data-code-source>\(escapeHTML(trimmedCode))</pre>"
         )
 
         let gridColumns = showLineNumbers ? "auto 1fr" : "1fr"
         html.append(
-            "<div style=\"display: grid; grid-template-columns: \(gridColumns); overflow-x: auto;\">"
+            "<div data-code-grid style=\"grid-template-columns: \(gridColumns);\">"
         )
 
         let lineHTMLs = splitTokensIntoLines(tokens: tokens, lineCount: max(lines.count, 1))
-        let mono = "font-family: var(--font-mono, monospace); font-size: 13px; line-height: 1.5;"
 
-        for (i, lineHTML) in lineHTMLs.enumerated() {
-            let top = i == 0 ? "12px" : "0"
-            let bottom = i == lineHTMLs.count - 1 ? "12px" : "0"
-
-            if showLineNumbers {
-                html.append(
-                    "<span style=\"\(mono) padding: \(top) 12px \(bottom) 12px; color: \(theme.comment.cssValue); text-align: right; user-select: none; -webkit-user-select: none; border-right: 1px solid rgba(255,255,255,0.10);\">\(i + 1)</span>"
-                )
+        if showLineNumbers {
+            html.append("<div data-line-numbers>")
+            for i in 0..<lineHTMLs.count {
+                html.append("<span data-line-number>\(i + 1)</span>")
             }
-
-            html.append(
-                "<code style=\"\(mono) padding: \(top) 16px \(bottom) 16px; white-space: pre; background: none; border: none; border-radius: 0;\">\(lineHTML)</code>"
-            )
+            html.append("</div>")
         }
+
+        html.append("<div data-code-lines>")
+        for lineHTML in lineHTMLs {
+            html.append("<code data-code-line>\(lineHTML)</code>")
+        }
+        html.append("</div>")
 
         html.append("</div></div>")
 

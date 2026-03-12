@@ -83,7 +83,7 @@ public struct DevToolsInjector: Sendable {
         .tree-item[data-stateful] .tree-name{color:#569cd6}
         .tree-badge{font-size:9px;padding:2px 6px;border-radius:4px;margin-left:8px;background:rgba(255,255,255,.05);color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.4px;font-weight:500}
         .tree-badge.stateful{background:rgba(86,156,214,.15);color:#9cdcfe}
-        .tree-source{color:rgba(255,255,255,.25);font-size:10px;margin-left:auto;padding-left:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px;direction:rtl;text-align:left;cursor:pointer;border-radius:3px;padding:1px 4px;transition:all .15s}
+        .tree-source{color:rgba(255,255,255,.25);font-size:10px;margin-left:auto;padding-left:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px;direction:rtl;text-align:left;cursor:pointer;border-radius:3px;padding:1px 4px;transition:all .15s;text-decoration:none}
         .tree-source:hover{color:rgba(255,255,255,.5);background:rgba(255,255,255,.06)}
         .state-table{width:100%;border-collapse:collapse;margin-bottom:12px}
         .state-table th{text-align:left;color:rgba(255,255,255,.3);font-weight:500;padding:4px 8px 4px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:10px;text-transform:uppercase;letter-spacing:.5px}
@@ -260,18 +260,10 @@ public struct DevToolsInjector: Sendable {
           if(parts.length<2)return '';
           const file=parts[0].split('/').pop();
           const line=parts[1];
-          const pathAttr=srcPath?` data-editor-path="${esc(srcPath)}"`:'';
-          return `<span class="tree-source"${pathAttr}>${esc(file)}:${esc(line)}</span>`;
-        }
-
-        function openInEditor(srcPath){
-          if(!srcPath)return;
-          const parts=srcPath.split(':');
-          const file=parts[0];
-          const line=parts[1]||'1';
-          const col=parts[2]||'1';
-          const url=editorScheme+'://file/'+file+':'+line+':'+col;
-          window.open(url,'_self');
+          if(!srcPath)return `<span class="tree-source">${esc(file)}:${esc(line)}</span>`;
+          const pp=srcPath.split(':');
+          const href=editorScheme+'://file/'+pp[0]+':'+(pp[1]||'1')+':'+(pp[2]||'1');
+          return `<a class="tree-source" href="${esc(href)}">${esc(file)}:${esc(line)}</a>`;
         }
 
         function render(){
@@ -287,8 +279,8 @@ public struct DevToolsInjector: Sendable {
             el.addEventListener('mouseenter',()=>highlightElement(items[idx]?.el));
             el.addEventListener('mouseleave',()=>{overlay.style.display='none'});
           });
-          body.querySelectorAll('.tree-source[data-editor-path]').forEach(el=>{
-            el.addEventListener('click',(e)=>{e.stopPropagation();openInEditor(el.dataset.editorPath)});
+          body.querySelectorAll('a.tree-source').forEach(el=>{
+            el.addEventListener('click',(e)=>{e.stopPropagation()});
           });
         }
 

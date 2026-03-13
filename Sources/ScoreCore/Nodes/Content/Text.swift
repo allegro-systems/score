@@ -4,16 +4,6 @@
 /// inline or block-level text and renders directly as raw text content inside
 /// its surrounding HTML element — it does not emit a wrapping tag of its own.
 ///
-/// You can build a `Text` node either from a `@NodeBuilder` closure, which
-/// lets you compose other inline nodes inside it, or from a plain `String`
-/// using the `verbatim:` initializer for simple literal text.
-///
-/// ### Example — verbatim string
-///
-/// ```swift
-/// Text { "Hello, world!" }
-/// ```
-///
 /// ### Example — composed content
 ///
 /// ```swift
@@ -50,23 +40,6 @@ public struct Text<Content: Node>: Node {
     ///   child node rendered inside this text node.
     public init(@NodeBuilder content: () -> Content) {
         self.content = content()
-    }
-
-    /// Creates a text node from a plain string literal.
-    ///
-    /// This is the most direct way to insert literal text into the document.
-    /// The string is wrapped in a ``TextNode`` and output verbatim — no HTML
-    /// escaping beyond what the renderer applies is added.
-    ///
-    /// ### Example
-    ///
-    /// ```swift
-    /// Text { "Welcome to Score." }
-    /// ```
-    ///
-    /// - Parameter verbatim: The raw string to render as text content.
-    public init(verbatim: String) where Content == TextNode {
-        self.content = TextNode(verbatim)
     }
 
     /// The body of this node.

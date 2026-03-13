@@ -17,6 +17,11 @@
 ///     "Visit Example"
 /// }
 ///
+/// // Open in a new tab
+/// Link(to: "https://example.com", opensInNewTab: true) {
+///     "External Site"
+/// }
+///
 /// // Image link
 /// Link(to: "/home") {
 ///     Image(src: "logo.png", alt: "Home")
@@ -42,6 +47,12 @@ public struct Link<Content: Node>: Node, SourceLocatable {
     /// special schemes such as `"mailto:"` and `"tel:"`.
     public let destination: String
 
+    /// Whether the link opens in a new browser tab or window.
+    ///
+    /// When `true`, the rendered anchor element includes `target="_blank"` and
+    /// `rel="noopener noreferrer"` for security. Defaults to `false`.
+    public let opensInNewTab: Bool
+
     /// The content rendered inside the anchor element.
     ///
     /// The entire content area is interactive and activates the link when
@@ -52,10 +63,12 @@ public struct Link<Content: Node>: Node, SourceLocatable {
     /// Creates a hyperlink that navigates to the given destination.
     public init(
         to destination: String,
+        opensInNewTab: Bool = false,
         file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
         @NodeBuilder content: () -> Content
     ) {
         self.destination = destination
+        self.opensInNewTab = opensInNewTab
         self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }

@@ -14,7 +14,7 @@
 ///
 /// ```swift
 /// Paragraph {
-///     Text(verbatim: "Score makes it easy to build HTML documents in Swift.")
+///     Text { "Score makes it easy to build HTML documents in Swift." }
 /// }
 /// ```
 ///
@@ -22,9 +22,9 @@
 ///
 /// ```swift
 /// Paragraph {
-///     Text(verbatim: "Install the package, then import ")
-///     Code { Text(verbatim: "ScoreCore") }
-///     Text(verbatim: " in your Swift file.")
+///     Text { "Install the package, then import " }
+///     Code { Text { "ScoreCore" } }
+///     Text { " in your Swift file." }
 /// }
 /// ```
 public struct Paragraph<Content: Node>: Node, SourceLocatable {
@@ -42,9 +42,9 @@ public struct Paragraph<Content: Node>: Node, SourceLocatable {
     ///
     /// ```swift
     /// Paragraph {
-    ///     Text(verbatim: "This is a ")
-    ///     Strong { Text(verbatim: "bold") }
-    ///     Text(verbatim: " statement.")
+    ///     Text { "This is a " }
+    ///     Strong { Text { "bold" } }
+    ///     Text { " statement." }
     /// }
     /// ```
     ///

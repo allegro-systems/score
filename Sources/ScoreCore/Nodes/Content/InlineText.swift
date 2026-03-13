@@ -11,9 +11,9 @@
 ///
 /// ```swift
 /// Paragraph {
-///     Text(verbatim: "Please ")
-///     Strong { Text(verbatim: "do not") }
-///     Text(verbatim: " share your password.")
+///     Text { "Please " }
+///     Strong { Text { "do not" } }
+///     Text { " share your password." }
 /// }
 /// ```
 ///
@@ -30,7 +30,7 @@ public struct Strong<Content: Node>: Node, SourceLocatable {
     /// ### Example
     ///
     /// ```swift
-    /// Strong { Text(verbatim: "Warning:") }
+    /// Strong { Text { "Warning:" } }
     /// ```
     ///
     public init(
@@ -62,9 +62,9 @@ public struct Strong<Content: Node>: Node, SourceLocatable {
 ///
 /// ```swift
 /// Paragraph {
-///     Text(verbatim: "I ")
-///     Emphasis { Text(verbatim: "really") }
-///     Text(verbatim: " mean it.")
+///     Text { "I " }
+///     Emphasis { Text { "really" } }
+///     Text { " mean it." }
 /// }
 /// ```
 ///
@@ -81,7 +81,7 @@ public struct Emphasis<Content: Node>: Node, SourceLocatable {
     /// ### Example
     ///
     /// ```swift
-    /// Emphasis { Text(verbatim: "Optional") }
+    /// Emphasis { Text { "Optional" } }
     /// ```
     ///
     public init(
@@ -112,10 +112,10 @@ public struct Emphasis<Content: Node>: Node, SourceLocatable {
 ///
 /// ```swift
 /// Paragraph {
-///     Text(verbatim: "Score is open source.")
+///     Text { "Score is open source." }
 /// }
 /// Small {
-///     Text(verbatim: "© 2026 Score contributors. MIT License.")
+///     Text { "© 2026 Score contributors. MIT License." }
 /// }
 /// ```
 public struct Small<Content: Node>: Node, SourceLocatable {
@@ -129,7 +129,7 @@ public struct Small<Content: Node>: Node, SourceLocatable {
     /// ### Example
     ///
     /// ```swift
-    /// Small { Text(verbatim: "* Terms and conditions apply.") }
+    /// Small { Text { "* Terms and conditions apply." } }
     /// ```
     ///
     public init(
@@ -160,9 +160,9 @@ public struct Small<Content: Node>: Node, SourceLocatable {
 ///
 /// ```swift
 /// Paragraph {
-///     Text(verbatim: "Search results for ")
-///     Mark { Text(verbatim: "Score") }
-///     Text(verbatim: ":")
+///     Text { "Search results for " }
+///     Mark { Text { "Score" } }
+///     Text { ":" }
 /// }
 /// ```
 public struct Mark<Content: Node>: Node, SourceLocatable {
@@ -176,7 +176,7 @@ public struct Mark<Content: Node>: Node, SourceLocatable {
     /// ### Example
     ///
     /// ```swift
-    /// Mark { Text(verbatim: "highlighted term") }
+    /// Mark { Text { "highlighted term" } }
     /// ```
     ///
     public init(
@@ -208,9 +208,9 @@ public struct Mark<Content: Node>: Node, SourceLocatable {
 ///
 /// ```swift
 /// Paragraph {
-///     Text(verbatim: "Call ")
-///     Code { Text(verbatim: "render()") }
-///     Text(verbatim: " to produce the final HTML string.")
+///     Text { "Call " }
+///     Code { Text { "render()" } }
+///     Text { " to produce the final HTML string." }
 /// }
 /// ```
 ///
@@ -227,7 +227,7 @@ public struct Code<Content: Node>: Node, SourceLocatable {
     /// ### Example
     ///
     /// ```swift
-    /// Code { Text(verbatim: "let page = Page { … }") }
+    /// Code { Text { "let page = Page { … }" } }
     /// ```
     ///
     public init(
@@ -260,7 +260,7 @@ public struct Code<Content: Node>: Node, SourceLocatable {
 /// ```swift
 /// Preformatted {
 ///     Code {
-///         Text(verbatim: "func greet() {\n    print(\"Hello!\")\n}")
+///         Text { "func greet() {\n    print(\"Hello!\")\n}" }
 ///     }
 /// }
 /// ```
@@ -269,7 +269,7 @@ public struct Code<Content: Node>: Node, SourceLocatable {
 ///
 /// ```swift
 /// Preformatted {
-///     Text(verbatim: "Name    Age\n--------  ---\nAlice   30\nBob     28")
+///     Text { "Name    Age\n--------  ---\nAlice   30\nBob     28" }
 /// }
 /// ```
 ///
@@ -287,7 +287,7 @@ public struct Preformatted<Content: Node>: Node, SourceLocatable {
     ///
     /// ```swift
     /// Preformatted {
-    ///     Code { Text(verbatim: "let x = 42") }
+    ///     Code { Text { "let x = 42" } }
     /// }
     /// ```
     ///
@@ -321,7 +321,7 @@ public struct Preformatted<Content: Node>: Node, SourceLocatable {
 /// ```swift
 /// Blockquote {
 ///     Paragraph {
-///         Text(verbatim: "The only way to do great work is to love what you do.")
+///         Text { "The only way to do great work is to love what you do." }
 ///     }
 /// }
 /// ```
@@ -340,7 +340,7 @@ public struct Blockquote<Content: Node>: Node, SourceLocatable {
     ///
     /// ```swift
     /// Blockquote {
-    ///     Paragraph { Text(verbatim: "Simplicity is the ultimate sophistication.") }
+    ///     Paragraph { Text { "Simplicity is the ultimate sophistication." } }
     /// }
     /// ```
     ///

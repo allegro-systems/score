@@ -12,9 +12,9 @@
 /// ### Example
 ///
 /// ```swift
-/// Heading(.one) { Text(verbatim: "Welcome") }       // renders <h1>
-/// Heading(.two) { Text(verbatim: "Introduction") }  // renders <h2>
-/// Heading(.three) { Text(verbatim: "Details") }     // renders <h3>
+/// Heading(.one) { Text { "Welcome" } }       // renders <h1>
+/// Heading(.two) { Text { "Introduction" } }  // renders <h2>
+/// Heading(.three) { Text { "Details" } }     // renders <h3>
 /// ```
 public enum HeadingLevel: Int, Sendable {
 
@@ -68,15 +68,15 @@ public enum HeadingLevel: Int, Sendable {
 ///
 /// ```swift
 /// Heading(.one) {
-///     Text(verbatim: "Score Documentation")
+///     Text { "Score Documentation" }
 /// }
 ///
 /// Heading(.two) {
-///     Text(verbatim: "Getting Started")
+///     Text { "Getting Started" }
 /// }
 ///
 /// Heading(.three) {
-///     Text(verbatim: "Installation")
+///     Text { "Installation" }
 /// }
 /// ```
 ///
@@ -101,7 +101,7 @@ public struct Heading<Content: Node>: Node, SourceLocatable {
     ///
     /// ```swift
     /// Heading(.two) {
-    ///     Text(verbatim: "Chapter One")
+    ///     Text { "Chapter One" }
     /// }
     /// ```
     ///

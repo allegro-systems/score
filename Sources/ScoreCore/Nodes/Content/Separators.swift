@@ -11,9 +11,9 @@
 /// ### Example
 ///
 /// ```swift
-/// Paragraph { Text(verbatim: "End of section one.") }
+/// Paragraph { Text { "End of section one." } }
 /// HorizontalRule()
-/// Paragraph { Text(verbatim: "Beginning of section two.") }
+/// Paragraph { Text { "Beginning of section two." } }
 /// ```
 ///
 /// - Note: `HorizontalRule` is a void element and has no children. Its
@@ -54,9 +54,9 @@ public struct HorizontalRule: Node, SourceLocatable {
 ///
 /// ```swift
 /// Address {
-///     Text(verbatim: "123 Main Street")
+///     Text { "123 Main Street" }
 ///     LineBreak()
-///     Text(verbatim: "Springfield, IL 62701")
+///     Text { "Springfield, IL 62701" }
 /// }
 /// ```
 ///
@@ -64,9 +64,9 @@ public struct HorizontalRule: Node, SourceLocatable {
 ///
 /// ```swift
 /// Paragraph {
-///     Text(verbatim: "Roses are red,")
+///     Text { "Roses are red," }
 ///     LineBreak()
-///     Text(verbatim: "Violets are blue.")
+///     Text { "Violets are blue." }
 /// }
 /// ```
 ///

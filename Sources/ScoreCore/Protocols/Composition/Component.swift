@@ -66,7 +66,19 @@
 ///
 /// - Note: Stateful component state is torn down on unmount. Each instance is
 ///   fully isolated — no shared state between mounts.
-public protocol Component: Node {}
+public protocol Component: Node {
+    /// An optional key used to merge multiple instances into a single
+    /// shared scope.  When `nil` (the default), every instance gets its
+    /// own independent state.  Override with a fixed string to share
+    /// state across all instances that use the same key — useful for
+    /// singletons like a theme toggle that appears in both desktop and
+    /// mobile navigation.
+    static var scopeKey: String? { get }
+}
+
+extension Component {
+    public static var scopeKey: String? { nil }
+}
 
 /// Marks a struct as a `Component` and generates an initializer when needed.
 ///

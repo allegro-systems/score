@@ -11,9 +11,9 @@
 ///
 /// ```swift
 /// Address {
-///     Text(verbatim: "Score Project")
+///     Text { "Score Project" }
 ///     LineBreak()
-///     Text(verbatim: "hello@scoreproject.dev")
+///     Text { "hello@scoreproject.dev" }
 /// }
 /// ```
 ///
@@ -21,11 +21,11 @@
 ///
 /// ```swift
 /// Article {
-///     Heading(.one) { Text(verbatim: "Release Notes") }
+///     Heading(.one) { Text { "Release Notes" } }
 ///     Address {
-///         Text(verbatim: "Written by ")
-///         Strong { Text(verbatim: "Jane Smith") }
-///         Text(verbatim: " — jane@example.com")
+///         Text { "Written by " }
+///         Strong { Text { "Jane Smith" } }
+///         Text { " — jane@example.com" }
 ///     }
 /// }
 /// ```
@@ -51,7 +51,7 @@ public struct Address<Content: Node>: Node, SourceLocatable {
     ///
     /// ```swift
     /// Address {
-    ///     Text(verbatim: "support@example.com")
+    ///     Text { "support@example.com" }
     /// }
     /// ```
     ///

@@ -65,7 +65,7 @@ public struct ThemeCSSEmitter: Sendable {
 
         // Typography scale
         css.append("  --type-scale-base: \(cleanedPixelValue(theme.typeScaleBase));\n")
-        css.append("  --type-scale-ratio: \(cleanedNumber(theme.typeScaleRatio));\n")
+        emitTextScale(into: &css)
 
         // Spacing and radius
         css.append("  --spacing-unit: \(cleanedPixelValue(theme.spacingUnit));\n")
@@ -95,14 +95,37 @@ public struct ThemeCSSEmitter: Sendable {
         if let base = patch.typeScaleBase {
             css.append("\(indent)--type-scale-base: \(cleanedPixelValue(base));\n")
         }
-        if let ratio = patch.typeScaleRatio {
-            css.append("\(indent)--type-scale-ratio: \(cleanedNumber(ratio));\n")
-        }
         if let spacing = patch.spacingUnit {
             css.append("\(indent)--spacing-unit: \(cleanedPixelValue(spacing));\n")
         }
         if let radius = patch.radiusBase {
             css.append("\(indent)--radius-base: \(cleanedPixelValue(radius));\n")
+        }
+    }
+
+    private static let textScale: [(name: String, rem: Double, lineHeight: String)] = [
+        ("xs", 0.75, "calc(1 / 0.75)"),
+        ("sm", 0.875, "calc(1.25 / 0.875)"),
+        ("base", 1.0, "calc(1.5 / 1)"),
+        ("lg", 1.125, "calc(1.75 / 1.125)"),
+        ("xl", 1.25, "calc(1.75 / 1.25)"),
+        ("2xl", 1.5, "calc(2 / 1.5)"),
+        ("3xl", 1.875, "calc(2.25 / 1.875)"),
+        ("4xl", 2.25, "calc(2.5 / 2.25)"),
+        ("5xl", 3.0, "1"),
+        ("6xl", 3.75, "1"),
+        ("7xl", 4.5, "1"),
+        ("8xl", 6.0, "1"),
+        ("9xl", 8.0, "1"),
+    ]
+
+    private static func emitTextScale(into css: inout String, indent: String = "  ") {
+        for step in textScale {
+            let rem =
+                step.rem.truncatingRemainder(dividingBy: 1) == 0
+                ? "\(Int(step.rem))" : "\(step.rem)"
+            css.append("\(indent)--text-\(step.name): \(rem)rem;\n")
+            css.append("\(indent)--text-\(step.name)--line-height: \(step.lineHeight);\n")
         }
     }
 

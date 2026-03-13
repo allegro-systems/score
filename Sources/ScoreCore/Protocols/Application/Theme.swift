@@ -237,7 +237,6 @@ public enum ColorToken: Sendable, Hashable {
 ///     var customColorRoles: [String: [Int: ColorToken]] { [:] }
 ///     var fontFamilies: [String: String] { ["sans": "system-ui"] }
 ///     var typeScaleBase: Double { 16 }
-///     var typeScaleRatio: Double { 1.25 }
 ///     var spacingUnit: Double { 4 }
 ///     var radiusBase: Double { 4 }
 ///     var syntaxTheme: SyntaxTheme { .rosePine }
@@ -303,11 +302,11 @@ public protocol Theme: Sendable {
     /// ```
     var fontFaces: [FontFace] { get }
 
-    /// The typographic scale base size in points.
+    /// The root font size in pixels used as the rem base for the type scale.
+    ///
+    /// Defaults to `16`. All text size variables (`--text-xs` through
+    /// `--text-9xl`) are expressed in `rem` relative to this value.
     var typeScaleBase: Double { get }
-
-    /// The typographic modular-scale ratio.
-    var typeScaleRatio: Double { get }
 
     /// The spacing scale unit in points.
     var spacingUnit: Double { get }
@@ -385,9 +384,6 @@ extension Theme {
 
     /// Default type scale base from ``DefaultTheme``.
     public var typeScaleBase: Double { DefaultTheme().typeScaleBase }
-
-    /// Default type scale ratio from ``DefaultTheme``.
-    public var typeScaleRatio: Double { DefaultTheme().typeScaleRatio }
 
     /// Default spacing unit from ``DefaultTheme``.
     public var spacingUnit: Double { DefaultTheme().spacingUnit }
@@ -471,9 +467,6 @@ public protocol ThemePatch: Sendable {
     /// Optional type-scale base override.
     var typeScaleBase: Double? { get }
 
-    /// Optional type-scale ratio override.
-    var typeScaleRatio: Double? { get }
-
     /// Optional spacing-unit override.
     var spacingUnit: Double? { get }
 
@@ -497,9 +490,6 @@ extension ThemePatch {
 
     /// Default implementation returns no type-scale base override.
     public var typeScaleBase: Double? { nil }
-
-    /// Default implementation returns no type-scale ratio override.
-    public var typeScaleRatio: Double? { nil }
 
     /// Default implementation returns no spacing-unit override.
     public var spacingUnit: Double? { nil }

@@ -51,7 +51,6 @@ public struct DefaultTheme: Theme, Sendable {
     }
 
     public var typeScaleBase: Double { 16 }
-    public var typeScaleRatio: Double { 1.25 }
     public var spacingUnit: Double { 4 }
     public var radiusBase: Double { 8 }
     public var syntaxTheme: SyntaxTheme { .scoreDefault }

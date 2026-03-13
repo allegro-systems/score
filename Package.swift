@@ -15,12 +15,9 @@ let package = Package(
         .library(name: "ScoreCSS", targets: ["ScoreCSS"]),
         .library(name: "ScoreRouter", targets: ["ScoreRouter"]),
         .library(name: "ScoreRuntime", targets: ["ScoreRuntime"]),
-        .library(name: "ScoreStorage", targets: ["ScoreStorage"]),
-        .library(name: "ScoreAuth", targets: ["ScoreAuth"]),
         .library(name: "ScoreContent", targets: ["ScoreContent"]),
         .library(name: "ScoreAssets", targets: ["ScoreAssets"]),
-        .library(name: "ScoreUI", targets: ["ScoreUI"]),
-        .library(name: "ScoreVendor", targets: ["ScoreVendor"]),
+        .library(name: "ScoreExtensions", targets: ["ScoreExtensions"]),
         .executable(name: "score", targets: ["ScoreCLI"]),
     ],
     dependencies: [
@@ -67,7 +64,6 @@ let package = Package(
                 "ScoreCSS",
                 "ScoreRouter",
                 "ScoreAssets",
-                "ScoreStorage",
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOPosix", package: "swift-nio"),
                 .product(name: "NIOHTTP1", package: "swift-nio"),
@@ -78,23 +74,6 @@ let package = Package(
             resources: [.copy("Resources")]
         ),
         .target(
-            name: "ScoreStorage",
-            dependencies: [
-                "ScoreCore",
-                .product(name: "NIOCore", package: "swift-nio"),
-            ]
-        ),
-        .target(
-            name: "ScoreAuth",
-            dependencies: [
-                "ScoreCore",
-                "ScoreStorage",
-                "ScoreRouter",
-                "ScoreRuntime",
-                .product(name: "Crypto", package: "swift-crypto"),
-            ]
-        ),
-        .target(
             name: "ScoreContent",
             dependencies: [
                 "ScoreCore",
@@ -103,14 +82,12 @@ let package = Package(
             ]
         ),
         .target(name: "ScoreAssets", dependencies: ["ScoreCore"]),
-        .target(name: "ScoreUI", dependencies: ["ScoreCore", "ScoreHTML", "ScoreCSS"]),
-        .target(name: "ScoreVendor", dependencies: ["ScoreCore", "ScoreRouter"]),
+        .target(name: "ScoreExtensions", dependencies: ["ScoreCore", "ScoreRouter"]),
         .target(
             name: "Score",
             dependencies: [
-                "ScoreCore", "ScoreHTML", "ScoreCSS", "ScoreRouter",
-                "ScoreRuntime", "ScoreStorage", "ScoreAuth",
-                "ScoreContent", "ScoreAssets", "ScoreUI", "ScoreVendor",
+                "ScoreCore", "ScoreHTML", "ScoreCSS", "ScoreRouter", "ScoreRuntime",
+                "ScoreContent", "ScoreAssets", "ScoreExtensions",
             ]
         ),
         .executableTarget(
@@ -135,11 +112,8 @@ let package = Package(
                 .product(name: "NIOEmbedded", package: "swift-nio"),
             ]
         ),
-        .testTarget(name: "ScoreStorageTests", dependencies: ["ScoreStorage"]),
-        .testTarget(name: "ScoreAuthTests", dependencies: ["ScoreAuth", "ScoreStorage"]),
         .testTarget(name: "ScoreContentTests", dependencies: ["ScoreContent", "ScoreHTML"]),
         .testTarget(name: "ScoreAssetsTests", dependencies: ["ScoreAssets"]),
-        .testTarget(name: "ScoreUITests", dependencies: ["ScoreUI", "ScoreHTML"]),
-        .testTarget(name: "ScoreVendorTests", dependencies: ["ScoreVendor"]),
+        .testTarget(name: "ScoreExtensionsTests", dependencies: ["ScoreExtensions"]),
     ]
 )

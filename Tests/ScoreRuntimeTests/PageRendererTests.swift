@@ -9,7 +9,6 @@ private struct MinimalTheme: Theme {
     var customColorRoles: [String: [Int: ColorToken]] { [:] }
     var fontFamilies: [String: String] { [:] }
     var typeScaleBase: Double { 16 }
-    var typeScaleRatio: Double { 1.25 }
     var spacingUnit: Double { 4 }
     var radiusBase: Double { 4 }
     var syntaxThemeName: String? { nil }
@@ -23,7 +22,6 @@ private struct NamedMinimalTheme: Theme {
     var customColorRoles: [String: [Int: ColorToken]] { [:] }
     var fontFamilies: [String: String] { [:] }
     var typeScaleBase: Double { 16 }
-    var typeScaleRatio: Double { 1.25 }
     var spacingUnit: Double { 4 }
     var radiusBase: Double { 4 }
     var syntaxThemeName: String? { nil }

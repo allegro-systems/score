@@ -19,7 +19,7 @@
 ///     }
 /// }
 /// ```
-public protocol Vendor: Sendable {
+public protocol Extension: Sendable {
 
     /// The routes this vendor exposes.
     ///

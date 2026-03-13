@@ -10,7 +10,7 @@ struct TestTheme: Theme {
     var customColorRoles: [String: [Int: ColorToken]] { [:] }
     var fontFamilies: [String: String] { ["sans": "system-ui"] }
     var typeScaleBase: Double { 16 }
-    var typeScaleRatio: Double { 1.25 }
+
     var spacingUnit: Double { 4 }
     var radiusBase: Double { 4 }
     var syntaxThemeName: String? { nil }
@@ -23,7 +23,7 @@ struct DarkPatch: ThemePatch {
     var customColorRoles: [String: [Int: ColorToken]]? { nil }
     var fontFamilies: [String: String]? { nil }
     var typeScaleBase: Double? { nil }
-    var typeScaleRatio: Double? { nil }
+
     var spacingUnit: Double? { nil }
     var radiusBase: Double? { nil }
     var syntaxThemeName: String? { nil }
@@ -35,7 +35,7 @@ struct DarkTheme: Theme {
     var customColorRoles: [String: [Int: ColorToken]] { [:] }
     var fontFamilies: [String: String] { ["sans": "system-ui"] }
     var typeScaleBase: Double { 16 }
-    var typeScaleRatio: Double { 1.25 }
+
     var spacingUnit: Double { 4 }
     var radiusBase: Double { 4 }
     var syntaxThemeName: String? { nil }
@@ -47,7 +47,6 @@ struct FullDarkPatch: ThemePatch {
     var customColorRoles: [String: [Int: ColorToken]]? { nil }
     var fontFamilies: [String: String]? { ["mono": "ui-monospace"] }
     var typeScaleBase: Double? { 18 }
-    var typeScaleRatio: Double? { 1.5 }
     var spacingUnit: Double? { 6 }
     var radiusBase: Double? { 10 }
     var syntaxThemeName: String? { nil }
@@ -79,7 +78,7 @@ struct FullDarkTheme: Theme {
     var customColorRoles: [String: [Int: ColorToken]] { [:] }
     var fontFamilies: [String: String] { ["sans": "system-ui"] }
     var typeScaleBase: Double { 16 }
-    var typeScaleRatio: Double { 1.25 }
+
     var spacingUnit: Double { 4 }
     var radiusBase: Double { 4 }
     var syntaxThemeName: String? { nil }
@@ -99,6 +98,22 @@ struct FullDarkTheme: Theme {
 @Test func emitTypeScaleBase() {
     let css = ThemeCSSEmitter.emit(TestTheme())
     #expect(css.contains("--type-scale-base: 16px"))
+}
+
+@Test func emitTextScaleVariables() {
+    let css = ThemeCSSEmitter.emit(TestTheme())
+    #expect(css.contains("--text-xs: 0.75rem"))
+    #expect(css.contains("--text-xs--line-height: calc(1 / 0.75)"))
+    #expect(css.contains("--text-sm: 0.875rem"))
+    #expect(css.contains("--text-base: 1rem"))
+    #expect(css.contains("--text-lg: 1.125rem"))
+    #expect(css.contains("--text-xl: 1.25rem"))
+    #expect(css.contains("--text-2xl: 1.5rem"))
+    #expect(css.contains("--text-3xl: 1.875rem"))
+    #expect(css.contains("--text-4xl: 2.25rem"))
+    #expect(css.contains("--text-5xl: 3rem"))
+    #expect(css.contains("--text-5xl--line-height: 1"))
+    #expect(css.contains("--text-9xl: 8rem"))
 }
 
 @Test func emitSpacingUnit() {
@@ -128,7 +143,6 @@ struct FullDarkTheme: Theme {
     #expect(css.contains("    --color-surface: inherit;"))
     #expect(css.contains("    --font-mono: ui-monospace;"))
     #expect(css.contains("    --type-scale-base: 18px;"))
-    #expect(css.contains("    --type-scale-ratio: 1.5;"))
     #expect(css.contains("    --spacing-unit: 6px;"))
     #expect(css.contains("    --radius-base: 10px;"))
 }
@@ -160,7 +174,7 @@ private struct OceanPatch: ThemePatch {
     var customColorRoles: [String: [Int: ColorToken]]? { nil }
     var fontFamilies: [String: String]? { nil }
     var typeScaleBase: Double? { nil }
-    var typeScaleRatio: Double? { nil }
+
     var spacingUnit: Double? { nil }
     var radiusBase: Double? { nil }
     var syntaxThemeName: String? { nil }
@@ -171,7 +185,7 @@ private struct ForestPatch: ThemePatch {
     var customColorRoles: [String: [Int: ColorToken]]? { nil }
     var fontFamilies: [String: String]? { ["sans": "Georgia, serif"] }
     var typeScaleBase: Double? { nil }
-    var typeScaleRatio: Double? { nil }
+
     var spacingUnit: Double? { 6 }
     var radiusBase: Double? { nil }
     var syntaxThemeName: String? { nil }
@@ -183,7 +197,7 @@ private struct NamedTheme: Theme {
     var customColorRoles: [String: [Int: ColorToken]] { [:] }
     var fontFamilies: [String: String] { ["sans": "system-ui"] }
     var typeScaleBase: Double { 16 }
-    var typeScaleRatio: Double { 1.25 }
+
     var spacingUnit: Double { 4 }
     var radiusBase: Double { 4 }
     var syntaxThemeName: String? { nil }

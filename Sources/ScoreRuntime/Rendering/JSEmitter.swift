@@ -45,6 +45,9 @@ public struct JSEmitter: Sendable {
     /// Groups the reactive declarations and bindings belonging to a single stateful `Component`.
     public struct ComponentScope: Sendable {
         public var name: String = ""
+        /// The key used for merging scopes.  Scopes with the same
+        /// `mergeKey` are combined into one shared scope.
+        public var mergeKey: String = ""
         public var states: [StateInfo] = []
         public var computeds: [ComputedInfo] = []
         public var actions: [ActionInfo] = []
@@ -120,9 +123,20 @@ public struct JSEmitter: Sendable {
         pageLevelBindings: inout [EventBinding],
         pageLevelReactive: inout [ReactiveBinding]
     ) {
-        if node is any Component {
+        if let component = node as? any Component {
             var scope = ComponentScope()
-            scope.name = String(describing: type(of: node))
+            let typeName = String(describing: type(of: node))
+            scope.name = typeName
+
+            // If the component declares a shared scopeKey, use it for merging.
+            // Otherwise, use the current scope count as a unique key so each
+            // instance stays independent.
+            if let sharedKey = type(of: component).scopeKey {
+                scope.mergeKey = "\(typeName):\(sharedKey)"
+            } else {
+                scope.mergeKey = "\(typeName)#\(scopes.count)"
+            }
+
             let mirror = Mirror(reflecting: node)
             scope.states = extractStatesFromMirror(mirror)
             scope.computeds = extractComputedsFromMirror(mirror)
@@ -257,7 +271,8 @@ public struct JSEmitter: Sendable {
         let pageComputeds = extractComputeds(from: page)
         let pageActions = extractActions(from: page)
 
-        let (componentScopes, pageLevelBindings, pageLevelReactive) = extractComponentScopes(from: page.body)
+        let (rawScopes, pageLevelBindings, pageLevelReactive) = extractComponentScopes(from: page.body)
+        let componentScopes = mergeComponentScopes(rawScopes)
 
         let hasPageLevel =
             !pageStates.isEmpty || !pageComputeds.isEmpty
@@ -312,6 +327,28 @@ public struct JSEmitter: Sendable {
             pageStates: pageStates, pageComputeds: pageComputeds, pageActions: pageActions,
             componentScopes: componentScopes
         )
+    }
+
+    /// Merges component scopes that share the same `mergeKey` so that
+    /// state, computed, and action declarations are emitted once while
+    /// event bindings from all instances are wired to the shared scope.
+    /// Components without a `scopeKey` each receive a unique merge key
+    /// and therefore remain independent.
+    private static func mergeComponentScopes(_ scopes: [ComponentScope]) -> [ComponentScope] {
+        var seen: [String: Int] = [:]
+        var merged: [ComponentScope] = []
+
+        for scope in scopes {
+            if let index = seen[scope.mergeKey] {
+                merged[index].bindings.append(contentsOf: scope.bindings)
+                merged[index].reactiveBindings.append(contentsOf: scope.reactiveBindings)
+            } else {
+                seen[scope.mergeKey] = merged.count
+                merged.append(scope)
+            }
+        }
+
+        return merged
     }
 
     /// Emits a `<script>` tag for a page, or an empty string if the page
@@ -385,7 +422,7 @@ public struct JSEmitter: Sendable {
             js.append("Signal.effect(() => { localStorage.setItem(\"\(state.storageKey)\",JSON.stringify(\(state.name).get())); });\n")
             if state.isTheme {
                 js.append(
-                    "Signal.effect(() => { var v=\(state.name).get();if(v)document.documentElement.setAttribute(\"data-theme\",\"dark\");else document.documentElement.removeAttribute(\"data-theme\"); });\n"
+                    "Signal.effect(() => { var v=\(state.name).get();document.documentElement.setAttribute(\"data-theme\",v?\"dark\":\"light\"); });\n"
                 )
             }
         }

@@ -94,6 +94,7 @@ public struct CSSCollector: Sendable {
         let htmlTag: String?
         let variantName: String?
         let mediaQuery: String?
+        let baseDeclarationKey: String?
     }
 
     private var entries: [Entry] = []
@@ -150,9 +151,18 @@ public struct CSSCollector: Sendable {
         var componentBlocks: [String: String] = [:]
 
         for (scope, groupEntries) in componentGroups {
-            let baseEntries = groupEntries.filter { $0.variantName == nil && $0.mediaQuery == nil }
-            let variantEntries = groupEntries.filter { $0.variantName != nil }
-            let mediaEntries = groupEntries.filter { $0.mediaQuery != nil }
+            var baseEntries: [Entry] = []
+            var variantEntries: [Entry] = []
+            var mediaEntries: [Entry] = []
+            for entry in groupEntries {
+                if entry.mediaQuery != nil {
+                    mediaEntries.append(entry)
+                } else if entry.variantName != nil {
+                    variantEntries.append(entry)
+                } else {
+                    baseEntries.append(entry)
+                }
+            }
 
             var tagDeclarationKeys: [String: Set<String>] = [:]
             for entry in baseEntries where !entry.declarations.isEmpty {
@@ -174,7 +184,7 @@ public struct CSSCollector: Sendable {
                         blockCSS.append("  \(tag) {\n\(decls)")
                         emitNestedPseudoRules(entry.pseudoEntries, indent: "    ", into: &blockCSS)
                         blockCSS.append("\n  }\n")
-                        nestedKeys.insert(entry.declarationKey)
+                        nestedKeys.insert("\(scope)|\(entry.declarationKey)")
                     } else {
                         let tagKey = entry.htmlTag ?? "div"
                         let ordinal = (tagOrdinals[tagKey] ?? 0) + 1
@@ -188,7 +198,7 @@ public struct CSSCollector: Sendable {
                         blockCSS.append("  .\(className) {\n\(decls)")
                         emitNestedPseudoRules(entry.pseudoEntries, indent: "    ", into: &blockCSS)
                         blockCSS.append("\n  }\n")
-                        classLookup[entry.declarationKey] = className
+                        classLookup["\(scope)|\(entry.declarationKey)"] = className
                     }
                 } else if let tag = entry.htmlTag {
                     blockCSS.append("  \(tag) {\n")
@@ -234,16 +244,25 @@ public struct CSSCollector: Sendable {
                 blockCSS.append("  }\n")
             }
 
-            emitMediaEntries(mediaEntries, indent: "  ", into: &blockCSS)
+            emitMediaEntries(mediaEntries, indent: "  ", classLookup: classLookup, into: &blockCSS)
 
             blockCSS.append("}\n")
             componentBlocks[scope] = blockCSS
             css.append(blockCSS)
         }
 
-        let flatBase = flatEntries.filter { $0.variantName == nil && $0.mediaQuery == nil }
-        let flatVariants = flatEntries.filter { $0.variantName != nil }
-        let flatMedia = flatEntries.filter { $0.mediaQuery != nil }
+        var flatBase: [Entry] = []
+        var flatVariants: [Entry] = []
+        var flatMedia: [Entry] = []
+        for entry in flatEntries {
+            if entry.mediaQuery != nil {
+                flatMedia.append(entry)
+            } else if entry.variantName != nil {
+                flatVariants.append(entry)
+            } else {
+                flatBase.append(entry)
+            }
+        }
 
         var flatCSS = ""
         var flatTagOrdinals: [String: Int] = [:]
@@ -265,7 +284,7 @@ public struct CSSCollector: Sendable {
                 rule.append("\n}\n")
                 flatCSS.append(rule)
                 css.append(rule)
-                classLookup[entry.declarationKey] = className
+                classLookup["|\(entry.declarationKey)"] = className
             } else if !entry.pseudoEntries.isEmpty {
                 var rule = ".\(className) {\n"
                 emitNestedPseudoRules(entry.pseudoEntries, indent: "  ", into: &rule)
@@ -288,7 +307,7 @@ public struct CSSCollector: Sendable {
         }
 
         var flatMediaCSS = ""
-        emitMediaEntries(flatMedia, indent: "", into: &flatMediaCSS)
+        emitMediaEntries(flatMedia, indent: "", classLookup: classLookup, into: &flatMediaCSS)
         flatCSS.append(flatMediaCSS)
         css.append(flatMediaCSS)
 
@@ -398,6 +417,7 @@ public struct CSSCollector: Sendable {
             }
         }
 
+        let baseDeclarationKey: String?
         if !declarations.isEmpty || !pseudoEntries.isEmpty {
             let declarationKey = declarations.isEmpty ? "" : CSSDeclaration.lookupKey(for: declarations)
             let pseudoKeyParts = pseudoEntries.map {
@@ -418,9 +438,13 @@ public struct CSSCollector: Sendable {
                         componentScope: scope,
                         htmlTag: htmlTag,
                         variantName: nil,
-                        mediaQuery: nil
+                        mediaQuery: nil,
+                        baseDeclarationKey: nil
                     ))
             }
+            baseDeclarationKey = declarationKey
+        } else {
+            baseDeclarationKey = nil
         }
 
         for variant in variantModifiers {
@@ -428,7 +452,7 @@ public struct CSSCollector: Sendable {
         }
 
         for bp in breakpointModifiers {
-            registerBreakpointOverrides(bp, htmlTag: htmlTag)
+            registerBreakpointOverrides(bp, htmlTag: htmlTag, baseDeclarationKey: baseDeclarationKey)
         }
     }
 
@@ -464,11 +488,16 @@ public struct CSSCollector: Sendable {
                 componentScope: scope,
                 htmlTag: htmlTag,
                 variantName: variant.name,
-                mediaQuery: nil
+                mediaQuery: nil,
+                baseDeclarationKey: nil
             ))
     }
 
-    private mutating func registerBreakpointOverrides(_ bp: BreakpointModifier, htmlTag: String?) {
+    private mutating func registerBreakpointOverrides(
+        _ bp: BreakpointModifier,
+        htmlTag: String?,
+        baseDeclarationKey: String?
+    ) {
         var declarations: [CSSDeclaration] = []
         var pseudoEntries: [PseudoEntry] = []
 
@@ -489,7 +518,7 @@ public struct CSSCollector: Sendable {
         let declarationKey = declarations.isEmpty ? "" : CSSDeclaration.lookupKey(for: declarations)
         let query = bp.breakpoint.mediaQuery
         let scope = componentStack.last
-        let dedupKey = "media:\(query)|\(scope ?? "")|\(htmlTag ?? "")|\(declarationKey)"
+        let dedupKey = "media:\(query)|\(scope ?? "")|\(baseDeclarationKey ?? htmlTag ?? "")|\(declarationKey)"
 
         guard !seenEntries.contains(dedupKey) else { return }
         seenEntries.insert(dedupKey)
@@ -502,13 +531,19 @@ public struct CSSCollector: Sendable {
                 componentScope: scope,
                 htmlTag: htmlTag,
                 variantName: nil,
-                mediaQuery: query
+                mediaQuery: query,
+                baseDeclarationKey: baseDeclarationKey
             ))
     }
 
     // MARK: - Helpers
 
-    private func emitMediaEntries(_ entries: [Entry], indent: String, into css: inout String) {
+    private func emitMediaEntries(
+        _ entries: [Entry],
+        indent: String,
+        classLookup: [String: String],
+        into css: inout String
+    ) {
         var mediaGroups: [(query: String, entries: [Entry])] = []
         var mediaIndex: [String: Int] = [:]
         for entry in entries {
@@ -520,13 +555,27 @@ public struct CSSCollector: Sendable {
                 mediaGroups.append((query, [entry]))
             }
         }
+        var keyed = mediaGroups.map { (group: $0, sortKey: Self.mediaQuerySortOrder($0.query)) }
+        keyed.sort { $0.sortKey < $1.sortKey }
+        mediaGroups = keyed.map(\.group)
         for (query, mEntries) in mediaGroups {
             css.append("\(indent)@media (\(query)) {\n")
             for entry in mEntries {
                 if !entry.declarations.isEmpty {
                     let decls = renderDeclarations(entry.declarations, indent: "\(indent)      ")
                     if let tag = entry.htmlTag {
-                        css.append("\(indent)    \(tag) {\n\(decls)")
+                        let selector: String
+                        if let baseKey = entry.baseDeclarationKey {
+                            let scopedKey = "\(entry.componentScope ?? "")|\(baseKey)"
+                            if let className = classLookup[scopedKey] {
+                                selector = ".\(className)"
+                            } else {
+                                selector = tag
+                            }
+                        } else {
+                            selector = tag
+                        }
+                        css.append("\(indent)    \(selector) {\n\(decls)")
                         emitNestedPseudoRules(entry.pseudoEntries, indent: "\(indent)      ", into: &css)
                         css.append("\n\(indent)    }\n")
                     } else {
@@ -551,6 +600,30 @@ public struct CSSCollector: Sendable {
             let decls = renderDeclarations(pseudo.declarations, indent: "\(indent)  ")
             css.append("\n\(indent)&:\(pseudo.pseudoClass.rawValue) {\n\(decls)\n\(indent)}")
         }
+    }
+
+    /// Returns a sort key for media queries ensuring desktop-first ordering:
+    /// larger `max-width` breakpoints emit before smaller ones so that the
+    /// narrowest breakpoint wins via the CSS cascade at small viewport widths.
+    /// `min-width` queries are placed after all `max-width` queries, ascending.
+    private static func mediaQuerySortOrder(_ query: String) -> Int {
+        let maxWidthValue = extractWidth(from: query, property: "max-width")
+        let minWidthValue = extractWidth(from: query, property: "min-width")
+
+        if let maxWidth = maxWidthValue {
+            return 10000 - maxWidth
+        }
+        if let minWidth = minWidthValue {
+            return 10000 + minWidth
+        }
+        return 20000
+    }
+
+    private static func extractWidth(from query: String, property: String) -> Int? {
+        guard let range = query.range(of: "\(property): ") else { return nil }
+        let after = query[range.upperBound...]
+        let digits = after.prefix(while: \.isNumber)
+        return Int(digits)
     }
 
     private func renderDeclarations(_ declarations: [CSSDeclaration], indent: String) -> String {

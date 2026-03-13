@@ -2,7 +2,14 @@ import ScoreCore
 
 extension Link: HTMLContainerElement {
     var htmlTagName: String { "a" }
-    var htmlAttributes: [(String, String)] { [("href", destination)] }
+    var htmlAttributes: [(String, String)] {
+        var attrs: [(String, String)] = [("href", destination)]
+        if opensInNewTab {
+            attrs.append(("target", "_blank"))
+            attrs.append(("rel", "noopener noreferrer"))
+        }
+        return attrs
+    }
 }
 
 extension Dialog: HTMLContainerElement {

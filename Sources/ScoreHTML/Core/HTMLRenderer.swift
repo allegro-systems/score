@@ -45,9 +45,13 @@ public struct HTMLRenderer: Sendable {
     ///
     /// Mutable counter for `data-s` event binding indices, protected by a lock
     /// to prevent data races.
-    final class RenderContext: Sendable {
+    final class RenderContext: @unchecked Sendable {
         private let eventLock = OSAllocatedUnfairLock(initialState: 0)
         private let reactiveLock = OSAllocatedUnfairLock(initialState: 0)
+
+        /// Component scope stack, mutated only during the synchronous
+        /// recursive `write()` pass — no lock needed.
+        private var scopeStack: [String] = []
 
         /// Returns the next event index and increments the counter.
         func nextEventIndex() -> Int {
@@ -66,14 +70,31 @@ public struct HTMLRenderer: Sendable {
                 return current
             }
         }
+
+        /// The name of the component scope currently being rendered.
+        var currentComponentScope: String? {
+            scopeStack.last
+        }
+
+        /// Pushes a component scope onto the stack.
+        func pushScope(_ scope: String) {
+            scopeStack.append(scope)
+        }
+
+        /// Pops the current component scope from the stack.
+        func popScope() {
+            scopeStack.removeLast()
+        }
     }
 
     /// An optional closure that resolves CSS class names for modified nodes.
     ///
     /// When set, the renderer queries this closure for each `ModifiedNode`
-    /// encountered during rendering. If the closure returns a non-nil class
-    /// name, the node's content is wrapped in an element with that class.
-    public var classInjector: (@Sendable ([any ModifierValue]) -> String?)?
+    /// encountered during rendering. The closure receives the modifier array
+    /// and the current component scope name (if any). If it returns a
+    /// non-nil class name, the node's content is wrapped in an element
+    /// with that class.
+    public var classInjector: (@Sendable ([any ModifierValue], _ scope: String?) -> String?)?
 
     /// An optional closure that resolves a semantic CSS class name for
     /// composite nodes (Components, Pages).
@@ -105,19 +126,20 @@ public struct HTMLRenderer: Sendable {
 
     /// Creates an HTML renderer with a class injector.
     ///
-    /// - Parameter classInjector: A closure that maps modifier arrays to
-    ///   CSS class names. Return `nil` for modifier sets that produce no CSS.
-    public init(classInjector: (@Sendable ([any ModifierValue]) -> String?)?) {
+    /// - Parameter classInjector: A closure that maps modifier arrays and
+    ///   the current component scope to CSS class names. Return `nil` for
+    ///   modifier sets that produce no CSS.
+    public init(classInjector: (@Sendable ([any ModifierValue], _ scope: String?) -> String?)?) {
         self.classInjector = classInjector
     }
 
     /// Creates an HTML renderer with class and scope injectors.
     ///
     /// - Parameters:
-    ///   - classInjector: A closure that maps modifier arrays to CSS class names.
+    ///   - classInjector: A closure that maps modifier arrays and scope to CSS class names.
     ///   - scopeInjector: A closure that returns scope info for stateful components.
     public init(
-        classInjector: (@Sendable ([any ModifierValue]) -> String?)?,
+        classInjector: (@Sendable ([any ModifierValue], _ scope: String?) -> String?)?,
         scopeInjector: (@Sendable (Any) -> ScopeInfo?)?
     ) {
         self.classInjector = classInjector
@@ -144,6 +166,12 @@ public struct HTMLRenderer: Sendable {
 
         if isLeafNode(node) { return }
 
+        // Resolve the CSS class name for component scope tracking.
+        let componentScope =
+            (node is any Component || node is any Page)
+            ? componentClassInjector?(node)
+            : nil
+
         // Check if this is a stateful component needing a scope wrapper.
         if let scopeInfo = scopeInjector?(node) {
             output.append("<div data-scope=\"\(scopeInfo.name.attributeEscaped)\"")
@@ -158,16 +186,20 @@ public struct HTMLRenderer: Sendable {
                 output.append(" data-as-value:\(name)=\"\(value.attributeEscaped)\"")
             }
             output.append("></div>")
+            if let scope = componentScope { context.pushScope(scope) }
             write(node.body, to: &output)
+            if componentScope != nil { context.popScope() }
             output.append("</div>")
-        } else if let semanticClass = componentClassInjector?(node) {
+        } else if let semanticClass = componentScope {
             output.append("<div class=\"\(semanticClass.attributeEscaped)\" style=\"display:contents\"")
             if isDevMode {
                 let name = baseTypeName(of: node)
                 output.append(" data-score-component=\"\(name.attributeEscaped)\"")
             }
             output.append(">")
+            context.pushScope(semanticClass)
             write(node.body, to: &output)
+            context.popScope()
             output.append("</div>")
         } else {
             write(node.body, to: &output)

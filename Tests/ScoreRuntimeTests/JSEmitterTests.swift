@@ -7,7 +7,7 @@ private struct StaticPage: Page {
     static let path = "/"
 
     var body: some Node {
-        Heading(.one) { Text(verbatim: "Hello") }
+        Heading(.one) { Text { "Hello" } }
     }
 }
 
@@ -16,7 +16,7 @@ private struct ReactivePage: Page {
     @State var count = 0
 
     var body: some Node {
-        Button { Text(verbatim: "\(count)") }
+        Button { Text { "\(count)" } }
             .on(.click, action: "increment")
     }
 }
@@ -27,7 +27,7 @@ private struct MultiStatePage: Page {
     @State var visible = true
 
     var body: some Node {
-        Text(verbatim: "\(name)")
+        Text { "\(name)" }
     }
 }
 
@@ -38,7 +38,7 @@ private struct ComputedPage: Page {
     @Computed var doubled: Int { price * 2 }
 
     var body: some Node {
-        Text(verbatim: "value")
+        Text { "value" }
     }
 }
 
@@ -49,7 +49,7 @@ private struct ActionPage: Page {
     @Action func increment() {}
 
     var body: some Node {
-        Button { Text(verbatim: "Go") }
+        Button { Text { "Go" } }
             .on(.click, action: "increment")
     }
 }
@@ -147,7 +147,7 @@ private struct ActionPage: Page {
 private struct BoolFalsePage: Page {
     static let path = "/bool-false"
     @State var active = false
-    var body: some Node { Text(verbatim: "x") }
+    var body: some Node { Text { "x" } }
 }
 
 @Test func boolFalseStateEmitsJSFalse() {
@@ -160,9 +160,9 @@ private struct ConditionalEventPage: Page {
     @State var show = true
     var body: some Node {
         if show {
-            Text(verbatim: "shown").on(.click, action: "go")
+            Text { "shown" }.on(.click, action: "go")
         } else {
-            Text(verbatim: "hidden")
+            Text { "hidden" }
         }
     }
 }
@@ -179,7 +179,7 @@ private struct OptionalEventPage: Page {
     @State var show = true
     var body: some Node {
         if show {
-            Text(verbatim: "shown").on(.click, action: "go")
+            Text { "shown" }.on(.click, action: "go")
         }
     }
 }
@@ -195,7 +195,7 @@ private struct ForEachEventPage: Page {
     static let path = "/foreach-event"
     var body: some Node {
         ForEachNode([1, 2, 3]) { i in
-            Text(verbatim: "\(i)").on(.click, action: "go")
+            Text { "\(i)" }.on(.click, action: "go")
         }
     }
 }

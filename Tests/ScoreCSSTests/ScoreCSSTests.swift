@@ -577,7 +577,7 @@ import Testing
 private struct CardComponent: Component {
     var body: some Node {
         Article {
-            Text(verbatim: "Card")
+            Text { "Card" }
         }
         .padding(16)
         .variant("compact") { $0.padding(8) }

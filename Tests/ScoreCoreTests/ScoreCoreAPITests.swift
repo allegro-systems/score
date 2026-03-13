@@ -196,7 +196,7 @@ import Testing
     let column = TableColumn(span: 3)
     #expect(column.span == 3)
 
-    let text = Text(verbatim: "plain")
+    let text = Text { "plain" }
     #expect(text.content.content == "plain")
 
     _ = HorizontalRule()

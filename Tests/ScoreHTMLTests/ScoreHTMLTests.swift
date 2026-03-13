@@ -214,6 +214,12 @@ import Testing
     #expect(html.contains("Click"))
 }
 
+@Test func linkOpensInNewTab() {
+    let html = HTMLRenderer().render(Link(to: "https://example.com", opensInNewTab: true) { TextNode("Click") })
+    #expect(html.contains("target=\"_blank\""))
+    #expect(html.contains("rel=\"noopener noreferrer\""))
+}
+
 @Test func detailsRendersDisclosure() {
     let html = HTMLRenderer().render(
         Details(summary: { Summary { TextNode("Toggle") } }) {
@@ -435,7 +441,7 @@ import Testing
 @Test func devModeDataSourceWorksWithModifiedNode() {
     var renderer = HTMLRenderer()
     renderer.isDevMode = true
-    renderer.classInjector = { _ in "styled" }
+    renderer.classInjector = { _, _ in "styled" }
     let node = Paragraph(file: "App/Home.swift", line: 15, column: 1) { TextNode("text") }
         .padding(8)
     let html = renderer.render(node)

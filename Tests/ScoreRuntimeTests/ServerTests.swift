@@ -5,7 +5,7 @@ import Testing
 
 private struct TestPage: Page {
     static let path = "/"
-    var body: some Node { Heading(.one) { Text(verbatim: "Home") } }
+    var body: some Node { Heading(.one) { Text { "Home" } } }
 }
 
 private struct TestApp: Application {

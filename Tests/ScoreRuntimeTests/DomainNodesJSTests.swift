@@ -12,8 +12,8 @@ private struct LayoutContainerPage: Page {
             Main {
                 Section {
                     Article {
-                        Header { Navigation { Text(verbatim: "nav") } }
-                        Footer { Aside { Group { Text(verbatim: "g") } } }
+                        Header { Navigation { Text { "nav" } } }
+                        Footer { Aside { Group { Text { "g" } } } }
                     }
                 }
             }
@@ -33,16 +33,16 @@ private struct ContentContainerPage: Page {
     static let path = "/content-containers"
     var body: some Node {
         Heading(.two) {
-            Strong { Text(verbatim: "s") }
-            Emphasis { Text(verbatim: "e") }
-            Code { Text(verbatim: "c") }
-            Small { Text(verbatim: "sm") }
-            Mark { Text(verbatim: "m") }
+            Strong { Text { "s" } }
+            Emphasis { Text { "e" } }
+            Code { Text { "c" } }
+            Small { Text { "sm" } }
+            Mark { Text { "m" } }
         }.on(.click, action: "go")
-        Paragraph { Text(verbatim: "p") }
-        Preformatted { Text(verbatim: "pre") }
-        Blockquote { Text(verbatim: "bq") }
-        Address { Text(verbatim: "addr") }
+        Paragraph { Text { "p" } }
+        Preformatted { Text { "pre" } }
+        Blockquote { Text { "bq" } }
+        Address { Text { "addr" } }
         HorizontalRule()
         LineBreak()
     }
@@ -61,11 +61,11 @@ private struct FormControlPage: Page {
     var body: some Node {
         Form(action: "/submit", method: .post) {
             Fieldset {
-                Legend { Text(verbatim: "legend") }
+                Legend { Text { "legend" } }
                 Input(type: .text)
             }.on(.submit, action: "go")
             Select {
-                Option(value: "a") { Text(verbatim: "A") }
+                Option(value: "a") { Text { "A" } }
             }
         }
     }
@@ -83,14 +83,14 @@ private struct ListContainerPage: Page {
     static let path = "/list-containers"
     var body: some Node {
         UnorderedList {
-            ListItem { Text(verbatim: "a") }.on(.click, action: "go")
+            ListItem { Text { "a" } }.on(.click, action: "go")
         }
         OrderedList {
-            ListItem { Text(verbatim: "b") }
+            ListItem { Text { "b" } }
         }
         DescriptionList {
-            DescriptionTerm { Text(verbatim: "dt") }
-            DescriptionDetails { Text(verbatim: "dd") }
+            DescriptionTerm { Text { "dt" } }
+            DescriptionDetails { Text { "dd" } }
         }
     }
 }
@@ -107,16 +107,16 @@ private struct TableContainerPage: Page {
     static let path = "/table-containers"
     var body: some Node {
         Table {
-            TableCaption { Text(verbatim: "cap") }
+            TableCaption { Text { "cap" } }
             TableColumnGroup { TableColumn() }
             TableHead {
-                TableRow { TableHeaderCell { Text(verbatim: "th") } }
+                TableRow { TableHeaderCell { Text { "th" } } }
             }
             TableBody {
-                TableRow { TableCell { Text(verbatim: "td") }.on(.click, action: "go") }
+                TableRow { TableCell { Text { "td" } }.on(.click, action: "go") }
             }
             TableFooter {
-                TableRow { TableCell { Text(verbatim: "tf") } }
+                TableRow { TableCell { Text { "tf" } } }
             }
         }
     }
@@ -135,9 +135,9 @@ private struct MediaInteractivePage: Page {
     var body: some Node {
         Figure {
             Image(src: "/i.png", alt: "img")
-            FigureCaption { Text(verbatim: "cap") }
+            FigureCaption { Text { "cap" } }
         }.on(.click, action: "go")
-        Link(to: "/about") { Text(verbatim: "link") }
+        Link(to: "/about") { Text { "link" } }
     }
 }
 
@@ -152,7 +152,7 @@ private struct MediaInteractivePage: Page {
 private struct DoubleStatePage: Page {
     static let path = "/double-state"
     @State var price = 9.99
-    var body: some Node { Text(verbatim: "price") }
+    var body: some Node { Text { "price" } }
 }
 
 @Test func doubleStateFormatsAsJSNumber() {
@@ -166,7 +166,7 @@ private struct DoubleStatePage: Page {
 
 private struct InnerEventComponent: Component {
     var body: some Node {
-        Text(verbatim: "inner").on(.click, action: "handleInner")
+        Text { "inner" }.on(.click, action: "handleInner")
     }
 }
 
@@ -190,7 +190,7 @@ private struct CompositeComponentPage: Page {
 private struct EventOnlyPage: Page {
     static let path = "/event-only"
     var body: some Node {
-        Button { Text(verbatim: "click me") }
+        Button { Text { "click me" } }
             .on(.click, action: "doSomething")
     }
 }
@@ -206,16 +206,16 @@ private struct EventOnlyPage: Page {
 private struct ExtendedFormControlPage: Page {
     static let path = "/extended-form-controls"
     var body: some Node {
-        Label(for: "qty") { Text(verbatim: "Qty") }.on(.click, action: "go")
+        Label(for: "qty") { Text { "Qty" } }.on(.click, action: "go")
         Select {
             OptionGroup(label: "Group A") {
-                Option(value: "a") { Text(verbatim: "A") }
+                Option(value: "a") { Text { "A" } }
             }
         }
         TextArea(name: "notes")
-        Output(for: nil) { Text(verbatim: "result") }
+        Output(for: nil) { Text { "result" } }
         DataList(id: "cities") {
-            Option(value: "NYC") { Text(verbatim: "New York") }
+            Option(value: "NYC") { Text { "New York" } }
         }
         Progress(value: 0.5, max: 1.0)
         Meter(value: 7, min: 0, max: 10)
@@ -234,14 +234,14 @@ private struct InteractiveNodePage: Page {
     static let path = "/interactive-nodes"
     var body: some Node {
         Dialog {
-            Text(verbatim: "dialog content")
+            Text { "dialog content" }
         }.on(.click, action: "openDialog")
         Menu {
-            Button { Text(verbatim: "action") }
+            Button { Text { "action" } }
         }
         Details(
-            summary: { Summary { Text(verbatim: "toggle") } },
-            content: { Text(verbatim: "body") }
+            summary: { Summary { Text { "toggle" } } },
+            content: { Text { "body" } }
         )
     }
 }
@@ -269,7 +269,7 @@ private struct MediaNodePage: Page {
             Image(src: "/img.jpg", alt: "img")
         }
         Canvas(width: 400, height: 300) {
-            Text(verbatim: "fallback")
+            Text { "fallback" }
         }
     }
 }

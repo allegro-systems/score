@@ -14,7 +14,7 @@ private struct RuntimeHomePage: Page {
     static let path = "/"
 
     var body: some Node {
-        Heading(.one) { Text(verbatim: "Runtime Home") }
+        Heading(.one) { Text { "Runtime Home" } }
     }
 }
 
@@ -77,7 +77,7 @@ private struct RuntimeErrorPage: ErrorPage {
     }
 
     var body: some Node {
-        Heading(.one) { Text(verbatim: "Error \(context.statusCode)") }
+        Heading(.one) { Text { "Error \(context.statusCode)" } }
     }
 }
 

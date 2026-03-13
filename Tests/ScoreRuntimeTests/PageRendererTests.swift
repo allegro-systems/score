@@ -41,7 +41,7 @@ private struct SimplePage: Page {
     var metadata: (any Metadata)? { SiteMetadata(title: "Home") }
 
     var body: some Node {
-        Heading(.one) { Text(verbatim: "Hello") }
+        Heading(.one) { Text { "Hello" } }
     }
 }
 
@@ -50,7 +50,7 @@ private struct StyledPage: Page {
 
     var body: some Node {
         Paragraph {
-            Text(verbatim: "Padded text")
+            Text { "Padded text" }
         }
         .padding(16)
     }

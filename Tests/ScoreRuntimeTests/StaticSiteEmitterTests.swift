@@ -20,7 +20,7 @@ private struct EmitterHomePage: Page {
     static let path = "/"
     var metadata: (any Metadata)? { SiteMetadata(title: "Home") }
     var body: some Node {
-        Heading(.one) { Text(verbatim: "Welcome") }
+        Heading(.one) { Text { "Welcome" } }
     }
 }
 
@@ -28,7 +28,7 @@ private struct EmitterAboutPage: Page {
     static let path = "/about"
     var metadata: (any Metadata)? { SiteMetadata(title: "About") }
     var body: some Node {
-        Paragraph { Text(verbatim: "About us") }
+        Paragraph { Text { "About us" } }
     }
 }
 
@@ -168,7 +168,7 @@ private struct EmitterAppWithBaseURL: Application {
 private struct StatusPage: Page {
     static let path = "/404"
     var body: some Node {
-        Heading(.one) { Text(verbatim: "Not Found") }
+        Heading(.one) { Text { "Not Found" } }
     }
 }
 
@@ -236,8 +236,8 @@ private struct TestErrorPage: ErrorPage {
     }
 
     var body: some Node {
-        Heading(.one) { Text(verbatim: "Error \(context.statusCode)") }
-        Paragraph { Text(verbatim: context.message) }
+        Heading(.one) { Text { "Error \(context.statusCode)" } }
+        Paragraph { Text { context.message } }
     }
 }
 

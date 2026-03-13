@@ -17,7 +17,6 @@ let package = Package(
         .library(name: "ScoreRuntime", targets: ["ScoreRuntime"]),
         .library(name: "ScoreContent", targets: ["ScoreContent"]),
         .library(name: "ScoreAssets", targets: ["ScoreAssets"]),
-        .library(name: "ScoreExtensions", targets: ["ScoreExtensions"]),
         .executable(name: "score", targets: ["ScoreCLI"]),
     ],
     dependencies: [
@@ -25,7 +24,6 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-http-types.git", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.0.0"),
         .package(url: "https://github.com/swift-server/swift-service-lifecycle.git", from: "2.6.0"),
-        .package(url: "https://github.com/apple/swift-crypto.git", from: "3.0.0"),
         .package(url: "https://github.com/swiftlang/swift-markdown.git", from: "0.6.0"),
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
         .package(url: "https://github.com/tuist/Noora", from: "0.55.0"),
@@ -82,12 +80,11 @@ let package = Package(
             ]
         ),
         .target(name: "ScoreAssets", dependencies: ["ScoreCore"]),
-        .target(name: "ScoreExtensions", dependencies: ["ScoreCore", "ScoreRouter"]),
         .target(
             name: "Score",
             dependencies: [
                 "ScoreCore", "ScoreHTML", "ScoreCSS", "ScoreRouter", "ScoreRuntime",
-                "ScoreContent", "ScoreAssets", "ScoreExtensions",
+                "ScoreContent", "ScoreAssets",
             ]
         ),
         .executableTarget(
@@ -114,6 +111,5 @@ let package = Package(
         ),
         .testTarget(name: "ScoreContentTests", dependencies: ["ScoreContent", "ScoreHTML"]),
         .testTarget(name: "ScoreAssetsTests", dependencies: ["ScoreAssets"]),
-        .testTarget(name: "ScoreExtensionsTests", dependencies: ["ScoreExtensions"]),
     ]
 )

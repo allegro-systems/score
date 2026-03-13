@@ -8,6 +8,18 @@ extension BackgroundModifier: CSSRepresentable {
     }
 }
 
+/// Enables CSS emission for `BackgroundGradientModifier` modifiers.
+extension BackgroundGradientModifier: CSSRepresentable {
+    /// Converts this modifier into one or more CSS declarations.
+    func cssDeclarations() -> [CSSDeclaration] {
+        let g = gradient
+        let opacityPercent = Int(g.opacity * 100)
+        let colorValue = "color-mix(in oklch, \(g.color.cssValue) \(opacityPercent)%, transparent)"
+        let value = "radial-gradient(ellipse \(Int(g.width))% \(Int(g.height))% at \(g.position.rawValue), \(colorValue), transparent)"
+        return [.init(property: "background-image", value: value)]
+    }
+}
+
 /// Enables CSS emission for `BackgroundImageModifier` modifiers.
 extension BackgroundImageModifier: CSSRepresentable {
     /// Converts this modifier into one or more CSS declarations.

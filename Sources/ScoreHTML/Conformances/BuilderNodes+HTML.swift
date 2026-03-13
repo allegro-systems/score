@@ -34,7 +34,7 @@ extension ModifiedNode: HTMLRenderable {
     /// content renders directly without a wrapper.
     func renderHTML(into output: inout String, renderer: HTMLRenderer) {
         let (allModifiers, innerContent) = flattenedChain()
-        let className = renderer.classInjector?(allModifiers)
+        let className = renderer.classInjector?(allModifiers, renderer.context.currentComponentScope)
         let (htmlAttrs, hasEventBindings, hasReactiveBindings) = Self.collectHTMLAttributesAndEvents(from: allModifiers)
 
         if className != nil || !htmlAttrs.isEmpty || hasEventBindings || hasReactiveBindings {

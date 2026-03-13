@@ -78,8 +78,8 @@ public struct PageRenderer: Sendable {
 
         let environment = Environment.current
 
-        var renderer = HTMLRenderer(classInjector: { modifiers in
-            classMap.className(for: modifiers)
+        var renderer = HTMLRenderer(classInjector: { modifiers, scope in
+            classMap.className(for: modifiers, scope: scope)
         })
         renderer.componentClassInjector = { node in
             if node is any Component || node is any Page {
@@ -191,8 +191,8 @@ public struct PageRenderer: Sendable {
             nestedKeys: stylesheetResult.nestedKeys
         )
 
-        var renderer = HTMLRenderer(classInjector: { modifiers in
-            classMap.className(for: modifiers)
+        var renderer = HTMLRenderer(classInjector: { modifiers, scope in
+            classMap.className(for: modifiers, scope: scope)
         })
         renderer.componentClassInjector = { node in
             if node is any Component {
@@ -241,14 +241,15 @@ private struct ClassMap: Sendable {
     let classLookup: [String: String]
     let nestedKeys: Set<String>
 
-    func className(for modifiers: [any ModifierValue]) -> String? {
+    func className(for modifiers: [any ModifierValue], scope: String?) -> String? {
         var declarations: [CSSDeclaration] = []
         for modifier in modifiers {
             declarations.append(contentsOf: CSSEmitter.declarations(for: modifier))
         }
         guard !declarations.isEmpty else { return nil }
         let key = CSSDeclaration.lookupKey(for: declarations)
-        if nestedKeys.contains(key) { return nil }
-        return classLookup[key]
+        let scopedKey = "\(scope ?? "")|\(key)"
+        if nestedKeys.contains(scopedKey) { return nil }
+        return classLookup[scopedKey]
     }
 }

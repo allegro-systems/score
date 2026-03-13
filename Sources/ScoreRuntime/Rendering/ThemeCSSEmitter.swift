@@ -58,6 +58,13 @@ public struct ThemeCSSEmitter: Sendable {
             css.append("  --color-\(role): \(cssValue(for: token));\n")
         }
 
+        // Custom color roles
+        for (name, shades) in theme.customColorRoles.sorted(by: { $0.key < $1.key }) {
+            for (shade, token) in shades.sorted(by: { $0.key < $1.key }) {
+                css.append("  --color-\(name)-\(shade): \(cssValue(for: token));\n")
+            }
+        }
+
         // Font families
         for (name, family) in theme.fontFamilies.sorted(by: { $0.key < $1.key }) {
             css.append("  --font-\(name): \(family);\n")
@@ -85,6 +92,13 @@ public struct ThemeCSSEmitter: Sendable {
         if let colors = patch.colorRoles {
             for (role, token) in colors.sorted(by: { $0.key < $1.key }) {
                 css.append("\(indent)--color-\(role): \(cssValue(for: token));\n")
+            }
+        }
+        if let customColors = patch.customColorRoles {
+            for (name, shades) in customColors.sorted(by: { $0.key < $1.key }) {
+                for (shade, token) in shades.sorted(by: { $0.key < $1.key }) {
+                    css.append("\(indent)--color-\(name)-\(shade): \(cssValue(for: token));\n")
+                }
             }
         }
         if let fonts = patch.fontFamilies {
@@ -164,6 +178,9 @@ public struct ThemeCSSEmitter: Sendable {
               margin: 0;
               padding: 0;
             }
+            [hidden] {
+              display: none !important;
+            }
             ul, ol {
               padding-left: 1.5em;
             }\n
@@ -186,6 +203,17 @@ public struct ThemeCSSEmitter: Sendable {
                 nested: [("&:hover", ["text-decoration: underline"])],
                 into: &css)
         }
+
+        emitRule(
+            "button",
+            declarations: [
+                "background: none",
+                "border: none",
+                "padding: 0",
+                "font: inherit",
+                "color: inherit",
+            ],
+            into: &css)
 
         emitRule(
             ":focus-visible",
@@ -228,6 +256,41 @@ public struct ThemeCSSEmitter: Sendable {
         }
 
         emitContentStyles(theme, into: &css)
+
+        emitRule("details", declarations: ["position: relative"], into: &css)
+        emitRule(
+            "summary",
+            declarations: [
+                "list-style: none",
+                "cursor: pointer",
+            ],
+            nested: [("&::-webkit-details-marker", ["display: none"])],
+            into: &css)
+        css.append(
+            """
+            details > :not(summary) {
+              display: none;
+            }
+            details[open] > :not(summary),
+            details:hover > :not(summary) {
+              display: flex;
+            }
+            [data-hover-target] {
+              visibility: hidden;
+              opacity: 0;
+              pointer-events: none;
+              transition: opacity 0.15s ease, visibility 0.15s ease;
+            }
+            [data-hover-group]:hover > [data-hover-target] {
+              visibility: visible;
+              opacity: 1;
+              pointer-events: auto;
+            }
+            @keyframes score-fade-in {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }\n
+            """)
 
         // Responsive breakpoints
         css.append(
@@ -408,6 +471,92 @@ public struct ThemeCSSEmitter: Sendable {
             "[data-code-line]:last-child",
             declarations: ["padding-bottom: 12px"],
             into: &css)
+
+        // Tab group styles
+        emitRule(
+            "[data-tab-group]",
+            declarations: [
+                "display: flex",
+                "flex-direction: column",
+                "overflow: hidden",
+                "background: \(codeBlockBg)",
+                "border-radius: \(cleanedPixelValue(content.codeBlockRadius))",
+                "margin: 16px 0",
+            ], into: &css)
+
+        emitRule(
+            "[data-tab-group] > input",
+            declarations: [
+                "position: absolute",
+                "opacity: 0",
+                "pointer-events: none",
+            ], into: &css)
+
+        emitRule(
+            "[data-tab-bar]",
+            declarations: [
+                "display: flex",
+                "align-items: center",
+                "gap: 0",
+                "padding: 0 16px",
+                "border-bottom: 1px solid rgba(255,255,255,0.12)",
+            ], into: &css)
+
+        emitRule(
+            "[data-tab-labels]",
+            declarations: [
+                "display: flex",
+                "flex: 1",
+                "gap: 0",
+            ], into: &css)
+
+        emitRule(
+            "[data-tab-label]",
+            declarations: [
+                "font-family: var(--font-mono, monospace)",
+                "font-size: 11px",
+                "text-transform: uppercase",
+                "letter-spacing: 0.05em",
+                "padding: 8px 12px",
+                "cursor: pointer",
+                "color: \(syntax.comment.cssValue)",
+                "border-bottom: 2px solid transparent",
+                "transition: color 0.15s ease, border-color 0.15s ease",
+                "user-select: none",
+                "-webkit-user-select: none",
+            ], into: &css)
+
+        emitRule(
+            "[data-tab-bar] [data-code-label]",
+            declarations: [
+                "margin-right: 8px",
+            ], into: &css)
+
+        emitRule(
+            "[data-tab-bar] [data-code-copy]",
+            declarations: [
+                "margin-left: auto",
+            ], into: &css)
+
+        emitRule(
+            "[data-tab-panel]",
+            declarations: ["display: none"],
+            into: &css)
+
+        let maximumTabCount = 6
+        for i in 1...maximumTabCount {
+            emitRule(
+                "[data-tab-group] > input:nth-of-type(\(i)):checked ~ nav [data-tab-label]:nth-child(\(i))",
+                declarations: [
+                    "color: \(syntax.variable.cssValue)",
+                    "border-bottom-color: \(syntax.variable.cssValue)",
+                ], into: &css)
+
+            emitRule(
+                "[data-tab-group] > input:nth-of-type(\(i)):checked ~ div:nth-of-type(\(i))",
+                declarations: ["display: block"],
+                into: &css)
+        }
     }
 
     private static func cssPropertyValue(for token: ColorToken) -> String {

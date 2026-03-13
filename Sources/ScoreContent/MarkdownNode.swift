@@ -117,6 +117,10 @@ struct BlockNodeView: Node {
                 }
             }
             .overflow(x: .auto)
+        case .tabGroup(let tabs):
+            TabGroup(tabs: tabs)
+        case .tabbedCodeBlock:
+            EmptyNode()
         }
     }
 }

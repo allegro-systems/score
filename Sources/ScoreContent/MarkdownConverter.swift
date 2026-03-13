@@ -1,5 +1,6 @@
 import Markdown
 import ScoreCore
+import ScoreHTML
 
 /// Converts a swift-markdown `Document` into a Score `Node` tree.
 ///
@@ -41,7 +42,8 @@ public struct MarkdownConverter: Sendable {
     /// - Returns: An array of ``MarkdownBlock`` values representing the
     ///   document's block-level content.
     public func convert(_ document: Document) -> [MarkdownBlock] {
-        document.children.flatMap { convertBlock($0) }
+        let blocks = document.children.flatMap { convertBlock($0) }
+        return groupTabs(blocks)
     }
 
     /// Converts a raw Markdown string into an array of Score node wrappers.
@@ -53,6 +55,48 @@ public struct MarkdownConverter: Sendable {
     public func convert(_ markdown: String) -> [MarkdownBlock] {
         let document = Document(parsing: markdown)
         return convert(document)
+    }
+}
+
+extension MarkdownConverter {
+
+    /// Groups consecutive tab-marked code blocks into ``MarkdownBlock/tabGroup``
+    /// entries during conversion.
+    ///
+    /// After block-level conversion, this method scans for runs of
+    /// `.tabbedCodeBlock` entries and replaces each run with a single
+    /// `.tabGroup`.
+    func groupTabs(_ blocks: [MarkdownBlock]) -> [MarkdownBlock] {
+        var result: [MarkdownBlock] = []
+        var pendingTabs: [(label: String, code: String, language: String?)] = []
+
+        func flushTabs() {
+            guard !pendingTabs.isEmpty else { return }
+            let renderer = HTMLRenderer()
+            let tabs = pendingTabs.map { entry in
+                let codeBlock = CodeBlock(
+                    code: entry.code,
+                    language: entry.language,
+                    theme: theme,
+                    showsCopyButton: false,
+                    showsHeader: false
+                )
+                return Tab(label: entry.label, html: renderer.render(codeBlock))
+            }
+            result.append(.tabGroup(tabs: tabs))
+            pendingTabs.removeAll()
+        }
+
+        for block in blocks {
+            if case .tabbedCodeBlock(let code, let language, let label) = block {
+                pendingTabs.append((label: label, code: code, language: language))
+            } else {
+                flushTabs()
+                result.append(block)
+            }
+        }
+        flushTabs()
+        return result
     }
 }
 
@@ -70,12 +114,15 @@ extension MarkdownConverter {
             return [.paragraph(children: inlines)]
 
         case let codeBlock as Markdown.CodeBlock:
-            let language = codeBlock.language
             let code = codeBlock.code
-            if language == "math" {
+            let parsed = parseInfoString(codeBlock.language)
+            if parsed.language == "math" {
                 return [.math(latex: code.trimmingCharacters(in: .whitespacesAndNewlines))]
             }
-            return [.codeBlock(code: code, language: language, theme: theme)]
+            if let tabLabel = parsed.tabLabel {
+                return [.tabbedCodeBlock(code: code, language: parsed.language, label: tabLabel)]
+            }
+            return [.codeBlock(code: code, language: parsed.language, theme: theme)]
 
         case let blockquote as Markdown.BlockQuote:
             let children = blockquote.children.flatMap { convertBlock($0) }
@@ -168,6 +215,44 @@ extension MarkdownConverter {
         return [.table(headers: headerRows, rows: bodyRows)]
     }
 
+    /// Parses a fenced code block info string, extracting the language and an
+    /// optional `tab` marker with a custom label.
+    ///
+    /// Supported formats:
+    /// - `"swift"` → language `"swift"`, no tab
+    /// - `"swift tab"` → language `"swift"`, tab label `"swift"`
+    /// - `"html tab=\"Output\""` → language `"html"`, tab label `"Output"`
+    func parseInfoString(_ infoString: String?) -> (language: String?, tabLabel: String?) {
+        guard let info = infoString?.trimmingCharacters(in: .whitespaces),
+            !info.isEmpty
+        else {
+            return (nil, nil)
+        }
+
+        let parts = info.split(separator: " ", maxSplits: 1)
+        let language = String(parts[0])
+
+        guard parts.count > 1 else {
+            return (language, nil)
+        }
+
+        let rest = String(parts[1]).trimmingCharacters(in: .whitespaces)
+
+        if rest == "tab" {
+            return (language, language)
+        }
+
+        if rest.hasPrefix("tab=") {
+            var label = String(rest.dropFirst(4))
+            if label.hasPrefix("\"") && label.hasSuffix("\"") && label.count >= 2 {
+                label = String(label.dropFirst().dropLast())
+            }
+            return (language, label.isEmpty ? language : label)
+        }
+
+        return (language, nil)
+    }
+
     func headingLevel(_ level: Int) -> HeadingLevel {
         switch level {
         case 1: return .one
@@ -216,6 +301,16 @@ public enum MarkdownBlock: Sendable {
 
     /// A table with header cells and body rows.
     case table(headers: [[MarkdownInline]], rows: [[[MarkdownInline]]])
+
+    /// A fenced code block marked with `tab` in the info string.
+    ///
+    /// This is an intermediate representation consumed by
+    /// ``MarkdownConverter/groupTabs(_:)`` to produce ``tabGroup`` entries.
+    /// It never appears in final output.
+    case tabbedCodeBlock(code: String, language: String?, label: String)
+
+    /// A group of tabbed code blocks rendered as a ``TabGroup``.
+    case tabGroup(tabs: [Tab])
 }
 
 /// An inline-level element produced by ``MarkdownConverter``.

@@ -1,8 +1,8 @@
 import ScoreCore
 
 extension Button: HTMLContainerElement {
-    var htmlTagName: String { "button" }
-    var htmlAttributes: [(String, String)] {
+    package var htmlTagName: String { "button" }
+    package var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = [("type", type.rawValue)]
         if let v = form { a.append(("form", v)) }
         if let v = name { a.append(("name", v)) }
@@ -13,8 +13,8 @@ extension Button: HTMLContainerElement {
 }
 
 extension Form: HTMLContainerElement {
-    var htmlTagName: String { "form" }
-    var htmlAttributes: [(String, String)] {
+    package var htmlTagName: String { "form" }
+    package var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = [("action", action), ("method", method.rawValue)]
         if let v = encoding { a.append(("enctype", v.rawValue)) }
         if let v = id { a.append(("id", v)) }
@@ -23,8 +23,8 @@ extension Form: HTMLContainerElement {
 }
 
 extension Input: HTMLVoidElement {
-    var htmlTagName: String { "input" }
-    var htmlAttributes: [(String, String)] {
+    package var htmlTagName: String { "input" }
+    package var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = [("type", type.rawValue)]
         if let v = name { a.append(("name", v)) }
         if let v = placeholder { a.append(("placeholder", v)) }
@@ -42,8 +42,8 @@ extension Input: HTMLVoidElement {
 }
 
 extension Label: HTMLContainerElement {
-    var htmlTagName: String { "label" }
-    var htmlAttributes: [(String, String)] {
+    package var htmlTagName: String { "label" }
+    package var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = []
         if let v = forID { a.append(("for", v)) }
         return a
@@ -51,8 +51,8 @@ extension Label: HTMLContainerElement {
 }
 
 extension Select: HTMLContainerElement {
-    var htmlTagName: String { "select" }
-    var htmlAttributes: [(String, String)] {
+    package var htmlTagName: String { "select" }
+    package var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = []
         if let v = name { a.append(("name", v)) }
         if let v = id { a.append(("id", v)) }
@@ -64,8 +64,8 @@ extension Select: HTMLContainerElement {
 }
 
 extension Option: HTMLContainerElement {
-    var htmlTagName: String { "option" }
-    var htmlAttributes: [(String, String)] {
+    package var htmlTagName: String { "option" }
+    package var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = []
         if let v = value { a.append(("value", v)) }
         if isSelected { a.append(("selected", "")) }
@@ -75,8 +75,8 @@ extension Option: HTMLContainerElement {
 }
 
 extension OptionGroup: HTMLContainerElement {
-    var htmlTagName: String { "optgroup" }
-    var htmlAttributes: [(String, String)] {
+    package var htmlTagName: String { "optgroup" }
+    package var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = [("label", label)]
         if isDisabled { a.append(("disabled", "")) }
         return a
@@ -85,7 +85,7 @@ extension OptionGroup: HTMLContainerElement {
 
 /// TextArea requires custom rendering: inner text is not a child Node.
 extension TextArea: HTMLRenderable {
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
+    package func renderHTML(into output: inout String, renderer: HTMLRenderer) {
         var a: [(String, String)] = []
         if let v = name { a.append(("name", v)) }
         if let v = placeholder { a.append(("placeholder", v)) }
@@ -104,19 +104,19 @@ extension TextArea: HTMLRenderable {
 }
 
 extension Fieldset: HTMLContainerElement {
-    var htmlTagName: String { "fieldset" }
-    var htmlAttributes: [(String, String)] {
+    package var htmlTagName: String { "fieldset" }
+    package var htmlAttributes: [(String, String)] {
         isDisabled ? [("disabled", "")] : []
     }
 }
 
 extension Legend: HTMLContainerElement {
-    var htmlTagName: String { "legend" }
+    package var htmlTagName: String { "legend" }
 }
 
 extension Output: HTMLContainerElement {
-    var htmlTagName: String { "output" }
-    var htmlAttributes: [(String, String)] {
+    package var htmlTagName: String { "output" }
+    package var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = []
         if let v = forID { a.append(("for", v)) }
         return a
@@ -124,8 +124,8 @@ extension Output: HTMLContainerElement {
 }
 
 extension DataList: HTMLContainerElement {
-    var htmlTagName: String { "datalist" }
-    var htmlAttributes: [(String, String)] {
+    package var htmlTagName: String { "datalist" }
+    package var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = []
         if let v = id { a.append(("id", v)) }
         return a
@@ -134,7 +134,7 @@ extension DataList: HTMLContainerElement {
 
 /// Progress requires custom rendering: no child content node.
 extension Progress: HTMLRenderable {
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
+    package func renderHTML(into output: inout String, renderer: HTMLRenderer) {
         var a: [(String, String)] = []
         if let v = value { a.append(("value", v.cleanValue)) }
         if let v = max { a.append(("max", v.cleanValue)) }
@@ -146,7 +146,7 @@ extension Progress: HTMLRenderable {
 
 /// Meter requires custom rendering: no child content node.
 extension Meter: HTMLRenderable {
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
+    package func renderHTML(into output: inout String, renderer: HTMLRenderer) {
         var a: [(String, String)] = [("value", value.cleanValue)]
         if let v = min { a.append(("min", v.cleanValue)) }
         if let v = max { a.append(("max", v.cleanValue)) }

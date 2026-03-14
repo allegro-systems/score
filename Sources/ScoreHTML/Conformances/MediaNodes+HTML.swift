@@ -1,8 +1,8 @@
 import ScoreCore
 
 extension Image: HTMLVoidElement {
-    var htmlTagName: String { "img" }
-    var htmlAttributes: [(String, String)] {
+    package var htmlTagName: String { "img" }
+    package var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = [("src", src), ("alt", alt)]
         if let v = width { a.append(("width", String(v))) }
         if let v = height { a.append(("height", String(v))) }
@@ -13,16 +13,16 @@ extension Image: HTMLVoidElement {
 }
 
 extension Figure: HTMLContainerElement {
-    var htmlTagName: String { "figure" }
+    package var htmlTagName: String { "figure" }
 }
 
 extension FigureCaption: HTMLContainerElement {
-    var htmlTagName: String { "figcaption" }
+    package var htmlTagName: String { "figcaption" }
 }
 
 extension Source: HTMLVoidElement {
-    var htmlTagName: String { "source" }
-    var htmlAttributes: [(String, String)] {
+    package var htmlTagName: String { "source" }
+    package var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = [("src", src)]
         if let v = type { a.append(("type", v)) }
         if let v = media { a.append(("media", v)) }
@@ -31,8 +31,8 @@ extension Source: HTMLVoidElement {
 }
 
 extension Track: HTMLVoidElement {
-    var htmlTagName: String { "track" }
-    var htmlAttributes: [(String, String)] {
+    package var htmlTagName: String { "track" }
+    package var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = [("src", src)]
         if let v = kind { a.append(("kind", v.rawValue)) }
         if let v = label { a.append(("label", v)) }
@@ -43,8 +43,8 @@ extension Track: HTMLVoidElement {
 }
 
 extension Audio: HTMLContainerElement {
-    var htmlTagName: String { "audio" }
-    var htmlAttributes: [(String, String)] {
+    package var htmlTagName: String { "audio" }
+    package var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = []
         if let v = src { a.append(("src", v)) }
         if showsControls { a.append(("controls", "")) }
@@ -57,8 +57,8 @@ extension Audio: HTMLContainerElement {
 }
 
 extension Video: HTMLContainerElement {
-    var htmlTagName: String { "video" }
-    var htmlAttributes: [(String, String)] {
+    package var htmlTagName: String { "video" }
+    package var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = []
         if let v = src { a.append(("src", v)) }
         if showsControls { a.append(("controls", "")) }
@@ -74,12 +74,12 @@ extension Video: HTMLContainerElement {
 }
 
 extension Picture: HTMLContainerElement {
-    var htmlTagName: String { "picture" }
+    package var htmlTagName: String { "picture" }
 }
 
 extension Canvas: HTMLContainerElement {
-    var htmlTagName: String { "canvas" }
-    var htmlAttributes: [(String, String)] {
+    package var htmlTagName: String { "canvas" }
+    package var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = []
         if let v = width { a.append(("width", String(v))) }
         if let v = height { a.append(("height", String(v))) }
@@ -90,8 +90,8 @@ extension Canvas: HTMLContainerElement {
 // MARK: - SVG Elements
 
 extension Svg: HTMLContainerElement {
-    var htmlTagName: String { "svg" }
-    var htmlAttributes: [(String, String)] {
+    package var htmlTagName: String { "svg" }
+    package var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = [("xmlns", "http://www.w3.org/2000/svg")]
         if let v = viewBox { a.append(("viewBox", v)) }
         if let v = width { a.append(("width", String(v))) }
@@ -102,8 +102,8 @@ extension Svg: HTMLContainerElement {
 }
 
 extension Path: HTMLVoidElement {
-    var htmlTagName: String { "path" }
-    var htmlAttributes: [(String, String)] {
+    package var htmlTagName: String { "path" }
+    package var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = [("d", d)]
         if let v = stroke { a.append(("stroke", v)) }
         if let v = strokeWidth { a.append(("stroke-width", svgNumber(v))) }
@@ -116,8 +116,8 @@ extension Path: HTMLVoidElement {
 }
 
 extension Circle: HTMLVoidElement {
-    var htmlTagName: String { "circle" }
-    var htmlAttributes: [(String, String)] {
+    package var htmlTagName: String { "circle" }
+    package var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = [
             ("cx", svgNumber(cx)),
             ("cy", svgNumber(cy)),
@@ -132,8 +132,8 @@ extension Circle: HTMLVoidElement {
 }
 
 extension SvgRect: HTMLVoidElement {
-    var htmlTagName: String { "rect" }
-    var htmlAttributes: [(String, String)] {
+    package var htmlTagName: String { "rect" }
+    package var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = [
             ("x", svgNumber(x)),
             ("y", svgNumber(y)),
@@ -151,8 +151,8 @@ extension SvgRect: HTMLVoidElement {
 }
 
 extension SvgLine: HTMLVoidElement {
-    var htmlTagName: String { "line" }
-    var htmlAttributes: [(String, String)] {
+    package var htmlTagName: String { "line" }
+    package var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = [
             ("x1", svgNumber(x1)),
             ("y1", svgNumber(y1)),

@@ -1,4 +1,5 @@
 import ScoreCore
+import ScoreUI
 
 /// A composite node that parses a Markdown string and renders it as a Score
 /// node tree.

@@ -35,6 +35,17 @@ public struct StaticSiteEmitter: Sendable {
 
     private init() {}
 
+    /// Derives a CSS/JS file name from a page path.
+    ///
+    /// - `/` → `"home"`
+    /// - `/about` → `"about"`
+    /// - `/docs/score` → `"docs-score"`
+    public static func fileName(for pagePath: String) -> String {
+        if pagePath == "/" { return "home" }
+        let trimmed = pagePath.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return trimmed.replacingOccurrences(of: "/", with: "-")
+    }
+
     /// Renders all pages and writes them, along with external CSS and JS files,
     /// to the application's output directory.
     ///
@@ -53,6 +64,8 @@ public struct StaticSiteEmitter: Sendable {
     public static func emit(application: some Application) throws {
         let outputDir = application.outputDirectory
         let fm = FileManager.default
+        let environment = Environment.current
+        let minify = environment == .production
 
         if fm.fileExists(atPath: outputDir) {
             try fm.removeItem(atPath: outputDir)
@@ -80,11 +93,21 @@ public struct StaticSiteEmitter: Sendable {
             application.theme.map {
                 ThemeCSSEmitter.emit($0, assetManifest: assetManifest)
             } ?? ""
-        try Minifier.minifyCSS(globalCSS).write(
+        try transform(globalCSS, minify: minify, using: Minifier.minifyCSS).write(
             toFile: "\(outputDir)/global.css",
             atomically: true,
             encoding: .utf8
         )
+
+        if environment == .development {
+            let staticDir = "\(outputDir)/static"
+            try fm.createDirectory(atPath: staticDir, withIntermediateDirectories: true)
+            try DevToolsInjector.clientScript.write(
+                toFile: "\(staticDir)/score-devtools.js",
+                atomically: true,
+                encoding: .utf8
+            )
+        }
 
         // Render all pages with placeholder CSS and JS links.
         // The actual links are rewritten after chunk computation.
@@ -93,7 +116,7 @@ public struct StaticSiteEmitter: Sendable {
 
         for page in application.pages {
             let pagePath = page.path
-            let cssName = RequestHandler.cssFileName(for: pagePath)
+            let cssName = Self.fileName(for: pagePath)
 
             // Build script links: runtime + per-page placeholder
             var scriptLinks: [String] = []
@@ -131,19 +154,42 @@ public struct StaticSiteEmitter: Sendable {
         try writeJSFiles(
             rendered: rendered,
             scriptsDir: scriptsDir,
+            minify: minify,
             fm: fm
         )
 
-        // For each scope, track which pages use it
+        // For each scope, track which pages use it and whether
+        // the CSS block is identical across all of them. Only scopes
+        // with identical CSS can be shared; scopes whose CSS varies
+        // per page (e.g. wrapper components with different children)
+        // are kept page-specific.
         let totalPages = rendered.count
         var scopePages: [String: Set<String>] = [:]
+        var scopeCSS: [String: String] = [:]
+        var divergentScopes: Set<String> = []
         for entry in rendered {
-            for scope in entry.result.componentBlocks.keys {
+            for (scope, block) in entry.result.componentBlocks {
                 scopePages[scope, default: []].insert(entry.cssName)
+                if let existing = scopeCSS[scope] {
+                    if existing != block {
+                        divergentScopes.insert(scope)
+                    }
+                } else {
+                    scopeCSS[scope] = block
+                }
             }
         }
 
-        // Group scopes by their exact page set
+        // Divergent scopes stay page-specific
+        var singlePageScopes: [String: [String]] = [:]
+        for scope in divergentScopes {
+            for entry in rendered where entry.result.componentBlocks[scope] != nil {
+                singlePageScopes[entry.cssName, default: []].append(scope)
+            }
+            scopePages.removeValue(forKey: scope)
+        }
+
+        // Group uniform scopes by their exact page set
         var pageSetScopes: [Set<String>: [String]] = [:]
         for (scope, pages) in scopePages {
             pageSetScopes[pages, default: []].append(scope)
@@ -152,18 +198,14 @@ public struct StaticSiteEmitter: Sendable {
         // Classify each group: shared (all pages), chunk (2+ pages), or page-unique
         var sharedCSS = ""
         var chunks: [ChunkFile] = []
-        var singlePageScopes: [String: [String]] = [:]
         var usedChunkNames: Set<String> = []
 
         for (pageSet, scopes) in pageSetScopes {
             let sortedScopes = scopes.sorted()
             var blockCSS = ""
             for scope in sortedScopes {
-                for entry in rendered where entry.result.componentBlocks[scope] != nil {
-                    if let block = entry.result.componentBlocks[scope] {
-                        blockCSS.append(block)
-                        break
-                    }
+                if let block = scopeCSS[scope] {
+                    blockCSS.append(block)
                 }
             }
 
@@ -177,30 +219,28 @@ public struct StaticSiteEmitter: Sendable {
             }
         }
 
-        // Write shared.css
         if !sharedCSS.isEmpty {
-            try Minifier.minifyCSS(sharedCSS).write(
+            try transform(sharedCSS, minify: minify, using: Minifier.minifyCSS).write(
                 toFile: "\(stylesDir)/shared.css",
                 atomically: true,
                 encoding: .utf8
             )
         }
 
-        // Write chunk files
         for chunk in chunks {
-            try Minifier.minifyCSS(chunk.css).write(
+            try transform(chunk.css, minify: minify, using: Minifier.minifyCSS).write(
                 toFile: "\(stylesDir)/\(chunk.name).css",
                 atomically: true,
                 encoding: .utf8
             )
         }
 
-        // Build and write per-page CSS (page-unique scopes + flat CSS)
         var pageHasCSS: Set<String> = []
         for entry in rendered {
             var pageCSS = ""
             if let scopes = singlePageScopes[entry.cssName] {
-                for scope in scopes.sorted() {
+                let scopeSet = Set(scopes)
+                for scope in entry.result.scopeOrder where scopeSet.contains(scope) {
                     if let block = entry.result.componentBlocks[scope] {
                         pageCSS.append(block)
                     }
@@ -210,7 +250,7 @@ public struct StaticSiteEmitter: Sendable {
 
             if !pageCSS.isEmpty {
                 pageHasCSS.insert(entry.cssName)
-                try Minifier.minifyCSS(pageCSS).write(
+                try transform(pageCSS, minify: minify, using: Minifier.minifyCSS).write(
                     toFile: "\(stylesDir)/\(entry.cssName).css",
                     atomically: true,
                     encoding: .utf8
@@ -225,20 +265,23 @@ public struct StaticSiteEmitter: Sendable {
         for entry in rendered {
             var html = entry.result.html
 
-            // Build the correct style links for this page
+            // Build the correct style links for this page.
+            // Page-specific CSS loads before chunks to preserve cascade order:
+            // wrapper components (e.g. Layout) are divergent and page-specific,
+            // while their children may be uniform chunks loaded afterward.
             var styleLinks = ""
             if !sharedCSS.isEmpty {
                 styleLinks.append(
                     "<link rel=\"stylesheet\" href=\"/styles/shared.css\">\n")
             }
+            if pageHasCSS.contains(entry.cssName) {
+                styleLinks.append(
+                    "<link rel=\"stylesheet\" href=\"/styles/\(entry.cssName).css\">\n")
+            }
             for chunk in chunks.sorted(by: { $0.name < $1.name })
             where chunk.pages.contains(entry.cssName) {
                 styleLinks.append(
                     "<link rel=\"stylesheet\" href=\"/styles/\(chunk.name).css\">\n")
-            }
-            if pageHasCSS.contains(entry.cssName) {
-                styleLinks.append(
-                    "<link rel=\"stylesheet\" href=\"/styles/\(entry.cssName).css\">\n")
             }
 
             // Replace the placeholder per-page CSS link with the full link set
@@ -261,7 +304,9 @@ public struct StaticSiteEmitter: Sendable {
             let filePath = outputFilePath(for: entry.pagePath, in: outputDir)
             let dirPath = (filePath as NSString).deletingLastPathComponent
             try fm.createDirectory(atPath: dirPath, withIntermediateDirectories: true)
-            try Minifier.minifyHTML(html).write(toFile: filePath, atomically: true, encoding: .utf8)
+            try transform(html, minify: minify, using: Minifier.minifyHTML).write(
+                toFile: filePath, atomically: true, encoding: .utf8
+            )
         }
 
         try writeSitemap(
@@ -283,6 +328,7 @@ public struct StaticSiteEmitter: Sendable {
     private static func writeJSFiles(
         rendered: [RenderedPageEntry],
         scriptsDir: String,
+        minify: Bool,
         fm: FileManager
     ) throws {
         let reactiveEntries = rendered.filter { !$0.result.pageJS.isEmpty }
@@ -292,12 +338,12 @@ public struct StaticSiteEmitter: Sendable {
         let chunked = chunkJSScopeBlocks(rendered: rendered, totalPages: reactiveEntries.count)
 
         if !chunked.sharedJS.isEmpty {
-            try Minifier.minifyJS(chunked.sharedJS).write(
+            try transform(chunked.sharedJS, minify: minify, using: Minifier.minifyJS).write(
                 toFile: "\(scriptsDir)/shared.js", atomically: true, encoding: .utf8)
         }
 
         for chunk in chunked.chunks {
-            try Minifier.minifyJS(chunk.js).write(
+            try transform(chunk.js, minify: minify, using: Minifier.minifyJS).write(
                 toFile: "\(scriptsDir)/\(chunk.name).js", atomically: true, encoding: .utf8)
         }
 
@@ -307,7 +353,7 @@ public struct StaticSiteEmitter: Sendable {
                 pageJS.append(blocks.joined())
             }
             guard !pageJS.isEmpty else { continue }
-            try Minifier.minifyJS(pageJS).write(
+            try transform(pageJS, minify: minify, using: Minifier.minifyJS).write(
                 toFile: "\(scriptsDir)/\(entry.cssName).js", atomically: true, encoding: .utf8)
         }
     }
@@ -438,11 +484,22 @@ public struct StaticSiteEmitter: Sendable {
             theme: application.theme
         )
 
-        try Minifier.minifyHTML(html).write(
+        let minify = Environment.current == .production
+        try transform(html, minify: minify, using: Minifier.minifyHTML).write(
             toFile: "\(outputDirectory)/404.html",
             atomically: true,
             encoding: .utf8
         )
+    }
+
+    /// Returns the input unchanged when `minify` is `false`, otherwise
+    /// applies the given minification function.
+    private static func transform(
+        _ input: String,
+        minify: Bool,
+        using minifier: (String) -> String
+    ) -> String {
+        minify ? minifier(input) : input
     }
 
     /// Writes a `sitemap.xml` file listing all page URLs.

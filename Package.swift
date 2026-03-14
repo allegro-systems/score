@@ -16,6 +16,7 @@ let package = Package(
         .library(name: "ScoreRouter", targets: ["ScoreRouter"]),
         .library(name: "ScoreRuntime", targets: ["ScoreRuntime"]),
         .library(name: "ScoreContent", targets: ["ScoreContent"]),
+        .library(name: "ScoreUI", targets: ["ScoreUI"]),
         .library(name: "ScoreAssets", targets: ["ScoreAssets"]),
         .executable(name: "score", targets: ["ScoreCLI"]),
     ],
@@ -76,7 +77,18 @@ let package = Package(
             dependencies: [
                 "ScoreCore",
                 "ScoreHTML",
+                "ScoreCSS",
+                "ScoreUI",
                 .product(name: "Markdown", package: "swift-markdown"),
+            ]
+        ),
+        .target(
+            name: "ScoreUI",
+            dependencies: [
+                "ScoreCore",
+                "ScoreHTML",
+                "ScoreCSS",
+                "ScoreRuntime",
             ]
         ),
         .target(name: "ScoreAssets", dependencies: ["ScoreCore"]),
@@ -84,7 +96,7 @@ let package = Package(
             name: "Score",
             dependencies: [
                 "ScoreCore", "ScoreHTML", "ScoreCSS", "ScoreRouter", "ScoreRuntime",
-                "ScoreContent", "ScoreAssets",
+                "ScoreContent", "ScoreUI", "ScoreAssets",
             ]
         ),
         .executableTarget(
@@ -109,6 +121,7 @@ let package = Package(
                 .product(name: "NIOEmbedded", package: "swift-nio"),
             ]
         ),
+        .testTarget(name: "ScoreUITests", dependencies: ["ScoreUI", "ScoreHTML"]),
         .testTarget(name: "ScoreContentTests", dependencies: ["ScoreContent", "ScoreHTML"]),
         .testTarget(name: "ScoreAssetsTests", dependencies: ["ScoreAssets"]),
     ]

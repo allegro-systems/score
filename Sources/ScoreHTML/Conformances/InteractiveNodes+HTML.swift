@@ -1,8 +1,8 @@
 import ScoreCore
 
 extension Link: HTMLContainerElement {
-    var htmlTagName: String { "a" }
-    var htmlAttributes: [(String, String)] {
+    package var htmlTagName: String { "a" }
+    package var htmlAttributes: [(String, String)] {
         var attrs: [(String, String)] = [("href", destination)]
         if opensInNewTab {
             attrs.append(("target", "_blank"))
@@ -13,23 +13,23 @@ extension Link: HTMLContainerElement {
 }
 
 extension Dialog: HTMLContainerElement {
-    var htmlTagName: String { "dialog" }
-    var htmlAttributes: [(String, String)] {
+    package var htmlTagName: String { "dialog" }
+    package var htmlAttributes: [(String, String)] {
         isOpen ? [("open", "")] : []
     }
 }
 
 extension Menu: HTMLContainerElement {
-    var htmlTagName: String { "menu" }
+    package var htmlTagName: String { "menu" }
 }
 
 extension Summary: HTMLContainerElement {
-    var htmlTagName: String { "summary" }
+    package var htmlTagName: String { "summary" }
 }
 
 /// Details requires custom rendering: `<summary>` is placed before body content.
 extension Details: HTMLRenderable {
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
+    package func renderHTML(into output: inout String, renderer: HTMLRenderer) {
         var a: [(String, String)] = []
         if isOpen { a.append(("open", "")) }
         output.append("<details")

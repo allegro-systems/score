@@ -69,6 +69,8 @@ public struct CSSCollector: Sendable {
         /// Per-component CSS blocks keyed by scope name, used for chunking
         /// shared component styles into a separate file during static builds.
         public let componentBlocks: [String: String]
+        /// Component scope names in the order they were collected (DOM order).
+        public let scopeOrder: [String]
         /// CSS for entries without a component scope.
         public let flatCSS: String
     }
@@ -149,6 +151,7 @@ public struct CSSCollector: Sendable {
         var classLookup: [String: String] = [:]
         var nestedKeys: Set<String> = []
         var componentBlocks: [String: String] = [:]
+        var scopeOrder: [String] = []
 
         for (scope, groupEntries) in componentGroups {
             var baseEntries: [Entry] = []
@@ -248,6 +251,7 @@ public struct CSSCollector: Sendable {
 
             blockCSS.append("}\n")
             componentBlocks[scope] = blockCSS
+            scopeOrder.append(scope)
             css.append(blockCSS)
         }
 
@@ -316,6 +320,7 @@ public struct CSSCollector: Sendable {
             classLookup: classLookup,
             nestedKeys: nestedKeys,
             componentBlocks: componentBlocks,
+            scopeOrder: scopeOrder,
             flatCSS: flatCSS
         )
     }
@@ -706,7 +711,7 @@ public struct CSSCollector: Sendable {
 /// All primitive node types (those with `body: Never`) conform to
 /// `CSSWalkable` so that `CSSCollector` can traverse them without calling
 /// `body`, which would trap at runtime for primitive nodes.
-protocol CSSWalkable {
+package protocol CSSWalkable {
     /// The HTML tag this node renders as, used for CSS nesting selectors.
     /// Returns `nil` for nodes that don't emit a tag (e.g. `Group`, `Text`).
     var htmlTag: String? { get }
@@ -714,19 +719,19 @@ protocol CSSWalkable {
 }
 
 extension CSSWalkable {
-    var htmlTag: String? { nil }
+    package var htmlTag: String? { nil }
 }
 
 // MARK: - CSSContainerNode
 
 /// A container node whose single `content` child should be walked for CSS.
-protocol CSSContainerNode: CSSWalkable {
+package protocol CSSContainerNode: CSSWalkable {
     associatedtype Content: Node
     var content: Content { get }
 }
 
 extension CSSContainerNode {
-    func walkChildren(collector: inout CSSCollector) {
+    package func walkChildren(collector: inout CSSCollector) {
         collector.collect(from: content)
     }
 }
@@ -734,8 +739,8 @@ extension CSSContainerNode {
 // MARK: - CSSLeafNode
 
 /// A leaf node with no children to walk for CSS collection.
-protocol CSSLeafNode: CSSWalkable {}
+package protocol CSSLeafNode: CSSWalkable {}
 
 extension CSSLeafNode {
-    func walkChildren(collector: inout CSSCollector) {}
+    package func walkChildren(collector: inout CSSCollector) {}
 }

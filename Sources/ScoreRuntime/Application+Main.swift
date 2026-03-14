@@ -29,6 +29,8 @@ extension Application {
             return
         }
 
+        try StaticSiteEmitter.emit(application: app)
+
         var config = Server.Configuration()
         if let portIndex = args.firstIndex(of: "--port"),
             portIndex + 1 < args.count,

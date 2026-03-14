@@ -1,6 +1,7 @@
 import Markdown
 import ScoreCore
 import ScoreHTML
+import ScoreUI
 
 /// Converts a swift-markdown `Document` into a Score `Node` tree.
 ///
@@ -72,7 +73,6 @@ extension MarkdownConverter {
 
         func flushTabs() {
             guard !pendingTabs.isEmpty else { return }
-            let renderer = HTMLRenderer()
             let tabs = pendingTabs.map { entry in
                 let codeBlock = CodeBlock(
                     code: entry.code,
@@ -81,7 +81,7 @@ extension MarkdownConverter {
                     showsCopyButton: false,
                     showsHeader: false
                 )
-                return Tab(label: entry.label, html: renderer.render(codeBlock))
+                return Tab(entry.label, content: Content(codeBlock))
             }
             result.append(.tabGroup(tabs: tabs))
             pendingTabs.removeAll()

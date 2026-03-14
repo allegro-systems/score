@@ -8,7 +8,7 @@ import ScoreCore
 /// `ModifiedNode` uses this protocol to apply CSS classes and HTML
 /// attributes directly onto the inner element's tag instead of wrapping
 /// it in an extra `<div>`.
-protocol HTMLAttributeInjectable {
+package protocol HTMLAttributeInjectable {
     /// Renders this element with extra attributes merged into its tag.
     ///
     /// - Parameters:
@@ -34,7 +34,7 @@ protocol HTMLAttributeInjectable {
 ///
 /// Most Score nodes are simple wrappers around an HTML tag — this
 /// protocol eliminates the per-type rendering boilerplate.
-protocol HTMLContainerElement: HTMLRenderable, HTMLAttributeInjectable {
+package protocol HTMLContainerElement: HTMLRenderable, HTMLAttributeInjectable {
     associatedtype Content: Node
     /// The HTML tag name (e.g. `"p"`, `"div"`, `"section"`).
     var htmlTagName: String { get }
@@ -45,9 +45,9 @@ protocol HTMLContainerElement: HTMLRenderable, HTMLAttributeInjectable {
 }
 
 extension HTMLContainerElement {
-    var htmlAttributes: [(String, String)] { [] }
+    package var htmlAttributes: [(String, String)] { [] }
 
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
+    package func renderHTML(into output: inout String, renderer: HTMLRenderer) {
         var attrs = htmlAttributes
         if renderer.isDevMode, let loc = (self as? SourceLocatable)?.sourceLocation {
             attrs.append(("data-source", "\(loc.fileID):\(loc.line):\(loc.column)"))
@@ -56,7 +56,7 @@ extension HTMLContainerElement {
         renderer.tag(htmlTagName, attrs, content: content, to: &output)
     }
 
-    func renderHTML(
+    package func renderHTML(
         merging extraAttributes: [(String, String)],
         into output: inout String,
         renderer: HTMLRenderer
@@ -75,7 +75,7 @@ extension HTMLContainerElement {
 /// A node that renders as a self-closing HTML void element (`<tag>`).
 ///
 /// Void elements have no children — only attributes.
-protocol HTMLVoidElement: HTMLRenderable, HTMLAttributeInjectable {
+package protocol HTMLVoidElement: HTMLRenderable, HTMLAttributeInjectable {
     /// The HTML tag name (e.g. `"input"`, `"img"`, `"hr"`).
     var htmlTagName: String { get }
     /// HTML attributes emitted on the tag.
@@ -83,9 +83,9 @@ protocol HTMLVoidElement: HTMLRenderable, HTMLAttributeInjectable {
 }
 
 extension HTMLVoidElement {
-    var htmlAttributes: [(String, String)] { [] }
+    package var htmlAttributes: [(String, String)] { [] }
 
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
+    package func renderHTML(into output: inout String, renderer: HTMLRenderer) {
         var attrs = htmlAttributes
         if renderer.isDevMode, let loc = (self as? SourceLocatable)?.sourceLocation {
             attrs.append(("data-source", "\(loc.fileID):\(loc.line):\(loc.column)"))
@@ -94,7 +94,7 @@ extension HTMLVoidElement {
         renderer.voidTag(htmlTagName, attrs, to: &output)
     }
 
-    func renderHTML(
+    package func renderHTML(
         merging extraAttributes: [(String, String)],
         into output: inout String,
         renderer: HTMLRenderer
@@ -132,14 +132,14 @@ extension HTMLAttributeInjectable {
 // MARK: - Transparent Elements
 
 /// A node that renders its children directly with no wrapping element.
-protocol HTMLTransparentElement: HTMLRenderable {
+package protocol HTMLTransparentElement: HTMLRenderable {
     associatedtype Content: Node
     /// The child node rendered inline.
     var content: Content { get }
 }
 
 extension HTMLTransparentElement {
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
+    package func renderHTML(into output: inout String, renderer: HTMLRenderer) {
         renderer.write(content, to: &output)
     }
 }

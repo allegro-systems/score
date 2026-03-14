@@ -8,8 +8,6 @@ import Testing
 
 @testable import ScoreRuntime
 
-// MARK: - Helpers
-
 private struct RuntimeHomePage: Page {
     static let path = "/"
 
@@ -67,6 +65,10 @@ private struct RuntimeApp: Application {
     var pages: [any Page] { [RuntimeHomePage()] }
     var metadata: (any Metadata)? { runtimeMetadata }
     var controllers: [any Controller] { [RuntimeController()] }
+    var outputDirectory: String
+
+    init() { outputDirectory = "" }
+    init(outputDirectory: String) { self.outputDirectory = outputDirectory }
 }
 
 private struct RuntimeErrorPage: ErrorPage {
@@ -81,6 +83,18 @@ private struct RuntimeErrorPage: ErrorPage {
     }
 }
 
+private struct RuntimeAppWithErrorPage: Application {
+    var pages: [any Page] { [RuntimeHomePage()] }
+    var metadata: (any Metadata)? { runtimeMetadata }
+    var controllers: [any Controller] { [RuntimeController()] }
+    var outputDirectory: String
+
+    init() { outputDirectory = "" }
+    init(outputDirectory: String) { self.outputDirectory = outputDirectory }
+
+    var errorPage: (any ErrorPage.Type)? { RuntimeErrorPage.self }
+}
+
 private struct CapturedResponse {
     let status: HTTPResponseStatus
     let headers: HTTPHeaders
@@ -93,19 +107,29 @@ private enum ResponseCaptureError: Error {
     case invalidBody
 }
 
-private func makeChannel(
-    errorPage: (any ErrorPage.Type)? = nil
-) async -> NIOAsyncTestingChannel {
-    let app = RuntimeApp()
-    return await NIOAsyncTestingChannel(
+private func makeEmittedChannel(
+    errorPageType: (any ErrorPage.Type)? = nil
+) async throws -> (NIOAsyncTestingChannel, String) {
+    let tempDir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("score-handler-test-\(UUID().uuidString)")
+        .path
+
+    let app: any Application
+    if errorPageType != nil {
+        app = RuntimeAppWithErrorPage(outputDirectory: tempDir)
+    } else {
+        app = RuntimeApp(outputDirectory: tempDir)
+    }
+
+    try StaticSiteEmitter.emit(application: app)
+
+    let channel = await NIOAsyncTestingChannel(
         handler: RequestHandler(
-            routeTable: RouteTable(app),
-            pages: [RuntimeHomePage.path: RuntimeHomePage()],
-            metadata: app.metadata,
-            theme: nil,
-            errorPage: errorPage
+            outputDirectory: tempDir,
+            routeTable: RouteTable(app)
         )
     )
+    return (channel, tempDir)
 }
 
 private func performRequest(
@@ -114,7 +138,9 @@ private func performRequest(
     body: ByteBuffer? = nil,
     errorPage: (any ErrorPage.Type)? = nil
 ) async throws -> CapturedResponse {
-    let channel = await makeChannel(errorPage: errorPage)
+    let (channel, tempDir) = try await makeEmittedChannel(errorPageType: errorPage)
+    defer { try? FileManager.default.removeItem(atPath: tempDir) }
+
     let head = HTTPRequestHead(version: .http1_1, method: method, uri: uri)
 
     try await channel.writeInbound(HTTPServerRequestPart.head(head))
@@ -149,7 +175,7 @@ private func readResponsePart(from channel: NIOAsyncTestingChannel) async throws
     try await channel.waitForOutboundWrite(as: HTTPServerResponsePart.self)
 }
 
-@Test func requestHandlerRendersPagesForGetRequests() async throws {
+@Test func requestHandlerServesStaticPagesForGetRequests() async throws {
     let response = try await performRequest(method: NIOHTTP1.HTTPMethod.GET, uri: "/?debug=1")
 
     #expect(response.status == HTTPResponseStatus.ok)
@@ -230,7 +256,7 @@ private func readResponsePart(from channel: NIOAsyncTestingChannel) async throws
     #expect(response.body == "created")
 }
 
-@Test func requestHandlerRendersCustomErrorPageFor404() async throws {
+@Test func requestHandlerServesCustomErrorPageFor404() async throws {
     let response = try await performRequest(
         method: NIOHTTP1.HTTPMethod.GET,
         uri: "/no-such-page",

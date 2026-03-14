@@ -12,6 +12,8 @@ public struct RenderResult: Sendable {
     /// Per-component CSS blocks keyed by scope name, for chunking shared
     /// styles into a separate stylesheet during static builds.
     public let componentBlocks: [String: String]
+    /// Component scope names in DOM order, for preserving cascade ordering.
+    public let scopeOrder: [String]
     /// CSS for entries without a component scope.
     public let flatCSS: String
     /// The emitted client-side JavaScript, if the page has reactive bindings.
@@ -153,6 +155,7 @@ public struct PageRenderer: Sendable {
             html: DocumentAssembler.assemble(parts),
             componentCSS: stylesheetResult.css,
             componentBlocks: stylesheetResult.componentBlocks,
+            scopeOrder: stylesheetResult.scopeOrder,
             flatCSS: stylesheetResult.flatCSS,
             script: jsResult.pageJS.isEmpty ? "" : "<script>\n\(jsResult.needsRuntime ? JSEmitter.clientRuntime : "")\(jsResult.pageJS)</script>",
             pageJS: jsResult.pageJS,

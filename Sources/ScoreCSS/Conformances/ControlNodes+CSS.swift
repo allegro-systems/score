@@ -1,44 +1,44 @@
 import ScoreCore
 
 extension Button: CSSContainerNode {
-    var htmlTag: String? { "button" }
+    package var htmlTag: String? { "button" }
 }
 extension Form: CSSContainerNode {
-    var htmlTag: String? { "form" }
+    package var htmlTag: String? { "form" }
 }
 extension Input: CSSLeafNode {
-    var htmlTag: String? { "input" }
+    package var htmlTag: String? { "input" }
 }
 extension Label: CSSContainerNode {
-    var htmlTag: String? { "label" }
+    package var htmlTag: String? { "label" }
 }
 extension Select: CSSContainerNode {
-    var htmlTag: String? { "select" }
+    package var htmlTag: String? { "select" }
 }
 extension Option: CSSContainerNode {
-    var htmlTag: String? { "option" }
+    package var htmlTag: String? { "option" }
 }
 extension OptionGroup: CSSContainerNode {
-    var htmlTag: String? { "optgroup" }
+    package var htmlTag: String? { "optgroup" }
 }
 extension TextArea: CSSLeafNode {
-    var htmlTag: String? { "textarea" }
+    package var htmlTag: String? { "textarea" }
 }
 extension Fieldset: CSSContainerNode {
-    var htmlTag: String? { "fieldset" }
+    package var htmlTag: String? { "fieldset" }
 }
 extension Legend: CSSContainerNode {
-    var htmlTag: String? { "legend" }
+    package var htmlTag: String? { "legend" }
 }
 extension Output: CSSContainerNode {
-    var htmlTag: String? { "output" }
+    package var htmlTag: String? { "output" }
 }
 extension DataList: CSSContainerNode {
-    var htmlTag: String? { "datalist" }
+    package var htmlTag: String? { "datalist" }
 }
 extension Progress: CSSLeafNode {
-    var htmlTag: String? { "progress" }
+    package var htmlTag: String? { "progress" }
 }
 extension Meter: CSSLeafNode {
-    var htmlTag: String? { "meter" }
+    package var htmlTag: String? { "meter" }
 }

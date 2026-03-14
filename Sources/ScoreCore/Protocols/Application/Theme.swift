@@ -13,208 +13,148 @@
 /// 2. **Palette tokens** — named color scales (e.g. `.blue`, `.slate`)
 ///    parameterized by a shade integer that typically follows a
 ///    Tailwind-style 50–950 range.
-/// 3. **Escape hatches** — `.oklch` for precise perceptual colors and
-///    `.custom` for design-system tokens not covered by the built-in palette.
+/// 3. **Named tokens** — project-specific colors defined in the theme's
+///    ``Theme/colorRoles`` and referenced by name (e.g. `.brand`).
 ///
-/// ### Semantic Usage
-///
-/// ```swift
-/// TextNode("Welcome")
-///     .modifier(ForegroundColorValue(color: .text))
-///
-/// DivNode()
-///     .modifier(BackgroundColorValue(color: .surface))
-/// ```
-///
-/// ### Palette Usage
+/// Because `ColorToken` is a struct, projects can extend it with custom
+/// static properties that map directly to theme color roles:
 ///
 /// ```swift
-/// DivNode()
-///     .modifier(BackgroundColorValue(color: .blue(500)))
-///     .modifier(BorderColorValue(color: .blue(700)))
-/// ```
-///
-/// ### Custom OKLCH Color
-///
-/// ```swift
-/// TextNode("Branded")
-///     .modifier(ForegroundColorValue(color: .oklch(0.65, 0.18, 270)))
+/// extension ColorToken {
+///     static let brand = ColorToken("brand")
+/// }
 /// ```
 ///
 /// - Note: `ColorToken` conforms to `Hashable` so tokens can be used as
 ///   dictionary keys in theme lookup tables, and to `Sendable` so they can
 ///   be safely used across concurrency boundaries.
-public enum ColorToken: Sendable, Hashable {
+public struct ColorToken: Sendable, Hashable {
 
-    // MARK: - Semantic Tokens
+    /// The internal representation of a color token.
+    package enum Kind: Sendable, Hashable {
+        case semantic(String)
+        case palette(String, Int)
+        case oklch(Double, Double, Double)
+        case named(String)
+    }
 
-    /// The background color of the primary surface (e.g. page or card background).
+    /// The backing storage for this token.
+    package let kind: Kind
+
+    /// Creates a named color token that references a color role defined
+    /// in the active theme.
     ///
-    /// Typically maps to white in light mode and a dark neutral in dark mode.
-    /// Use this as the base background for containers and layout shells.
-    case surface
+    /// Use this initializer to define project-specific color tokens as
+    /// static properties on `ColorToken`:
+    ///
+    /// ```swift
+    /// extension ColorToken {
+    ///     static let brand = ColorToken("brand")
+    /// }
+    /// ```
+    ///
+    /// - Parameter name: The color role key as defined in ``Theme/colorRoles``.
+    public init(_ name: String) {
+        self.kind = .named(name)
+    }
+
+    package init(kind: Kind) {
+        self.kind = kind
+    }
+
+    /// The background color of the primary surface.
+    public static let surface = ColorToken(kind: .semantic("surface"))
 
     /// The default foreground color for body text and icons.
-    ///
-    /// Resolves to a high-contrast color against `.surface` to ensure
-    /// readability. Prefer this over palette tokens for all readable text.
-    case text
+    public static let text = ColorToken(kind: .semantic("text"))
 
     /// The color used for dividers, input outlines, and decorative borders.
-    ///
-    /// Typically a low-contrast neutral that separates UI regions without
-    /// drawing attention.
-    case border
+    public static let border = ColorToken(kind: .semantic("border"))
 
-    /// The primary brand or interactive color used for links, buttons, and
-    /// focused elements.
-    ///
-    /// Resolves to the active theme's primary hue. Use sparingly to draw
-    /// attention to actionable elements.
-    case accent
+    /// The primary brand or interactive color.
+    public static let accent = ColorToken(kind: .semantic("accent"))
 
-    /// A subdued foreground color for secondary text, placeholders, and
-    /// supporting metadata.
-    ///
-    /// Lower contrast than `.text`; suitable for content that should
-    /// recede visually without disappearing entirely.
-    case muted
+    /// A subdued foreground color for secondary text and placeholders.
+    public static let muted = ColorToken(kind: .semantic("muted"))
 
     /// A color that signals an error, danger, or irreversible action.
-    ///
-    /// Typically red. Use for error messages, destructive action buttons,
-    /// and validation feedback.
-    case destructive
+    public static let destructive = ColorToken(kind: .semantic("destructive"))
 
-    /// A color that signals a positive outcome, confirmation, or healthy
-    /// status.
-    ///
-    /// Typically green. Use for success banners, checkmarks, and positive
-    /// validation states.
-    case success
-
-    // MARK: - Palette Tokens
+    /// A color that signals a positive outcome or healthy status.
+    public static let success = ColorToken(kind: .semantic("success"))
 
     /// A neutral gray shade from the neutral palette.
     ///
-    /// `shade` follows a Tailwind-compatible scale where lower values
-    /// (e.g. `50`, `100`) are near-white and higher values (e.g. `800`,
-    /// `900`, `950`) are near-black.
-    ///
-    /// - Parameter shade: The shade step on the neutral scale (e.g. `100`,
-    ///   `400`, `700`).
-    case neutral(_ shade: Int)
+    /// - Parameter shade: The shade step (e.g. `100`, `400`, `700`).
+    public static func neutral(_ shade: Int) -> ColorToken {
+        ColorToken(kind: .palette("neutral", shade))
+    }
 
     /// A blue shade from the blue palette.
     ///
-    /// Suitable for informational UI, links, and focused states in contexts
-    /// where the theme's `.accent` is not appropriate.
-    ///
-    /// - Parameter shade: The shade step on the blue scale (e.g. `100`,
-    ///   `500`, `900`).
-    case blue(_ shade: Int)
+    /// - Parameter shade: The shade step (e.g. `100`, `500`, `900`).
+    public static func blue(_ shade: Int) -> ColorToken {
+        ColorToken(kind: .palette("blue", shade))
+    }
 
     /// A red shade from the red palette.
     ///
-    /// Use for error states, destructive indicators, and alerts when the
-    /// semantic `.destructive` token is too coarse.
-    ///
-    /// - Parameter shade: The shade step on the red scale (e.g. `100`,
-    ///   `500`, `900`).
-    case red(_ shade: Int)
+    /// - Parameter shade: The shade step (e.g. `100`, `500`, `900`).
+    public static func red(_ shade: Int) -> ColorToken {
+        ColorToken(kind: .palette("red", shade))
+    }
 
     /// A green shade from the green palette.
     ///
-    /// Use for success states and positive indicators when the semantic
-    /// `.success` token is too coarse.
-    ///
-    /// - Parameter shade: The shade step on the green scale (e.g. `100`,
-    ///   `500`, `900`).
-    case green(_ shade: Int)
+    /// - Parameter shade: The shade step (e.g. `100`, `500`, `900`).
+    public static func green(_ shade: Int) -> ColorToken {
+        ColorToken(kind: .palette("green", shade))
+    }
 
     /// An amber shade from the amber palette.
     ///
-    /// Suitable for warning states, caution badges, and highlight accents
-    /// with a warm yellow-orange hue.
-    ///
-    /// - Parameter shade: The shade step on the amber scale (e.g. `100`,
-    ///   `400`, `700`).
-    case amber(_ shade: Int)
+    /// - Parameter shade: The shade step (e.g. `100`, `400`, `700`).
+    public static func amber(_ shade: Int) -> ColorToken {
+        ColorToken(kind: .palette("amber", shade))
+    }
 
     /// A sky blue shade from the sky palette.
     ///
-    /// A lighter, more vibrant blue than `.blue`. Suitable for informational
-    /// highlights and sky-themed illustrations.
-    ///
-    /// - Parameter shade: The shade step on the sky scale (e.g. `100`,
-    ///   `400`, `700`).
-    case sky(_ shade: Int)
+    /// - Parameter shade: The shade step (e.g. `100`, `400`, `700`).
+    public static func sky(_ shade: Int) -> ColorToken {
+        ColorToken(kind: .palette("sky", shade))
+    }
 
     /// A slate shade from the slate palette.
     ///
-    /// A cool-toned gray with a slight blue undertone. Often used for
-    /// backgrounds, borders, and secondary surfaces in modern design systems.
-    ///
-    /// - Parameter shade: The shade step on the slate scale (e.g. `100`,
-    ///   `400`, `700`).
-    case slate(_ shade: Int)
+    /// - Parameter shade: The shade step (e.g. `100`, `400`, `700`).
+    public static func slate(_ shade: Int) -> ColorToken {
+        ColorToken(kind: .palette("slate", shade))
+    }
 
     /// A cyan shade from the cyan palette.
     ///
-    /// A blue-green hue suitable for data visualizations, status indicators,
-    /// and decorative accents.
-    ///
-    /// - Parameter shade: The shade step on the cyan scale (e.g. `100`,
-    ///   `400`, `700`).
-    case cyan(_ shade: Int)
+    /// - Parameter shade: The shade step (e.g. `100`, `400`, `700`).
+    public static func cyan(_ shade: Int) -> ColorToken {
+        ColorToken(kind: .palette("cyan", shade))
+    }
 
     /// An emerald shade from the emerald palette.
     ///
-    /// A rich, saturated green suitable for success states, nature-themed
-    /// illustrations, and vibrant accent colors.
-    ///
-    /// - Parameter shade: The shade step on the emerald scale (e.g. `100`,
-    ///   `400`, `700`).
-    case emerald(_ shade: Int)
+    /// - Parameter shade: The shade step (e.g. `100`, `400`, `700`).
+    public static func emerald(_ shade: Int) -> ColorToken {
+        ColorToken(kind: .palette("emerald", shade))
+    }
 
-    // MARK: - Escape Hatches
-
-    /// An arbitrary color specified in the OKLCH perceptual color space.
-    ///
-    /// OKLCH provides perceptually uniform lightness and chroma, making it
-    /// well-suited for programmatically generated colors and smooth
-    /// gradients. The three components map directly to the CSS `oklch()`
-    /// function.
-    ///
-    /// ```swift
-    /// // A vivid purple: oklch(0.60, 0.22, 290)
-    /// let brandPurple = ColorToken.oklch(0.60, 0.22, 290)
-    /// ```
+    /// An arbitrary color in the OKLCH perceptual color space.
     ///
     /// - Parameters:
-    ///   - lightness: Perceptual lightness in the range `0.0` (black) to `1.0` (white).
-    ///   - chroma: Color saturation. `0.0` is achromatic; values above
-    ///     `~0.37` may exceed the sRGB gamut.
+    ///   - lightness: Perceptual lightness (`0.0`–`1.0`).
+    ///   - chroma: Color saturation (`0.0` is achromatic).
     ///   - hue: Hue angle in degrees (`0`–`360`).
-    case oklch(Double, Double, Double)
-
-    /// A shade from a named custom color scale defined outside Score's
-    /// built-in palette.
-    ///
-    /// Use this case to reference colors from a project-specific or
-    /// third-party design token system. The renderer is responsible for
-    /// resolving the `name`/`shade` pair to a concrete color value.
-    ///
-    /// ```swift
-    /// // Reference a "brand" scale defined in the project's theme:
-    /// let brandColor = ColorToken.custom("brand", shade: 600)
-    /// ```
-    ///
-    /// - Parameters:
-    ///   - name: The identifier of the custom color scale as registered
-    ///     with the active theme or renderer.
-    ///   - shade: The shade step within that scale (e.g. `100`, `500`, `900`).
-    case custom(String, shade: Int)
+    public static func oklch(_ lightness: Double, _ chroma: Double, _ hue: Double) -> ColorToken {
+        ColorToken(kind: .oklch(lightness, chroma, hue))
+    }
 }
 
 /// A protocol that defines the theme contract for Score applications.
@@ -233,8 +173,9 @@ public enum ColorToken: Sendable, Hashable {
 /// ```swift
 /// struct AppTheme: Theme {
 ///     var name: String? { "default" }
-///     var colorRoles: [String: ColorToken] { ["accent": .blue(600)] }
-///     var customColorRoles: [String: [Int: ColorToken]] { [:] }
+///     var colorRoles: [String: ColorToken] {
+///         ["accent": .blue(600), "brand": .oklch(0.60, 0.20, 30)]
+///     }
 ///     var fontFamilies: [String: String] { ["sans": "system-ui"] }
 ///     var typeScaleBase: Double { 16 }
 ///     var spacingUnit: Double { 4 }
@@ -255,15 +196,14 @@ public protocol Theme: Sendable {
     /// When `nil`, the renderer treats this as the unnamed default theme.
     var name: String? { get }
 
-    /// Semantic color-role mappings.
+    /// Color-role mappings emitted as CSS custom properties.
     ///
-    /// Example keys include `"surface"`, `"text"`, `"accent"`, and `"border"`.
+    /// Includes both semantic roles (`"surface"`, `"text"`, `"accent"`) and
+    /// project-specific custom colors (`"brand"`, `"sidebar"`). Each entry
+    /// is emitted as `--color-{key}: {value}` in the `:root` block.
+    ///
+    /// Reference custom entries elsewhere using ``ColorToken/init(_:)``.
     var colorRoles: [String: ColorToken] { get }
-
-    /// Named color-scale mappings keyed by role then shade.
-    ///
-    /// Example: `"brand": [50: .custom("brand", shade: 50), 500: .custom("brand", shade: 500)]`.
-    var customColorRoles: [String: [Int: ColorToken]] { get }
 
     /// Named font-family mappings used by typography emitters.
     ///
@@ -272,19 +212,19 @@ public protocol Theme: Sendable {
 
     /// External stylesheet URLs imported before theme custom properties.
     ///
-    /// Use this to load web fonts from any CDN (Google Fonts, Bunny Fonts,
-    /// Adobe Fonts, etc.). Each URL is emitted as an `@import url(...)`
-    /// rule at the top of the theme stylesheet.
+    /// Use this to load web fonts, icon libraries, or any external CSS.
+    /// Each URL is emitted as an `@import url(...)` rule at the top of
+    /// the theme stylesheet.
     ///
     /// ```swift
-    /// var fontImports: [String] {
+    /// var stylesheetImports: [String] {
     ///     [
     ///         "https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap",
     ///         "https://fonts.bunny.net/css?family=dm-mono:300,400,500",
     ///     ]
     /// }
     /// ```
-    var fontImports: [String] { get }
+    var stylesheetImports: [String] { get }
 
     /// Local font face declarations for self-hosted fonts.
     ///
@@ -370,14 +310,11 @@ extension Theme {
     /// Default color roles from ``DefaultTheme``.
     public var colorRoles: [String: ColorToken] { DefaultTheme().colorRoles }
 
-    /// Default implementation returns an empty custom color scale map.
-    public var customColorRoles: [String: [Int: ColorToken]] { [:] }
-
     /// Default font families from ``DefaultTheme``.
     public var fontFamilies: [String: String] { DefaultTheme().fontFamilies }
 
-    /// Default font imports return an empty array.
-    public var fontImports: [String] { [] }
+    /// Default stylesheet imports return an empty array.
+    public var stylesheetImports: [String] { [] }
 
     /// Default font faces return an empty array.
     public var fontFaces: [FontFace] { [] }
@@ -455,11 +392,8 @@ extension Theme {
 /// theme tokens.
 public protocol ThemePatch: Sendable {
 
-    /// Optional semantic color-role overrides.
+    /// Optional color-role overrides.
     var colorRoles: [String: ColorToken]? { get }
-
-    /// Optional named color-scale overrides.
-    var customColorRoles: [String: [Int: ColorToken]]? { get }
 
     /// Optional font-family overrides.
     var fontFamilies: [String: String]? { get }
@@ -481,9 +415,6 @@ extension ThemePatch {
 
     /// Default implementation returns no color-role overrides.
     public var colorRoles: [String: ColorToken]? { nil }
-
-    /// Default implementation returns no custom color-scale overrides.
-    public var customColorRoles: [String: [Int: ColorToken]]? { nil }
 
     /// Default implementation returns no font-family overrides.
     public var fontFamilies: [String: String]? { nil }

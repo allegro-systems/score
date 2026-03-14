@@ -27,6 +27,10 @@ public struct JSEmitter: Sendable {
     public struct EventBinding: Sendable {
         public let event: String
         public let handler: String
+        /// The document-order index assigned after scope extraction.
+        /// When non-negative the emitter uses this value instead of a running counter,
+        /// keeping indices stable after scope merging.
+        public var documentIndex: Int = -1
     }
 
     /// Information about a reactive DOM binding extracted from a node tree.
@@ -40,6 +44,10 @@ public struct JSEmitter: Sendable {
         }
 
         public let kind: Kind
+        /// The document-order index assigned after scope extraction.
+        /// When non-negative the emitter uses this value instead of a running counter,
+        /// keeping indices stable after scope merging.
+        public var documentIndex: Int = -1
     }
 
     /// Groups the reactive declarations and bindings belonging to a single stateful `Component`.
@@ -104,6 +112,10 @@ public struct JSEmitter: Sendable {
 
     /// Walks the node tree and groups declarations per stateful `Component`, returning
     /// each component's scope plus any page-level (non-component) bindings.
+    ///
+    /// After the walk, each binding is stamped with a `documentIndex` that reflects
+    /// its position in document order.  These indices remain stable through scope
+    /// merging so the emitted `data-s` / `data-r` selectors always match the HTML.
     public static func extractComponentScopes(
         from node: some Node
     ) -> (scopes: [ComponentScope], pageLevelBindings: [EventBinding], pageLevelReactive: [ReactiveBinding]) {
@@ -111,13 +123,40 @@ public struct JSEmitter: Sendable {
         var pageLevelBindings: [EventBinding] = []
         var pageLevelReactive: [ReactiveBinding] = []
         walkForScopes(node, scopes: &scopes, pageLevelBindings: &pageLevelBindings, pageLevelReactive: &pageLevelReactive)
+
+        // Stamp document-order indices.  The walk discovers bindings in the
+        // same depth-first order the HTML renderer uses when assigning
+        // `data-s` and `data-r` attributes, so a simple sequential counter
+        // produces matching indices.
+        var eventIndex = 0
+        var reactiveIndex = 0
+
+        for i in pageLevelBindings.indices {
+            pageLevelBindings[i].documentIndex = eventIndex
+            eventIndex += 1
+        }
+        for i in pageLevelReactive.indices {
+            pageLevelReactive[i].documentIndex = reactiveIndex
+            reactiveIndex += 1
+        }
+        for i in scopes.indices {
+            for j in scopes[i].bindings.indices {
+                scopes[i].bindings[j].documentIndex = eventIndex
+                eventIndex += 1
+            }
+            for j in scopes[i].reactiveBindings.indices {
+                scopes[i].reactiveBindings[j].documentIndex = reactiveIndex
+                reactiveIndex += 1
+            }
+        }
+
         return (scopes, pageLevelBindings, pageLevelReactive)
     }
 
     /// Recursively walks the node tree. When a stateful `Component` is encountered,
     /// its mirror declarations and subtree bindings are captured as one scope.
     /// Bindings outside any stateful component are collected into page-level arrays.
-    static func walkForScopes(
+    package static func walkForScopes(
         _ node: some Node,
         scopes: inout [ComponentScope],
         pageLevelBindings: inout [EventBinding],
@@ -198,7 +237,7 @@ public struct JSEmitter: Sendable {
     }
 
     /// Walks the node tree collecting reactive bindings.
-    static func walkForReactiveBindings(_ node: some Node, into bindings: inout [ReactiveBinding]) {
+    package static func walkForReactiveBindings(_ node: some Node, into bindings: inout [ReactiveBinding]) {
         if node is any Component { return }
 
         if let reactiveText = node as? ReactiveTextNode {
@@ -413,8 +452,9 @@ public struct JSEmitter: Sendable {
             }
         }
         for binding in bindings {
+            let index = binding.documentIndex >= 0 ? binding.documentIndex : bindingOffset
             js.append(
-                "document.querySelector(\"[data-s=\\\"\(bindingOffset)\\\"]\").addEventListener(\"\(binding.event)\", \(binding.handler));\n"
+                "document.querySelector(\"[data-s=\\\"\(index)\\\"]\").addEventListener(\"\(binding.event)\", \(binding.handler));\n"
             )
             bindingOffset += 1
         }
@@ -422,14 +462,15 @@ public struct JSEmitter: Sendable {
             js.append("Signal.effect(() => { localStorage.setItem(\"\(state.storageKey)\",JSON.stringify(\(state.name).get())); });\n")
             if state.isTheme {
                 js.append(
-                    "Signal.effect(() => { var v=\(state.name).get();document.documentElement.setAttribute(\"data-theme\",v?\"dark\":\"light\"); });\n"
+                    "Signal.effect(() => { document.documentElement.setAttribute(\"data-theme\",\(state.name).get()?\"dark\":\"light\") });\n"
                 )
             }
         }
         for reactive in reactiveBindings {
             switch reactive.kind {
             case .visibility(let stateName):
-                let selector = "document.querySelector(\"[data-r=\\\"\(reactiveOffset)\\\"]\")"
+                let index = reactive.documentIndex >= 0 ? reactive.documentIndex : reactiveOffset
+                let selector = "document.querySelector(\"[data-r=\\\"\(index)\\\"]\")"
                 js.append("Signal.effect(() => { \(selector).hidden = !\(stateName).get(); });\n")
                 reactiveOffset += 1
             case .text(let bindingName):
@@ -476,7 +517,7 @@ public struct JSEmitter: Sendable {
         return actions
     }
 
-    static func walkForComponents(
+    package static func walkForComponents(
         _ node: some Node,
         states: inout [StateInfo],
         computeds: inout [ComputedInfo],
@@ -504,7 +545,7 @@ public struct JSEmitter: Sendable {
         }
     }
 
-    static func walkForEvents(_ node: some Node, into bindings: inout [EventBinding]) {
+    package static func walkForEvents(_ node: some Node, into bindings: inout [EventBinding]) {
         if node is any Component { return }
 
         if let modified = node as? any ModifiedNodeAccessible {
@@ -575,8 +616,8 @@ extension ModifiedNode: ModifiedNodeAccessible {
     }
 }
 
-/// Internal protocol for primitive nodes to walk their children for event bindings.
-protocol JSEventWalkable {
+/// Protocol for primitive nodes to walk their children for event bindings.
+package protocol JSEventWalkable {
     func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding])
     func walkForJSElements(
         states: inout [JSEmitter.StateInfo],
@@ -591,85 +632,85 @@ protocol JSEventWalkable {
     func walkForJSReactive(into bindings: inout [JSEmitter.ReactiveBinding])
 }
 
-/// Internal protocol for container nodes that walk a single `content` child.
-protocol JSContentWalkable: JSEventWalkable {
+/// Protocol for container nodes that walk a single `content` child.
+package protocol JSContentWalkable: JSEventWalkable {
     associatedtype Content: Node
     var content: Content { get }
 }
 
 extension JSContentWalkable {
-    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {
+    package func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {
         JSEmitter.walkForEvents(content, into: &bindings)
     }
-    func walkForJSElements(
+    package func walkForJSElements(
         states: inout [JSEmitter.StateInfo],
         computeds: inout [JSEmitter.ComputedInfo],
         actions: inout [JSEmitter.ActionInfo]
     ) {
         JSEmitter.walkForComponents(content, states: &states, computeds: &computeds, actions: &actions)
     }
-    func walkForJSScoped(
+    package func walkForJSScoped(
         scopes: inout [JSEmitter.ComponentScope],
         pageLevelBindings: inout [JSEmitter.EventBinding],
         pageLevelReactive: inout [JSEmitter.ReactiveBinding]
     ) {
         JSEmitter.walkForScopes(content, scopes: &scopes, pageLevelBindings: &pageLevelBindings, pageLevelReactive: &pageLevelReactive)
     }
-    func walkForJSReactive(into bindings: inout [JSEmitter.ReactiveBinding]) {
+    package func walkForJSReactive(into bindings: inout [JSEmitter.ReactiveBinding]) {
         JSEmitter.walkForReactiveBindings(content, into: &bindings)
     }
 }
 
-/// Internal protocol for leaf nodes with no children to walk.
-protocol JSLeafWalkable: JSEventWalkable {}
+/// Protocol for leaf nodes with no children to walk.
+package protocol JSLeafWalkable: JSEventWalkable {}
 
 extension JSLeafWalkable {
-    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {}
-    func walkForJSElements(
+    package func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {}
+    package func walkForJSElements(
         states: inout [JSEmitter.StateInfo],
         computeds: inout [JSEmitter.ComputedInfo],
         actions: inout [JSEmitter.ActionInfo]
     ) {}
-    func walkForJSScoped(
+    package func walkForJSScoped(
         scopes: inout [JSEmitter.ComponentScope],
         pageLevelBindings: inout [JSEmitter.EventBinding],
         pageLevelReactive: inout [JSEmitter.ReactiveBinding]
     ) {}
-    func walkForJSReactive(into bindings: inout [JSEmitter.ReactiveBinding]) {}
+    package func walkForJSReactive(into bindings: inout [JSEmitter.ReactiveBinding]) {}
 }
 
 // Builder nodes
 extension TupleNode: JSEventWalkable {
-    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {
+    package func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {
         repeat JSEmitter.walkForEvents(each children, into: &bindings)
     }
-    func walkForJSElements(
+    package func walkForJSElements(
         states: inout [JSEmitter.StateInfo],
         computeds: inout [JSEmitter.ComputedInfo],
         actions: inout [JSEmitter.ActionInfo]
     ) {
         repeat JSEmitter.walkForComponents(each children, states: &states, computeds: &computeds, actions: &actions)
     }
-    func walkForJSScoped(
+    package func walkForJSScoped(
         scopes: inout [JSEmitter.ComponentScope],
         pageLevelBindings: inout [JSEmitter.EventBinding],
         pageLevelReactive: inout [JSEmitter.ReactiveBinding]
     ) {
         repeat JSEmitter.walkForScopes(each children, scopes: &scopes, pageLevelBindings: &pageLevelBindings, pageLevelReactive: &pageLevelReactive)
     }
-    func walkForJSReactive(into bindings: inout [JSEmitter.ReactiveBinding]) {
+    package func walkForJSReactive(into bindings: inout [JSEmitter.ReactiveBinding]) {
         repeat JSEmitter.walkForReactiveBindings(each children, into: &bindings)
     }
 }
 
 extension ConditionalNode: JSEventWalkable {
-    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {
+    package func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {
         switch storage {
         case .first(let node): JSEmitter.walkForEvents(node, into: &bindings)
         case .second(let node): JSEmitter.walkForEvents(node, into: &bindings)
         }
     }
-    func walkForJSElements(
+    package func walkForJSElements(
         states: inout [JSEmitter.StateInfo],
         computeds: inout [JSEmitter.ComputedInfo],
         actions: inout [JSEmitter.ActionInfo]
@@ -679,7 +720,7 @@ extension ConditionalNode: JSEventWalkable {
         case .second(let node): JSEmitter.walkForComponents(node, states: &states, computeds: &computeds, actions: &actions)
         }
     }
-    func walkForJSScoped(
+    package func walkForJSScoped(
         scopes: inout [JSEmitter.ComponentScope],
         pageLevelBindings: inout [JSEmitter.EventBinding],
         pageLevelReactive: inout [JSEmitter.ReactiveBinding]
@@ -689,7 +730,7 @@ extension ConditionalNode: JSEventWalkable {
         case .second(let node): JSEmitter.walkForScopes(node, scopes: &scopes, pageLevelBindings: &pageLevelBindings, pageLevelReactive: &pageLevelReactive)
         }
     }
-    func walkForJSReactive(into bindings: inout [JSEmitter.ReactiveBinding]) {
+    package func walkForJSReactive(into bindings: inout [JSEmitter.ReactiveBinding]) {
         switch storage {
         case .first(let node): JSEmitter.walkForReactiveBindings(node, into: &bindings)
         case .second(let node): JSEmitter.walkForReactiveBindings(node, into: &bindings)
@@ -698,93 +739,93 @@ extension ConditionalNode: JSEventWalkable {
 }
 
 extension OptionalNode: JSEventWalkable {
-    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {
+    package func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {
         if let node = wrapped { JSEmitter.walkForEvents(node, into: &bindings) }
     }
-    func walkForJSElements(
+    package func walkForJSElements(
         states: inout [JSEmitter.StateInfo],
         computeds: inout [JSEmitter.ComputedInfo],
         actions: inout [JSEmitter.ActionInfo]
     ) {
         if let node = wrapped { JSEmitter.walkForComponents(node, states: &states, computeds: &computeds, actions: &actions) }
     }
-    func walkForJSScoped(
+    package func walkForJSScoped(
         scopes: inout [JSEmitter.ComponentScope],
         pageLevelBindings: inout [JSEmitter.EventBinding],
         pageLevelReactive: inout [JSEmitter.ReactiveBinding]
     ) {
         if let node = wrapped { JSEmitter.walkForScopes(node, scopes: &scopes, pageLevelBindings: &pageLevelBindings, pageLevelReactive: &pageLevelReactive) }
     }
-    func walkForJSReactive(into bindings: inout [JSEmitter.ReactiveBinding]) {
+    package func walkForJSReactive(into bindings: inout [JSEmitter.ReactiveBinding]) {
         if let node = wrapped { JSEmitter.walkForReactiveBindings(node, into: &bindings) }
     }
 }
 
 extension ForEachNode: JSEventWalkable {
-    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {
+    package func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {
         for item in data { JSEmitter.walkForEvents(content(item), into: &bindings) }
     }
-    func walkForJSElements(
+    package func walkForJSElements(
         states: inout [JSEmitter.StateInfo],
         computeds: inout [JSEmitter.ComputedInfo],
         actions: inout [JSEmitter.ActionInfo]
     ) {
         for item in data { JSEmitter.walkForComponents(content(item), states: &states, computeds: &computeds, actions: &actions) }
     }
-    func walkForJSScoped(
+    package func walkForJSScoped(
         scopes: inout [JSEmitter.ComponentScope],
         pageLevelBindings: inout [JSEmitter.EventBinding],
         pageLevelReactive: inout [JSEmitter.ReactiveBinding]
     ) {
         for item in data { JSEmitter.walkForScopes(content(item), scopes: &scopes, pageLevelBindings: &pageLevelBindings, pageLevelReactive: &pageLevelReactive) }
     }
-    func walkForJSReactive(into bindings: inout [JSEmitter.ReactiveBinding]) {
+    package func walkForJSReactive(into bindings: inout [JSEmitter.ReactiveBinding]) {
         for item in data { JSEmitter.walkForReactiveBindings(content(item), into: &bindings) }
     }
 }
 
 extension ArrayNode: JSEventWalkable {
-    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {
+    package func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {
         for child in children { JSEmitter.walkForEvents(child, into: &bindings) }
     }
-    func walkForJSElements(
+    package func walkForJSElements(
         states: inout [JSEmitter.StateInfo],
         computeds: inout [JSEmitter.ComputedInfo],
         actions: inout [JSEmitter.ActionInfo]
     ) {
         for child in children { JSEmitter.walkForComponents(child, states: &states, computeds: &computeds, actions: &actions) }
     }
-    func walkForJSScoped(
+    package func walkForJSScoped(
         scopes: inout [JSEmitter.ComponentScope],
         pageLevelBindings: inout [JSEmitter.EventBinding],
         pageLevelReactive: inout [JSEmitter.ReactiveBinding]
     ) {
         for child in children { JSEmitter.walkForScopes(child, scopes: &scopes, pageLevelBindings: &pageLevelBindings, pageLevelReactive: &pageLevelReactive) }
     }
-    func walkForJSReactive(into bindings: inout [JSEmitter.ReactiveBinding]) {
+    package func walkForJSReactive(into bindings: inout [JSEmitter.ReactiveBinding]) {
         for child in children { JSEmitter.walkForReactiveBindings(child, into: &bindings) }
     }
 }
 
 extension Content: JSEventWalkable {
-    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {
+    package func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {
         JSEmitter.walkForEvents(wrapped, into: &bindings)
     }
-    func walkForJSElements(
+    package func walkForJSElements(
         states: inout [JSEmitter.StateInfo],
         computeds: inout [JSEmitter.ComputedInfo],
         actions: inout [JSEmitter.ActionInfo]
     ) {
         JSEmitter.walkForComponents(wrapped, states: &states, computeds: &computeds, actions: &actions)
     }
-    func walkForJSScoped(
+    package func walkForJSScoped(
         scopes: inout [JSEmitter.ComponentScope],
         pageLevelBindings: inout [JSEmitter.EventBinding],
         pageLevelReactive: inout [JSEmitter.ReactiveBinding]
     ) {
         JSEmitter.walkForScopes(wrapped, scopes: &scopes, pageLevelBindings: &pageLevelBindings, pageLevelReactive: &pageLevelReactive)
     }
-    func walkForJSReactive(into bindings: inout [JSEmitter.ReactiveBinding]) {
+    package func walkForJSReactive(into bindings: inout [JSEmitter.ReactiveBinding]) {
         JSEmitter.walkForReactiveBindings(wrapped, into: &bindings)
     }
 }
@@ -830,11 +871,11 @@ extension Dialog: JSContentWalkable {}
 extension Menu: JSContentWalkable {}
 extension Summary: JSContentWalkable {}
 extension Details: JSEventWalkable {
-    func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {
+    package func walkForJSEvents(into bindings: inout [JSEmitter.EventBinding]) {
         JSEmitter.walkForEvents(summary, into: &bindings)
         JSEmitter.walkForEvents(content, into: &bindings)
     }
-    func walkForJSElements(
+    package func walkForJSElements(
         states: inout [JSEmitter.StateInfo],
         computeds: inout [JSEmitter.ComputedInfo],
         actions: inout [JSEmitter.ActionInfo]
@@ -842,7 +883,7 @@ extension Details: JSEventWalkable {
         JSEmitter.walkForComponents(summary, states: &states, computeds: &computeds, actions: &actions)
         JSEmitter.walkForComponents(content, states: &states, computeds: &computeds, actions: &actions)
     }
-    func walkForJSScoped(
+    package func walkForJSScoped(
         scopes: inout [JSEmitter.ComponentScope],
         pageLevelBindings: inout [JSEmitter.EventBinding],
         pageLevelReactive: inout [JSEmitter.ReactiveBinding]
@@ -850,7 +891,7 @@ extension Details: JSEventWalkable {
         JSEmitter.walkForScopes(summary, scopes: &scopes, pageLevelBindings: &pageLevelBindings, pageLevelReactive: &pageLevelReactive)
         JSEmitter.walkForScopes(content, scopes: &scopes, pageLevelBindings: &pageLevelBindings, pageLevelReactive: &pageLevelReactive)
     }
-    func walkForJSReactive(into bindings: inout [JSEmitter.ReactiveBinding]) {
+    package func walkForJSReactive(into bindings: inout [JSEmitter.ReactiveBinding]) {
         JSEmitter.walkForReactiveBindings(summary, into: &bindings)
         JSEmitter.walkForReactiveBindings(content, into: &bindings)
     }

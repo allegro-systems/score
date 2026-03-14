@@ -1,32 +1,32 @@
 import ScoreCore
 
 extension Table: CSSContainerNode {
-    var htmlTag: String? { "table" }
+    package var htmlTag: String? { "table" }
 }
 extension TableCaption: CSSContainerNode {
-    var htmlTag: String? { "caption" }
+    package var htmlTag: String? { "caption" }
 }
 extension TableHead: CSSContainerNode {
-    var htmlTag: String? { "thead" }
+    package var htmlTag: String? { "thead" }
 }
 extension TableBody: CSSContainerNode {
-    var htmlTag: String? { "tbody" }
+    package var htmlTag: String? { "tbody" }
 }
 extension TableFooter: CSSContainerNode {
-    var htmlTag: String? { "tfoot" }
+    package var htmlTag: String? { "tfoot" }
 }
 extension TableRow: CSSContainerNode {
-    var htmlTag: String? { "tr" }
+    package var htmlTag: String? { "tr" }
 }
 extension TableHeaderCell: CSSContainerNode {
-    var htmlTag: String? { "th" }
+    package var htmlTag: String? { "th" }
 }
 extension TableCell: CSSContainerNode {
-    var htmlTag: String? { "td" }
+    package var htmlTag: String? { "td" }
 }
 extension TableColumnGroup: CSSContainerNode {
-    var htmlTag: String? { "colgroup" }
+    package var htmlTag: String? { "colgroup" }
 }
 extension TableColumn: CSSLeafNode {
-    var htmlTag: String? { "col" }
+    package var htmlTag: String? { "col" }
 }

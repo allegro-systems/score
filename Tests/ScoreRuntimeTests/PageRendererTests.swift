@@ -6,7 +6,7 @@ import Testing
 private struct MinimalTheme: Theme {
     var name: String? { nil }
     var colorRoles: [String: ColorToken] { [:] }
-    var customColorRoles: [String: [Int: ColorToken]] { [:] }
+
     var fontFamilies: [String: String] { [:] }
     var typeScaleBase: Double { 16 }
     var spacingUnit: Double { 4 }
@@ -19,7 +19,7 @@ private struct MinimalTheme: Theme {
 private struct NamedMinimalTheme: Theme {
     var name: String? { "ocean" }
     var colorRoles: [String: ColorToken] { [:] }
-    var customColorRoles: [String: [Int: ColorToken]] { [:] }
+
     var fontFamilies: [String: String] { [:] }
     var typeScaleBase: Double { 16 }
     var spacingUnit: Double { 4 }

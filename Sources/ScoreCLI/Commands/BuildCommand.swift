@@ -68,7 +68,8 @@ struct BuildCommand: AsyncParsableCommand {
             let emitResult = try ProcessRunner.run(
                 executable,
                 arguments: ["--build"],
-                in: directory
+                in: directory,
+                environment: ["SCORE_ENV": "production"]
             )
 
             guard emitResult.succeeded else {

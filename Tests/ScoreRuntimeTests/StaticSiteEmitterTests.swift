@@ -7,7 +7,7 @@ import Testing
 private struct MinimalEmitterTheme: Theme {
     var name: String? { nil }
     var colorRoles: [String: ColorToken] { [:] }
-    var customColorRoles: [String: [Int: ColorToken]] { [:] }
+
     var fontFamilies: [String: String] { [:] }
     var typeScaleBase: Double { 16 }
     var spacingUnit: Double { 4 }

@@ -182,20 +182,12 @@ public struct DocumentAssembler: Sendable {
     /// value matches one of the given theme names, and sets
     /// `data-theme` on `<html>` if found.
     private static func themePersistenceScript(names: [String]) -> String {
-        let allowed = names.map { "\"\($0.htmlEscaped)\"" }.joined(separator: ",")
-        let hasDark = names.contains("dark")
-        let hasLight = names.contains("light")
-        let systemFallback: String
-        if hasDark && hasLight {
-            systemFallback =
-                "else{document.documentElement.setAttribute(\"data-theme\",window.matchMedia&&window.matchMedia(\"(prefers-color-scheme: dark)\").matches?\"dark\":\"light\")}"
-        } else if hasDark {
-            systemFallback =
-                "else if(window.matchMedia&&window.matchMedia(\"(prefers-color-scheme: dark)\").matches){document.documentElement.setAttribute(\"data-theme\",\"dark\")}"
-        } else {
-            systemFallback = ""
+        var effectiveNames = names
+        if names.contains("dark") && !names.contains("light") {
+            effectiveNames.append("light")
         }
+        let allowed = effectiveNames.map { "\"\($0.htmlEscaped)\"" }.joined(separator: ",")
         return
-            "<script>!function(){var t=localStorage.getItem(\"as-theme\");if(t===\"true\")t=\"dark\";if(t===\"false\")t=\"light\";if(t&&[\(allowed)].indexOf(t)!==-1){document.documentElement.setAttribute(\"data-theme\",t)}\(systemFallback)}()</script>\n"
+            "<script>!function(){var t=localStorage.getItem(\"as-theme\");if(t===\"true\")t=\"dark\";if(t===\"false\")t=\"light\";if(t&&[\(allowed)].indexOf(t)!==-1){document.documentElement.setAttribute(\"data-theme\",t)}}()</script>\n"
     }
 }

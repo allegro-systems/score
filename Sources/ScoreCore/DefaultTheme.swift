@@ -42,7 +42,7 @@ public struct DefaultTheme: Theme, Sendable {
         ]
     }
 
-    public var fontImports: [String] {
+    public var stylesheetImports: [String] {
         [
             "https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&display=swap",
             "https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&display=swap",

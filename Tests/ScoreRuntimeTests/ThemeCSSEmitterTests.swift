@@ -7,7 +7,7 @@ import Testing
 struct TestTheme: Theme {
     var name: String? { "test" }
     var colorRoles: [String: ColorToken] { ["accent": .oklch(0.65, 0.18, 270)] }
-    var customColorRoles: [String: [Int: ColorToken]] { [:] }
+
     var fontFamilies: [String: String] { ["sans": "system-ui"] }
     var typeScaleBase: Double { 16 }
 
@@ -20,7 +20,7 @@ struct TestTheme: Theme {
 
 struct DarkPatch: ThemePatch {
     var colorRoles: [String: ColorToken]? { ["accent": .oklch(0.8, 0.12, 270)] }
-    var customColorRoles: [String: [Int: ColorToken]]? { nil }
+
     var fontFamilies: [String: String]? { nil }
     var typeScaleBase: Double? { nil }
 
@@ -32,7 +32,7 @@ struct DarkPatch: ThemePatch {
 struct DarkTheme: Theme {
     var name: String? { "dark" }
     var colorRoles: [String: ColorToken] { ["accent": .oklch(0.65, 0.18, 270)] }
-    var customColorRoles: [String: [Int: ColorToken]] { [:] }
+
     var fontFamilies: [String: String] { ["sans": "system-ui"] }
     var typeScaleBase: Double { 16 }
 
@@ -44,7 +44,7 @@ struct DarkTheme: Theme {
 
 struct FullDarkPatch: ThemePatch {
     var colorRoles: [String: ColorToken]? { ["surface": .surface] }
-    var customColorRoles: [String: [Int: ColorToken]]? { nil }
+
     var fontFamilies: [String: String]? { ["mono": "ui-monospace"] }
     var typeScaleBase: Double? { 18 }
     var spacingUnit: Double? { 6 }
@@ -65,7 +65,7 @@ struct FullDarkTheme: Theme {
             "slate": .slate(500),
             "cyan": .cyan(500),
             "emerald": .emerald(500),
-            "brand": .custom("brand", shade: 600),
+            "brand": ColorToken("brand"),
             "surface": .surface,
             "text": .text,
             "border": .border,
@@ -75,7 +75,7 @@ struct FullDarkTheme: Theme {
             "success": .success,
         ]
     }
-    var customColorRoles: [String: [Int: ColorToken]] { [:] }
+
     var fontFamilies: [String: String] { ["sans": "system-ui"] }
     var typeScaleBase: Double { 16 }
 
@@ -159,7 +159,7 @@ struct FullDarkTheme: Theme {
     #expect(css.contains("--color-slate: var(--color-slate-500);"))
     #expect(css.contains("--color-cyan: var(--color-cyan-500);"))
     #expect(css.contains("--color-emerald: var(--color-emerald-500);"))
-    #expect(css.contains("--color-brand: var(--color-brand-600);"))
+    #expect(css.contains("--color-brand: var(--color-brand);"))
     #expect(css.contains("--color-surface: inherit;"))
     #expect(css.contains("--color-text: inherit;"))
     #expect(css.contains("--color-border: inherit;"))
@@ -171,7 +171,7 @@ struct FullDarkTheme: Theme {
 
 private struct OceanPatch: ThemePatch {
     var colorRoles: [String: ColorToken]? { ["accent": .oklch(0.6, 0.15, 220)] }
-    var customColorRoles: [String: [Int: ColorToken]]? { nil }
+
     var fontFamilies: [String: String]? { nil }
     var typeScaleBase: Double? { nil }
 
@@ -182,7 +182,7 @@ private struct OceanPatch: ThemePatch {
 
 private struct ForestPatch: ThemePatch {
     var colorRoles: [String: ColorToken]? { ["accent": .oklch(0.55, 0.18, 145)] }
-    var customColorRoles: [String: [Int: ColorToken]]? { nil }
+
     var fontFamilies: [String: String]? { ["sans": "Georgia, serif"] }
     var typeScaleBase: Double? { nil }
 
@@ -194,7 +194,7 @@ private struct ForestPatch: ThemePatch {
 private struct NamedTheme: Theme {
     var name: String? { "base" }
     var colorRoles: [String: ColorToken] { ["accent": .oklch(0.65, 0.18, 270)] }
-    var customColorRoles: [String: [Int: ColorToken]] { [:] }
+
     var fontFamilies: [String: String] { ["sans": "system-ui"] }
     var typeScaleBase: Double { 16 }
 
@@ -253,7 +253,7 @@ private struct NamedTheme: Theme {
 }
 
 private struct CustomFontTheme: Theme {
-    var fontImports: [String] {
+    var stylesheetImports: [String] {
         ["https://fonts.bunny.net/css?family=dm-mono:400"]
     }
     var fontFamilies: [String: String] { ["mono": "'DM Mono', monospace"] }

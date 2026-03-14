@@ -5,36 +5,32 @@ import NIOHTTP1
 import ScoreCore
 import ScoreRouter
 
-/// A NIO channel handler that processes HTTP requests through the Score runtime.
+/// A NIO channel handler that serves pre-built static files from the output
+/// directory and dispatches controller routes dynamically.
+///
+/// Page routes, CSS, JavaScript, and assets are all served from disk after
+/// ``StaticSiteEmitter`` writes them during startup. Only controller routes
+/// defined via ``Controller`` are handled dynamically at request time.
 public final class RequestHandler: ChannelInboundHandler, Sendable {
     public typealias InboundIn = HTTPServerRequestPart
     public typealias OutboundOut = HTTPServerResponsePart
 
+    private let outputDirectory: String
     private let routeTable: RouteTable
-    private let pages: [String: any Page]
-    private let metadata: (any Metadata)?
-    private let theme: (any Theme)?
-    private let resourcesDirectory: String?
-    private let errorPage: (any ErrorPage.Type)?
 
-    /// Creates a request handler with the given configuration.
+    /// Creates a request handler that serves static files and dispatches
+    /// controller routes.
+    ///
+    /// - Parameters:
+    ///   - outputDirectory: The directory containing pre-built static files.
+    ///   - routeTable: The route table for resolving controller routes.
     public init(
-        routeTable: RouteTable,
-        pages: [String: any Page],
-        metadata: (any Metadata)?,
-        theme: (any Theme)?,
-        resourcesDirectory: String? = nil,
-        errorPage: (any ErrorPage.Type)? = nil
+        outputDirectory: String,
+        routeTable: RouteTable
     ) {
+        self.outputDirectory = outputDirectory
         self.routeTable = routeTable
-        self.pages = pages
-        self.metadata = metadata
-        self.theme = theme
-        self.resourcesDirectory = resourcesDirectory
-        self.errorPage = errorPage
     }
-
-    // MARK: - State
 
     private final class RequestState: @unchecked Sendable {
         var head: HTTPRequestHead?
@@ -44,8 +40,6 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
     }
 
     private let state = RequestState()
-
-    // MARK: - ChannelInboundHandler
 
     public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
         let part = unwrapInboundIn(data)
@@ -78,9 +72,6 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
     ) {
         let eventLoop = context.eventLoop
         let promise = eventLoop.makePromise(of: Void.self)
-        // Safety: context is only used inside eventLoop.execute, which runs on the
-        // same event loop that owns the context. nonisolated(unsafe) silences the
-        // Sendable diagnostic without introducing actual concurrency risk.
         nonisolated(unsafe) let capturedContext = context
         promise.completeWithTask {
             let response = await self.processRequest(head: head, body: body)
@@ -94,43 +85,10 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
         let uri = head.uri
         let path = uri.split(separator: "?", maxSplits: 1).first.map(String.init) ?? uri
 
-        // Serve external CSS files
-        if path == "/global.css" {
-            let css = theme.map { ThemeCSSEmitter.emit($0) } ?? ""
-            return Response.css(css)
-        }
-        if path.hasPrefix("/styles/") && path.hasSuffix(".css") {
-            return serveScopedCSS(for: path)
+        if let response = serveStaticFile(path: path) {
+            return response
         }
 
-        // Serve static resources (fonts, images, etc.)
-        if path.hasPrefix("/assets/"), let resourcesDirectory {
-            let relativePath = String(path.dropFirst("/assets/".count))
-            if let (data, contentType) = StaticFileHandler.serve(
-                relativePath: relativePath,
-                from: resourcesDirectory
-            ) {
-                return Response(
-                    status: .ok,
-                    headers: ["content-type": contentType],
-                    body: data
-                )
-            }
-            return Response.text("Not Found", status: .notFound)
-        }
-
-        // Serve external JavaScript files
-        if path == "/score.js" {
-            return Response.javascript(JSEmitter.clientRuntime)
-        }
-        if path == "/static/score-devtools.js" && Environment.current == .development {
-            return Response.javascript(DevToolsInjector.clientScript)
-        }
-        if path.hasPrefix("/scripts/") && path.hasSuffix(".js") {
-            return servePageScript(for: path)
-        }
-
-        // Map NIO method to HTTPTypes method
         guard let method = mapMethod(head.method) else {
             return Response.text("Method Not Allowed", status: .methodNotAllowed)
         }
@@ -138,34 +96,6 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
         do {
             let resolved = try routeTable.resolve(method: method, path: path)
 
-            if resolved.isPage {
-                // Render the page
-                if let page = pages[resolved.pattern] {
-                    let cssName = Self.cssFileName(for: resolved.pattern)
-
-                    // Determine script links for this page
-                    let jsResult = JSEmitter.emitPageScript(page: page)
-                    var scriptLinks: [String] = []
-                    if !jsResult.pageJS.isEmpty {
-                        if jsResult.needsRuntime {
-                            scriptLinks.append("/score.js")
-                        }
-                        scriptLinks.append("/scripts/\(cssName).js")
-                    }
-
-                    let result = PageRenderer.render(
-                        page: page,
-                        metadata: metadata,
-                        theme: theme,
-                        cssLinks: ["/global.css", "/styles/\(cssName).css"],
-                        scriptLinks: scriptLinks
-                    )
-                    return Response.html(result.html)
-                }
-                return Response.text("OK", status: .ok)
-            }
-
-            // Controller route
             guard let handler = resolved.handler else {
                 var response = Response.text("OK")
                 response.headers["content-type"] = "text/plain"
@@ -198,7 +128,7 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
         } catch let error as RoutingError {
             switch error {
             case .notFound:
-                return renderError(statusCode: 404, message: "Not Found", path: path)
+                return serveErrorPage(statusCode: 404, message: "Not Found")
             case .methodNotAllowed(_, let allowed):
                 let allowHeader = allowed.map(\.rawValue).joined(separator: ", ")
                 var response = Response.text("Method Not Allowed", status: .methodNotAllowed)
@@ -215,74 +145,59 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
                 )
                 return Response.html(html, status: .internalServerError)
             }
-            return renderError(
-                statusCode: 500,
-                message: "Internal Server Error",
-                path: path
+            return serveErrorPage(statusCode: 500, message: "Internal Server Error")
+        }
+    }
+
+    /// Attempts to serve a static file from the output directory.
+    ///
+    /// Tries the following in order:
+    /// 1. Exact file match (for CSS, JS, assets, etc.)
+    /// 2. Path + `.html` (for page routes like `/about` → `about.html`)
+    /// 3. `index.html` for the root path
+    private func serveStaticFile(path: String) -> Response? {
+        let fm = FileManager.default
+
+        if path == "/" {
+            return serveFile(at: "\(outputDirectory)/index.html", fm: fm)
+        }
+
+        let relativePath = String(path.dropFirst())
+        let directPath = "\(outputDirectory)/\(relativePath)"
+        if fm.fileExists(atPath: directPath) {
+            return serveFile(at: directPath, fm: fm)
+        }
+
+        let htmlPath = "\(outputDirectory)/\(relativePath).html"
+        if fm.fileExists(atPath: htmlPath) {
+            return serveFile(at: htmlPath, fm: fm)
+        }
+
+        return nil
+    }
+
+    private func serveFile(at path: String, fm: FileManager) -> Response? {
+        guard let data = fm.contents(atPath: path) else { return nil }
+        let ext = (path as NSString).pathExtension
+        let contentType = StaticFileHandler.mimeType(for: ext)
+        return Response(
+            status: .ok,
+            headers: ["content-type": contentType],
+            body: data
+        )
+    }
+
+    private func serveErrorPage(statusCode: Int, message: String) -> Response {
+        let status = HTTPResponse.Status(code: statusCode)
+        let errorPath = "\(outputDirectory)/\(statusCode).html"
+        if let data = FileManager.default.contents(atPath: errorPath) {
+            return Response(
+                status: status,
+                headers: ["content-type": "text/html; charset=utf-8"],
+                body: data
             )
         }
-    }
-
-    /// Serves scoped component CSS for a page by rendering it and extracting its CSS.
-    private func serveScopedCSS(for path: String) -> Response {
-        // /styles/home.css → "home"
-        let fileName = String(path.dropFirst("/styles/".count).dropLast(".css".count))
-
-        // Find the page whose CSS file name matches
-        for (pattern, page) in pages {
-            if Self.cssFileName(for: pattern) == fileName {
-                let result = PageRenderer.render(
-                    page: page,
-                    metadata: metadata,
-                    theme: theme
-                )
-                return Response.css(result.componentCSS)
-            }
-        }
-        return Response.text("Not Found", status: .notFound)
-    }
-
-    /// Serves page-specific JavaScript by rendering the page and extracting its JS.
-    private func servePageScript(for path: String) -> Response {
-        // /scripts/home.js → "home"
-        let fileName = String(path.dropFirst("/scripts/".count).dropLast(".js".count))
-
-        for (pattern, page) in pages {
-            if Self.cssFileName(for: pattern) == fileName {
-                let result = PageRenderer.render(
-                    page: page,
-                    metadata: metadata,
-                    theme: theme
-                )
-                if result.pageJS.isEmpty {
-                    return Response.text("Not Found", status: .notFound)
-                }
-                return Response.javascript(result.pageJS)
-            }
-        }
-        return Response.text("Not Found", status: .notFound)
-    }
-
-    private func renderError(statusCode: Int, message: String, path: String) -> Response {
-        let context = ErrorContext(statusCode: statusCode, message: message, path: path)
-        let status = HTTPResponse.Status(code: statusCode)
-        if let errorPage {
-            let body = errorPage.init(context: context)
-            let html = PageRenderer.renderErrorBody(body, metadata: metadata, theme: theme)
-            return Response.html(html, status: status)
-        }
         return Response.text(message, status: status)
-    }
-
-    /// Derives a CSS file name from a page path.
-    ///
-    /// - `/` → `"home"`
-    /// - `/about` → `"about"`
-    /// - `/docs/score` → `"docs-score"`
-    static func cssFileName(for pagePath: String) -> String {
-        if pagePath == "/" { return "home" }
-        let trimmed = pagePath.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        return trimmed.replacingOccurrences(of: "/", with: "-")
     }
 
     private func writeResponse(_ response: Response, context: ChannelHandlerContext) {

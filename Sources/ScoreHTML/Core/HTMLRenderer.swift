@@ -158,7 +158,7 @@ public struct HTMLRenderer: Sendable {
     }
 
     /// Writes a node to `output`, dispatching via `HTMLRenderable` or falling back to `body`.
-    func write(_ node: some Node, to output: inout String) {
+    package func write(_ node: some Node, to output: inout String) {
         if let renderable = node as? HTMLRenderable {
             renderable.renderHTML(into: &output, renderer: self)
             return
@@ -207,7 +207,7 @@ public struct HTMLRenderer: Sendable {
     }
 
     /// Emits an opening tag, recursively renders `content`, then emits the closing tag.
-    func tag(_ name: String, _ attributes: [(String, String)] = [], content: some Node, to output: inout String) {
+    package func tag(_ name: String, _ attributes: [(String, String)] = [], content: some Node, to output: inout String) {
         output.append("<\(name)")
         writeAttributes(attributes, to: &output)
         output.append(">")
@@ -216,14 +216,14 @@ public struct HTMLRenderer: Sendable {
     }
 
     /// Emits a self-closing void element tag with no content.
-    func voidTag(_ name: String, _ attributes: [(String, String)], to output: inout String) {
+    package func voidTag(_ name: String, _ attributes: [(String, String)], to output: inout String) {
         output.append("<\(name)")
         writeAttributes(attributes, to: &output)
         output.append(">")
     }
 
     /// Appends each attribute to `output`; boolean attributes (empty value) are emitted without a value.
-    func writeAttributes(_ attributes: [(String, String)], to output: inout String) {
+    package func writeAttributes(_ attributes: [(String, String)], to output: inout String) {
         for (key, value) in attributes {
             if value.isEmpty {
                 output.append(" \(key)")

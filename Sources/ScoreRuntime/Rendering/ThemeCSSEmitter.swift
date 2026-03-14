@@ -22,7 +22,7 @@ public struct ThemeCSSEmitter: Sendable {
     ) -> String {
         var css = ""
 
-        for url in theme.fontImports {
+        for url in theme.stylesheetImports {
             css.append("@import url('\(url)');\n")
         }
 
@@ -34,7 +34,7 @@ public struct ThemeCSSEmitter: Sendable {
 
         // Dark mode
         if let dark = theme.dark {
-            css.append("@media (prefers-color-scheme: dark) {\n  :root {\n")
+            css.append("@media (prefers-color-scheme: dark) {\n  :root:not([data-theme]) {\n")
             emitPatchProperties(dark, into: &css)
             css.append("  }\n}\n")
         }
@@ -53,16 +53,8 @@ public struct ThemeCSSEmitter: Sendable {
     }
 
     private static func emitProperties(_ theme: some Theme, into css: inout String) {
-        // Color roles
         for (role, token) in theme.colorRoles.sorted(by: { $0.key < $1.key }) {
             css.append("  --color-\(role): \(cssValue(for: token));\n")
-        }
-
-        // Custom color roles
-        for (name, shades) in theme.customColorRoles.sorted(by: { $0.key < $1.key }) {
-            for (shade, token) in shades.sorted(by: { $0.key < $1.key }) {
-                css.append("  --color-\(name)-\(shade): \(cssValue(for: token));\n")
-            }
         }
 
         // Font families
@@ -92,13 +84,6 @@ public struct ThemeCSSEmitter: Sendable {
         if let colors = patch.colorRoles {
             for (role, token) in colors.sorted(by: { $0.key < $1.key }) {
                 css.append("\(indent)--color-\(role): \(cssValue(for: token));\n")
-            }
-        }
-        if let customColors = patch.customColorRoles {
-            for (name, shades) in customColors.sorted(by: { $0.key < $1.key }) {
-                for (shade, token) in shades.sorted(by: { $0.key < $1.key }) {
-                    css.append("\(indent)--color-\(name)-\(shade): \(cssValue(for: token));\n")
-                }
             }
         }
         if let fonts = patch.fontFamilies {
@@ -144,26 +129,12 @@ public struct ThemeCSSEmitter: Sendable {
     }
 
     private static func cssValue(for token: ColorToken) -> String {
-        switch token {
+        switch token.kind {
         case .oklch(let l, let c, let h):
             return "oklch(\(cleanedNumber(l)) \(cleanedNumber(c)) \(cleanedNumber(h)))"
-        case .surface: return "inherit"
-        case .text: return "inherit"
-        case .border: return "inherit"
-        case .accent: return "inherit"
-        case .muted: return "inherit"
-        case .destructive: return "inherit"
-        case .success: return "inherit"
-        case .neutral(let shade): return "var(--color-neutral-\(shade))"
-        case .blue(let shade): return "var(--color-blue-\(shade))"
-        case .red(let shade): return "var(--color-red-\(shade))"
-        case .green(let shade): return "var(--color-green-\(shade))"
-        case .amber(let shade): return "var(--color-amber-\(shade))"
-        case .sky(let shade): return "var(--color-sky-\(shade))"
-        case .slate(let shade): return "var(--color-slate-\(shade))"
-        case .cyan(let shade): return "var(--color-cyan-\(shade))"
-        case .emerald(let shade): return "var(--color-emerald-\(shade))"
-        case .custom(let name, let shade): return "var(--color-\(name)-\(shade))"
+        case .semantic: return "inherit"
+        case .palette(let name, let shade): return "var(--color-\(name)-\(shade))"
+        case .named(let name): return "var(--color-\(name))"
         }
     }
 
@@ -529,13 +500,13 @@ public struct ThemeCSSEmitter: Sendable {
         emitRule(
             "[data-tab-bar] [data-code-label]",
             declarations: [
-                "margin-right: 8px",
+                "margin-right: 8px"
             ], into: &css)
 
         emitRule(
             "[data-tab-bar] [data-code-copy]",
             declarations: [
-                "margin-left: auto",
+                "margin-left: auto"
             ], into: &css)
 
         emitRule(
@@ -560,14 +531,8 @@ public struct ThemeCSSEmitter: Sendable {
     }
 
     private static func cssPropertyValue(for token: ColorToken) -> String {
-        switch token {
-        case .surface: return "var(--color-surface)"
-        case .text: return "var(--color-text)"
-        case .border: return "var(--color-border)"
-        case .accent: return "var(--color-accent)"
-        case .muted: return "var(--color-muted)"
-        case .destructive: return "var(--color-destructive)"
-        case .success: return "var(--color-success)"
+        switch token.kind {
+        case .semantic(let name): return "var(--color-\(name))"
         default: return cssValue(for: token)
         }
     }

@@ -159,7 +159,7 @@ public struct ColorSchemeModifier<Content: Node>: ModifierValue {
 /// Div {
 ///     Text("Branded")
 /// }
-/// .theme("brand-blue") { $0.background(.custom("brand", shade: 600)) }
+/// .theme("brand-blue") { $0.background(ColorToken("brand")) }
 /// ```
 ///
 /// ### CSS Mapping

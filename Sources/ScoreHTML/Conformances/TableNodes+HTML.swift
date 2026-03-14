@@ -1,32 +1,32 @@
 import ScoreCore
 
 extension Table: HTMLContainerElement {
-    var htmlTagName: String { "table" }
+    package var htmlTagName: String { "table" }
 }
 
 extension TableCaption: HTMLContainerElement {
-    var htmlTagName: String { "caption" }
+    package var htmlTagName: String { "caption" }
 }
 
 extension TableHead: HTMLContainerElement {
-    var htmlTagName: String { "thead" }
+    package var htmlTagName: String { "thead" }
 }
 
 extension TableBody: HTMLContainerElement {
-    var htmlTagName: String { "tbody" }
+    package var htmlTagName: String { "tbody" }
 }
 
 extension TableFooter: HTMLContainerElement {
-    var htmlTagName: String { "tfoot" }
+    package var htmlTagName: String { "tfoot" }
 }
 
 extension TableRow: HTMLContainerElement {
-    var htmlTagName: String { "tr" }
+    package var htmlTagName: String { "tr" }
 }
 
 extension TableHeaderCell: HTMLContainerElement {
-    var htmlTagName: String { "th" }
-    var htmlAttributes: [(String, String)] {
+    package var htmlTagName: String { "th" }
+    package var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = []
         if let v = scope { a.append(("scope", v.rawValue)) }
         return a
@@ -34,12 +34,12 @@ extension TableHeaderCell: HTMLContainerElement {
 }
 
 extension TableCell: HTMLContainerElement {
-    var htmlTagName: String { "td" }
+    package var htmlTagName: String { "td" }
 }
 
 extension TableColumnGroup: HTMLContainerElement {
-    var htmlTagName: String { "colgroup" }
-    var htmlAttributes: [(String, String)] {
+    package var htmlTagName: String { "colgroup" }
+    package var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = []
         if let v = span { a.append(("span", String(v))) }
         return a
@@ -47,8 +47,8 @@ extension TableColumnGroup: HTMLContainerElement {
 }
 
 extension TableColumn: HTMLVoidElement {
-    var htmlTagName: String { "col" }
-    var htmlAttributes: [(String, String)] {
+    package var htmlTagName: String { "col" }
+    package var htmlAttributes: [(String, String)] {
         var a: [(String, String)] = []
         if let v = span { a.append(("span", String(v))) }
         return a

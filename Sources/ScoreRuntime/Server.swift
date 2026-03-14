@@ -39,17 +39,15 @@ public struct Server: Sendable {
 
     /// Starts the server and begins accepting connections.
     ///
-    /// Boots the NIO event loop, binds to the configured host and port,
-    /// registers all pages and controller routes, and serves until a
-    /// termination signal (SIGINT or SIGTERM) is received.
+    /// Serves pre-built static files from the application's output directory
+    /// and dispatches controller routes dynamically. Binds to the configured
+    /// host and port, then serves until a termination signal (SIGINT or
+    /// SIGTERM) is received.
     public func run() async throws {
         let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
 
         let routeTable = RouteTable(application)
-        let pages = Dictionary(
-            uniqueKeysWithValues: application.pages.map { ($0.path, $0) }
-        )
-        let app = self.application
+        let outputDir = application.outputDirectory
 
         let bootstrap = ServerBootstrap(group: group)
             .serverChannelOption(.backlog, value: 256)
@@ -58,12 +56,8 @@ public struct Server: Sendable {
                 channel.pipeline.configureHTTPServerPipeline().flatMap {
                     channel.pipeline.addHandler(
                         RequestHandler(
-                            routeTable: routeTable,
-                            pages: pages,
-                            metadata: app.metadata,
-                            theme: app.theme,
-                            resourcesDirectory: app.resourcesDirectory,
-                            errorPage: app.errorPage
+                            outputDirectory: outputDir,
+                            routeTable: routeTable
                         )
                     )
                 }

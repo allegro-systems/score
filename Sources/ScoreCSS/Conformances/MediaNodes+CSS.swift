@@ -1,29 +1,29 @@
 import ScoreCore
 
 extension Image: CSSLeafNode {
-    var htmlTag: String? { "img" }
+    package var htmlTag: String? { "img" }
 }
 extension Figure: CSSContainerNode {
-    var htmlTag: String? { "figure" }
+    package var htmlTag: String? { "figure" }
 }
 extension FigureCaption: CSSContainerNode {
-    var htmlTag: String? { "figcaption" }
+    package var htmlTag: String? { "figcaption" }
 }
 extension Source: CSSLeafNode {
-    var htmlTag: String? { "source" }
+    package var htmlTag: String? { "source" }
 }
 extension Track: CSSLeafNode {
-    var htmlTag: String? { "track" }
+    package var htmlTag: String? { "track" }
 }
 extension Audio: CSSContainerNode {
-    var htmlTag: String? { "audio" }
+    package var htmlTag: String? { "audio" }
 }
 extension Video: CSSContainerNode {
-    var htmlTag: String? { "video" }
+    package var htmlTag: String? { "video" }
 }
 extension Picture: CSSContainerNode {
-    var htmlTag: String? { "picture" }
+    package var htmlTag: String? { "picture" }
 }
 extension Canvas: CSSContainerNode {
-    var htmlTag: String? { "canvas" }
+    package var htmlTag: String? { "canvas" }
 }

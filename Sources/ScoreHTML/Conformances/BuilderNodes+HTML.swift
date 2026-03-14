@@ -3,13 +3,13 @@ import ScoreCore
 /// Produces no HTML output.
 extension EmptyNode: HTMLRenderable {
     /// Emits nothing.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {}
+    package func renderHTML(into output: inout String, renderer: HTMLRenderer) {}
 }
 
 /// Renders escaped text content directly into the output stream.
 extension TextNode: HTMLRenderable {
     /// Appends the text content with `<`, `>`, `&`, and `"` escaped.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
+    package func renderHTML(into output: inout String, renderer: HTMLRenderer) {
         output.append(content.htmlEscaped)
     }
 }
@@ -17,7 +17,7 @@ extension TextNode: HTMLRenderable {
 /// Renders raw content directly into the output stream without escaping.
 extension RawTextNode: HTMLRenderable {
     /// Appends the raw content verbatim with no HTML escaping.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
+    package func renderHTML(into output: inout String, renderer: HTMLRenderer) {
         output.append(content)
     }
 }
@@ -32,7 +32,7 @@ extension ModifiedNode: HTMLRenderable {
     /// the content is wrapped in a `<div>` with that class. When the
     /// injector returns `nil` (CSS nesting handles the styles), the
     /// content renders directly without a wrapper.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
+    package func renderHTML(into output: inout String, renderer: HTMLRenderer) {
         let (allModifiers, innerContent) = flattenedChain()
         let className = renderer.classInjector?(allModifiers, renderer.context.currentComponentScope)
         let (htmlAttrs, hasEventBindings, hasReactiveBindings) = Self.collectHTMLAttributesAndEvents(from: allModifiers)
@@ -131,7 +131,7 @@ extension ModifiedNode: HTMLRenderable {
 /// Renders the type-erased wrapped node.
 extension Content: HTMLRenderable {
     /// Delegates rendering to the underlying wrapped node.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
+    package func renderHTML(into output: inout String, renderer: HTMLRenderer) {
         renderer.write(wrapped, to: &output)
     }
 }
@@ -139,7 +139,7 @@ extension Content: HTMLRenderable {
 /// Renders all children in declaration order via parameter pack expansion.
 extension TupleNode: HTMLRenderable {
     /// Emits each child using `repeat each children`.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
+    package func renderHTML(into output: inout String, renderer: HTMLRenderer) {
         repeat renderer.write(each children, to: &output)
     }
 }
@@ -147,7 +147,7 @@ extension TupleNode: HTMLRenderable {
 /// Renders the active branch of an `if`/`else` builder expression.
 extension ConditionalNode: HTMLRenderable {
     /// Emits the `.first` or `.second` branch depending on which was chosen at build time.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
+    package func renderHTML(into output: inout String, renderer: HTMLRenderer) {
         switch storage {
         case .first(let content): renderer.write(content, to: &output)
         case .second(let content): renderer.write(content, to: &output)
@@ -158,7 +158,7 @@ extension ConditionalNode: HTMLRenderable {
 /// Renders an optional node, producing no output when `nil`.
 extension OptionalNode: HTMLRenderable {
     /// Emits the wrapped node if present; otherwise writes nothing.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
+    package func renderHTML(into output: inout String, renderer: HTMLRenderer) {
         if let wrapped { renderer.write(wrapped, to: &output) }
     }
 }
@@ -166,7 +166,7 @@ extension OptionalNode: HTMLRenderable {
 /// Renders each item produced by a data-driven loop.
 extension ForEachNode: HTMLRenderable {
     /// Iterates `data`, applying `content` to each element and emitting the result.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
+    package func renderHTML(into output: inout String, renderer: HTMLRenderer) {
         for element in data {
             renderer.write(content(element), to: &output)
         }
@@ -176,7 +176,7 @@ extension ForEachNode: HTMLRenderable {
 /// Renders a runtime array of heterogeneous nodes.
 extension ArrayNode: HTMLRenderable {
     /// Emits each child node in order.
-    func renderHTML(into output: inout String, renderer: HTMLRenderer) {
+    package func renderHTML(into output: inout String, renderer: HTMLRenderer) {
         for child in children {
             renderer.write(child, to: &output)
         }

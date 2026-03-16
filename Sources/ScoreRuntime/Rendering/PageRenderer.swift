@@ -148,7 +148,8 @@ public struct PageRenderer: Sendable {
             ogSiteName: ogSiteName,
             themeNames: theme.map { Array($0.named.keys) } ?? [],
             scriptLinks: resolvedScriptLinks,
-            preScripts: preScripts
+            preScripts: preScripts,
+            viewTransitions: theme?.viewTransitions ?? false
         )
 
         return RenderResult(
@@ -222,7 +223,8 @@ public struct PageRenderer: Sendable {
             bodyHTML: bodyHTML,
             activeTheme: theme?.name,
             ogSiteName: site,
-            themeNames: theme.map { Array($0.named.keys) } ?? []
+            themeNames: theme.map { Array($0.named.keys) } ?? [],
+            viewTransitions: theme?.viewTransitions ?? false
         )
 
         var html = DocumentAssembler.assemble(parts)

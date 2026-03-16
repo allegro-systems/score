@@ -300,6 +300,21 @@ public protocol Theme: Sendable {
     /// that reference it.
     var componentStyles: [String: String] { get }
 
+    /// Whether the browser's View Transitions API is enabled for
+    /// same-document navigations.
+    ///
+    /// When `true` (the default), the assembler emits a
+    /// `<meta name="view-transition" content="same-origin">` tag in
+    /// `<head>`, enabling automatic cross-fade transitions between pages
+    /// on supporting browsers.
+    ///
+    /// Set to `false` to opt out of view transitions entirely.
+    ///
+    /// ```swift
+    /// var viewTransitions: Bool { false }
+    /// ```
+    var viewTransitions: Bool { get }
+
 }
 
 extension Theme {
@@ -342,6 +357,9 @@ extension Theme {
 
     /// Default implementation returns no component style overrides.
     public var componentStyles: [String: String] { [:] }
+
+    /// View transitions are enabled by default.
+    public var viewTransitions: Bool { true }
 
     // MARK: - Typed Color Role Accessors
 

@@ -38,6 +38,9 @@ public struct DocumentAssembler: Sendable {
         public var scriptLinks: [String]
         /// Inline scripts emitted before external script links (e.g., dev tools metadata).
         public var preScripts: [String]
+        /// Whether to emit a `<meta name="view-transition">` tag for the
+        /// View Transitions API. Defaults to `false`.
+        public var viewTransitions: Bool
 
         /// Creates document parts.
         public init(
@@ -54,7 +57,8 @@ public struct DocumentAssembler: Sendable {
             headLinks: [String] = [],
             themeNames: [String] = [],
             scriptLinks: [String] = [],
-            preScripts: [String] = []
+            preScripts: [String] = [],
+            viewTransitions: Bool = false
         ) {
             self.title = title
             self.description = description
@@ -70,6 +74,7 @@ public struct DocumentAssembler: Sendable {
             self.themeNames = themeNames
             self.scriptLinks = scriptLinks
             self.preScripts = preScripts
+            self.viewTransitions = viewTransitions
         }
     }
 
@@ -104,6 +109,9 @@ public struct DocumentAssembler: Sendable {
         html.append("<head>\n")
         html.append("<meta charset=\"utf-8\">\n")
         html.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n")
+        if parts.viewTransitions {
+            html.append("<meta name=\"view-transition\" content=\"same-origin\">\n")
+        }
 
         if let title = parts.title {
             html.append("<title>\(title.htmlEscaped)</title>\n")

@@ -49,6 +49,11 @@ public struct ThemeCSSEmitter: Sendable {
         // Base element styles
         emitBaseStyles(theme, into: &css)
 
+        // View transition styles
+        if theme.viewTransitions {
+            emitViewTransitionStyles(into: &css)
+        }
+
         return css
     }
 
@@ -262,6 +267,9 @@ public struct ThemeCSSEmitter: Sendable {
               to { opacity: 1; }
             }\n
             """)
+
+        // Braille spinner styles
+        emitSpinnerStyles(into: &css)
 
         // Responsive breakpoints
         css.append(
@@ -567,6 +575,101 @@ public struct ThemeCSSEmitter: Sendable {
         value.truncatingRemainder(dividingBy: 1) == 0
             ? "\(Int(value))"
             : "\(value)"
+    }
+
+    private static func emitSpinnerStyles(into css: inout String) {
+        // Base spinner element
+        emitRule(
+            "[data-spinner]",
+            declarations: [
+                "display: inline-block",
+                "font-family: monospace",
+                "font-size: 1em",
+                "line-height: 1",
+                "vertical-align: middle",
+                "user-select: none",
+                "-webkit-user-select: none",
+            ], into: &css)
+        emitRule(
+            "[data-spinner]::after",
+            declarations: [
+                "content: \"\"",
+            ], into: &css)
+
+        // Built-in spinner patterns
+        let patterns: [(name: String, frames: [Character])] = [
+            ("dots", ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]),
+            ("bounce", ["⠁", "⠂", "⠄", "⠂"]),
+            ("orbit", ["⠈", "⠐", "⠠", "⢀", "⡀", "⠄", "⠂", "⠁"]),
+            ("bar", ["⠀", "⠁", "⠃", "⠇", "⡇", "⣇", "⣧", "⣷", "⣿"]),
+            ("wave", ["⠁", "⠂", "⠄", "⡀", "⢀", "⠠", "⠐", "⠈"]),
+            ("pulse", ["⣀", "⣤", "⣶", "⣿", "⣶", "⣤", "⣀", "⠀"]),
+            ("clock", ["⡈", "⠔", "⠢", "⢁"]),
+            ("snake", ["⠏", "⠛", "⠹", "⢸", "⣰", "⣤", "⣆", "⡇"]),
+            ("toggle", ["⠉", "⠛", "⣛", "⣿", "⣶", "⣤", "⣀", "⠀"]),
+        ]
+
+        for pattern in patterns {
+            let keyframeName = "score-spinner-\(pattern.name)"
+            let count = pattern.frames.count
+
+            // Keyframes with stepped content changes
+            css.append("@keyframes \(keyframeName) {\n")
+            for (index, frame) in pattern.frames.enumerated() {
+                let percentage = (Double(index) / Double(count)) * 100
+                let pctStr = percentage.truncatingRemainder(dividingBy: 1) == 0
+                    ? "\(Int(percentage))%"
+                    : String(format: "%.2f%%", percentage)
+                css.append("  \(pctStr) { content: \"\(frame)\"; }\n")
+            }
+            css.append("}\n")
+
+            // Pattern-specific selector
+            let duration = count > 6 ? "0.8s" : "0.6s"
+            emitRule(
+                "[data-spinner=\"\(pattern.name)\"]::after",
+                declarations: [
+                    "animation: \(keyframeName) \(duration) steps(\(count), end) infinite",
+                    "content: \"\(pattern.frames[0])\"",
+                ], into: &css)
+        }
+
+        // Reduced motion: freeze on first frame
+        css.append(
+            """
+            @media (prefers-reduced-motion: reduce) {
+              [data-spinner]::after {
+                animation: none;
+              }
+            }\n
+            """)
+    }
+
+    private static func emitViewTransitionStyles(into css: inout String) {
+        css.append(
+            """
+            @view-transition {
+              navigation: auto;
+            }
+            ::view-transition-old(root) {
+              animation: 0.2s ease-out both score-vt-fade-out;
+            }
+            ::view-transition-new(root) {
+              animation: 0.3s ease-in both score-vt-fade-in;
+            }
+            @keyframes score-vt-fade-out {
+              to { opacity: 0; }
+            }
+            @keyframes score-vt-fade-in {
+              from { opacity: 0; }
+            }
+            @media (prefers-reduced-motion: reduce) {
+              ::view-transition-old(root),
+              ::view-transition-new(root) {
+                animation-duration: 0.01s;
+              }
+            }\n
+            """)
     }
 
     private static func emitFontFaces(

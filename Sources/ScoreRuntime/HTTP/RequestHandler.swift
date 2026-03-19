@@ -20,6 +20,7 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
     private let routeTable: RouteTable
     private let loggingMiddleware = RequestLoggingMiddleware()
     private let metricsMiddleware = RequestMetricsMiddleware()
+    private let tracingMiddleware = RequestTracingMiddleware()
 
     /// Creates a request handler that serves static files and dispatches
     /// controller routes.
@@ -136,84 +137,87 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
     ///   - body: The raw request body data, if any.
     /// - Returns: The response to send back to the client.
     func process(request: HTTPRequest, body: Data?) async -> Response {
-        let startTime = Date()
         let uri = request.path ?? "/"
         let path = uri.split(separator: "?", maxSplits: 1).first.map(String.init) ?? uri
         let method = request.method
 
-        // Dev tools edit API (development only)
-        if path == "/_dev/edit" && method == .post && Environment.current == .development {
-            let devResponse = handleDevEdit(body: body)
-            return logged(method: method, path: path, startTime: startTime, response: devResponse)
-        }
+        return await tracingMiddleware.withSpan(method: method, path: path) {
+            let startTime = Date()
 
-        if let response = serveStaticFile(path: path) {
-            return logged(method: method, path: path, startTime: startTime, response: response)
-        }
-
-        guard Self.supportedMethods.contains(method) else {
-            let notAllowed = Response.text("Method Not Allowed", status: .methodNotAllowed)
-            return logged(method: method, path: path, startTime: startTime, response: notAllowed)
-        }
-
-        do {
-            let resolved = try routeTable.resolve(method: method, path: path)
-
-            guard let handler = resolved.handler else {
-                var response = Response.text("OK")
-                response.headers["content-type"] = "text/plain"
-                return logged(method: method, path: path, startTime: startTime, response: response)
+            // Dev tools edit API (development only)
+            if path == "/_dev/edit" && method == .post && Environment.current == .development {
+                let devResponse = self.handleDevEdit(body: body)
+                return self.logged(method: method, path: path, startTime: startTime, response: devResponse)
             }
 
-            let queryParams = RequestContext.parseQuery(uri)
-            var headers: [String: String] = [:]
-            for field in request.headerFields {
-                let name = field.name.rawName
-                if headers[name] == nil {
-                    headers[name] = field.value
+            if let response = self.serveStaticFile(path: path) {
+                return self.logged(method: method, path: path, startTime: startTime, response: response)
+            }
+
+            guard Self.supportedMethods.contains(method) else {
+                let notAllowed = Response.text("Method Not Allowed", status: .methodNotAllowed)
+                return self.logged(method: method, path: path, startTime: startTime, response: notAllowed)
+            }
+
+            do {
+                let resolved = try self.routeTable.resolve(method: method, path: path)
+
+                guard let handler = resolved.handler else {
+                    var response = Response.text("OK")
+                    response.headers["content-type"] = "text/plain"
+                    return self.logged(method: method, path: path, startTime: startTime, response: response)
                 }
-            }
 
-            let requestContext = RequestContext(
-                method: method,
-                path: path,
-                headers: headers,
-                pathParameters: resolved.parameters,
-                queryParameters: queryParams,
-                body: body
-            )
+                let queryParams = RequestContext.parseQuery(uri)
+                var headers: [String: String] = [:]
+                for field in request.headerFields {
+                    let name = field.name.rawName
+                    if headers[name] == nil {
+                        headers[name] = field.value
+                    }
+                }
 
-            let result = try await handler(requestContext)
-            if let response = result as? Response {
-                return logged(method: method, path: path, startTime: startTime, response: response)
-            }
-            let okResponse = Response.text("OK")
-            return logged(method: method, path: path, startTime: startTime, response: okResponse)
-
-        } catch let error as RoutingError {
-            switch error {
-            case .notFound:
-                let notFound = serveErrorPage(statusCode: 404, message: "Not Found")
-                return logged(method: method, path: path, startTime: startTime, response: notFound)
-            case .methodNotAllowed(_, let allowed):
-                let allowHeader = allowed.map(\.rawValue).joined(separator: ", ")
-                var response = Response.text("Method Not Allowed", status: .methodNotAllowed)
-                response.headers["Allow"] = allowHeader
-                return logged(method: method, path: path, startTime: startTime, response: response)
-            }
-        } catch {
-            let environment = Environment.current
-            if environment == .development {
-                let html = ErrorOverlay.render(
-                    error,
+                let requestContext = RequestContext(
+                    method: method,
                     path: path,
-                    environment: environment
+                    headers: headers,
+                    pathParameters: resolved.parameters,
+                    queryParameters: queryParams,
+                    body: body
                 )
-                let errorResponse = Response.html(html, status: .internalServerError)
-                return logged(method: method, path: path, startTime: startTime, response: errorResponse)
+
+                let result = try await handler(requestContext)
+                if let response = result as? Response {
+                    return self.logged(method: method, path: path, startTime: startTime, response: response)
+                }
+                let okResponse = Response.text("OK")
+                return self.logged(method: method, path: path, startTime: startTime, response: okResponse)
+
+            } catch let error as RoutingError {
+                switch error {
+                case .notFound:
+                    let notFound = self.serveErrorPage(statusCode: 404, message: "Not Found")
+                    return self.logged(method: method, path: path, startTime: startTime, response: notFound)
+                case .methodNotAllowed(_, let allowed):
+                    let allowHeader = allowed.map(\.rawValue).joined(separator: ", ")
+                    var response = Response.text("Method Not Allowed", status: .methodNotAllowed)
+                    response.headers["Allow"] = allowHeader
+                    return self.logged(method: method, path: path, startTime: startTime, response: response)
+                }
+            } catch {
+                let environment = Environment.current
+                if environment == .development {
+                    let html = ErrorOverlay.render(
+                        error,
+                        path: path,
+                        environment: environment
+                    )
+                    let errorResponse = Response.html(html, status: .internalServerError)
+                    return self.logged(method: method, path: path, startTime: startTime, response: errorResponse)
+                }
+                let serverError = self.serveErrorPage(statusCode: 500, message: "Internal Server Error")
+                return self.logged(method: method, path: path, startTime: startTime, response: serverError)
             }
-            let serverError = serveErrorPage(statusCode: 500, message: "Internal Server Error")
-            return logged(method: method, path: path, startTime: startTime, response: serverError)
         }
     }
 

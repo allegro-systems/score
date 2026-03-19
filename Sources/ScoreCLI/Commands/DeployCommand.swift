@@ -5,7 +5,7 @@ import Noora
 struct DeployCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "deploy",
-        abstract: "Deploy a Score app to Stage"
+        abstract: "Deploy to Stage."
     )
 
     @Option(help: "Stage host (SSH destination)")

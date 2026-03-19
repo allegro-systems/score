@@ -18,6 +18,9 @@ let package = Package(
         .library(name: "ScoreContent", targets: ["ScoreContent"]),
         .library(name: "ScoreUI", targets: ["ScoreUI"]),
         .library(name: "ScoreAssets", targets: ["ScoreAssets"]),
+        .library(name: "ScoreData", targets: ["ScoreData"]),
+        .library(name: "ScoreAuth", targets: ["ScoreAuth"]),
+        .library(name: "ScoreTesting", targets: ["ScoreTesting"]),
         .executable(name: "score", targets: ["ScoreCLI"]),
     ],
     dependencies: [
@@ -29,6 +32,10 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
         .package(url: "https://github.com/tuist/Noora", from: "0.55.0"),
         .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0"),
+        .package(name: "Stage", path: "../stage"),
+        .package(url: "https://github.com/apple/swift-log.git", from: "1.5.0"),
+        .package(url: "https://github.com/apple/swift-metrics.git", from: "2.4.0"),
+        .package(url: "https://github.com/apple/swift-distributed-tracing.git", from: "1.1.0"),
     ],
     targets: [
         .macro(
@@ -63,12 +70,16 @@ let package = Package(
                 "ScoreCSS",
                 "ScoreRouter",
                 "ScoreAssets",
+                .product(name: "StageKit", package: "Stage"),
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOPosix", package: "swift-nio"),
                 .product(name: "NIOHTTP1", package: "swift-nio"),
                 .product(name: "NIOWebSocket", package: "swift-nio"),
                 .product(name: "HTTPTypes", package: "swift-http-types"),
                 .product(name: "ServiceLifecycle", package: "swift-service-lifecycle"),
+                .product(name: "Logging", package: "swift-log"),
+                .product(name: "Metrics", package: "swift-metrics"),
+                .product(name: "Tracing", package: "swift-distributed-tracing"),
             ],
             resources: [.copy("Resources")]
         ),
@@ -92,11 +103,22 @@ let package = Package(
             ]
         ),
         .target(name: "ScoreAssets", dependencies: ["ScoreCore"]),
+        .target(name: "ScoreData", dependencies: ["ScoreCore"]),
+        .target(name: "ScoreAuth", dependencies: ["ScoreCore"]),
+        .target(
+            name: "ScoreTesting",
+            dependencies: [
+                "ScoreCore",
+                "ScoreHTML",
+                "ScoreCSS",
+                "ScoreRuntime",
+            ]
+        ),
         .target(
             name: "Score",
             dependencies: [
                 "ScoreCore", "ScoreHTML", "ScoreCSS", "ScoreRouter", "ScoreRuntime",
-                "ScoreContent", "ScoreUI", "ScoreAssets",
+                "ScoreContent", "ScoreUI", "ScoreAssets", "ScoreData", "ScoreAuth",
             ]
         ),
         .executableTarget(
@@ -118,11 +140,12 @@ let package = Package(
             dependencies: [
                 "ScoreRuntime",
                 "ScoreAssets",
-                .product(name: "NIOEmbedded", package: "swift-nio"),
             ]
         ),
-        .testTarget(name: "ScoreUITests", dependencies: ["ScoreUI", "ScoreHTML"]),
         .testTarget(name: "ScoreContentTests", dependencies: ["ScoreContent", "ScoreHTML"]),
         .testTarget(name: "ScoreAssetsTests", dependencies: ["ScoreAssets"]),
+        .testTarget(name: "ScoreDataTests", dependencies: ["ScoreData"]),
+        .testTarget(name: "ScoreAuthTests", dependencies: ["ScoreAuth"]),
+        .testTarget(name: "ScoreTestingTests", dependencies: ["ScoreTesting"]),
     ]
 )

@@ -36,7 +36,7 @@ public struct RouteTable: Sendable {
     /// - Parameter application: The application whose pages and controllers
     ///   define the routing surface.
     public init(_ application: some Application) {
-        let root = TrieNode()
+        let builder = TrieNodeBuilder()
 
         for page in application.pages {
             let pattern = page.path
@@ -48,10 +48,11 @@ public struct RouteTable: Sendable {
                 handler: nil,
                 isPage: true
             )
-            root.insert(segments: segments, index: 0, entry: entry)
+            builder.insert(segments: segments, index: 0, entry: entry)
         }
 
-        for controller in application.controllers {
+        let allControllers = application.controllers + application.plugins.flatMap(\.controllers)
+        for controller in allControllers {
             for route in controller.routes {
                 let pattern = RouteTable.combinePaths(controller.base, route.path)
                 let segments = RouteTable.splitSegments(pattern)
@@ -62,11 +63,11 @@ public struct RouteTable: Sendable {
                     handler: route.handler,
                     isPage: false
                 )
-                root.insert(segments: segments, index: 0, entry: entry)
+                builder.insert(segments: segments, index: 0, entry: entry)
             }
         }
 
-        self.root = root
+        self.root = TrieNode(builder)
     }
 
     /// Resolves an HTTP method and path to a matching route.
@@ -159,19 +160,16 @@ public struct RouteTable: Sendable {
     }
 }
 
-/// A node in the routing trie.
+/// A mutable builder used to construct the trie during ``RouteTable/init(_:)``.
 ///
-/// Each node represents a path segment position and branches into children
-/// keyed by segment type: literal strings, parameter captures, wildcards,
-/// and catch-all patterns. The trie is built once at startup and only read
-/// during request resolution.
-final class TrieNode: @unchecked Sendable {
+/// After building, convert to an immutable ``TrieNode`` via ``TrieNode/init(_:)``.
+private final class TrieNodeBuilder {
 
-    private var literalChildren: [String: TrieNode] = [:]
-    private var paramChild: TrieNode?
-    private var wildcardChild: TrieNode?
-    private var catchAllEntries: [RouteEntry] = []
-    private var entries: [RouteEntry] = []
+    var literalChildren: [String: TrieNodeBuilder] = [:]
+    var paramChild: TrieNodeBuilder?
+    var wildcardChild: TrieNodeBuilder?
+    var catchAllEntries: [RouteEntry] = []
+    var entries: [RouteEntry] = []
 
     init() {}
 
@@ -190,7 +188,7 @@ final class TrieNode: @unchecked Sendable {
 
         if segment == "*" {
             if wildcardChild == nil {
-                wildcardChild = TrieNode()
+                wildcardChild = TrieNodeBuilder()
             }
             wildcardChild?.insert(segments: segments, index: index + 1, entry: entry)
             return
@@ -198,16 +196,39 @@ final class TrieNode: @unchecked Sendable {
 
         if segment.hasPrefix(":") {
             if paramChild == nil {
-                paramChild = TrieNode()
+                paramChild = TrieNodeBuilder()
             }
             paramChild?.insert(segments: segments, index: index + 1, entry: entry)
             return
         }
 
         if literalChildren[segment] == nil {
-            literalChildren[segment] = TrieNode()
+            literalChildren[segment] = TrieNodeBuilder()
         }
         literalChildren[segment]?.insert(segments: segments, index: index + 1, entry: entry)
+    }
+}
+
+/// An immutable node in the routing trie.
+///
+/// Each node represents a path segment position and branches into children
+/// keyed by segment type: literal strings, parameter captures, wildcards,
+/// and catch-all patterns. The trie is built once at startup via
+/// ``TrieNodeBuilder`` and only read during request resolution.
+final class TrieNode: Sendable {
+
+    fileprivate let literalChildren: [String: TrieNode]
+    fileprivate let paramChild: TrieNode?
+    fileprivate let wildcardChild: TrieNode?
+    fileprivate let catchAllEntries: [RouteEntry]
+    fileprivate let entries: [RouteEntry]
+
+    fileprivate init(_ builder: TrieNodeBuilder) {
+        self.literalChildren = builder.literalChildren.mapValues { TrieNode($0) }
+        self.paramChild = builder.paramChild.map { TrieNode($0) }
+        self.wildcardChild = builder.wildcardChild.map { TrieNode($0) }
+        self.catchAllEntries = builder.catchAllEntries
+        self.entries = builder.entries
     }
 
     func collectEntries(

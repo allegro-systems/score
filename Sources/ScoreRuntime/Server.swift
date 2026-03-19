@@ -1,3 +1,4 @@
+import Foundation
 import NIOCore
 import NIOHTTP1
 import NIOPosix
@@ -12,15 +13,18 @@ public struct Server: Sendable {
     public struct Configuration: Sendable {
         public let host: String
         public let port: Int
+        public let socketPath: String?
         public let environment: Environment
 
         public init(
             host: String = "127.0.0.1",
             port: Int = 8080,
+            socketPath: String? = nil,
             environment: Environment = .development
         ) {
             self.host = host
             self.port = port
+            self.socketPath = socketPath
             self.environment = environment
         }
     }
@@ -47,7 +51,7 @@ public struct Server: Sendable {
         let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
 
         let routeTable = RouteTable(application)
-        let outputDir = application.outputDirectory
+        let app = self.application
 
         let bootstrap = ServerBootstrap(group: group)
             .serverChannelOption(.backlog, value: 256)
@@ -56,7 +60,7 @@ public struct Server: Sendable {
                 channel.pipeline.configureHTTPServerPipeline().flatMap {
                     channel.pipeline.addHandler(
                         RequestHandler(
-                            outputDirectory: outputDir,
+                            outputDirectory: app.outputDirectory,
                             routeTable: routeTable
                         )
                     )
@@ -65,10 +69,16 @@ public struct Server: Sendable {
             .childChannelOption(.socketOption(.so_reuseaddr), value: 1)
             .childChannelOption(.maxMessagesPerRead, value: 1)
 
-        let channel = try await bootstrap.bind(
-            host: configuration.host,
-            port: configuration.port
-        ).get()
+        let channel: Channel
+        if let socketPath = configuration.socketPath {
+            try? FileManager.default.removeItem(atPath: socketPath)
+            channel = try await bootstrap.bind(unixDomainSocketPath: socketPath).get()
+        } else {
+            channel = try await bootstrap.bind(
+                host: configuration.host,
+                port: configuration.port
+            ).get()
+        }
 
         try await withGracefulShutdownHandler {
             try await channel.closeFuture.get()

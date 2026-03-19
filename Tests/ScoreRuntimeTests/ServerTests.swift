@@ -30,3 +30,22 @@ private struct TestApp: Application {
     let server = Server(application: TestApp())
     _ = server
 }
+
+@Test func serverConfigurationWithSocketPath() {
+    let config = Server.Configuration(socketPath: "/tmp/test.sock", environment: .production)
+    #expect(config.socketPath == "/tmp/test.sock")
+    #expect(config.environment == .production)
+    #expect(config.host == "127.0.0.1")
+    #expect(config.port == 8080)
+}
+
+@Test func serverConfigurationSocketPathDefaultsToNil() {
+    let config = Server.Configuration()
+    #expect(config.socketPath == nil)
+}
+
+@Test func serverInitialisesWithSocketPath() {
+    let config = Server.Configuration(socketPath: "/tmp/test.sock")
+    let server = Server(application: TestApp(), configuration: config)
+    _ = server
+}

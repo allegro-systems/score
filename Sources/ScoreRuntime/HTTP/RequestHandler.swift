@@ -19,6 +19,7 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
     private let outputDirectory: String
     private let routeTable: RouteTable
     private let loggingMiddleware = RequestLoggingMiddleware()
+    private let metricsMiddleware = RequestMetricsMiddleware()
 
     /// Creates a request handler that serves static files and dispatches
     /// controller routes.
@@ -121,7 +122,9 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
         response: Response
     ) -> Response {
         let duration = Date().timeIntervalSince(startTime)
-        return loggingMiddleware.handle(method: method, path: path, response: response, duration: duration)
+        let result = loggingMiddleware.handle(method: method, path: path, response: response, duration: duration)
+        metricsMiddleware.record(method: method, path: path, response: response, duration: duration)
+        return result
     }
 
     // MARK: - Request Processing

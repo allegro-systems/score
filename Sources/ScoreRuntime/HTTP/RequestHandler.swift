@@ -1,5 +1,6 @@
 import Foundation
 import HTTPTypes
+import Logging
 import NIOCore
 import NIOHTTP1
 import ScoreCore
@@ -17,6 +18,7 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
 
     private let outputDirectory: String
     private let routeTable: RouteTable
+    private let loggingMiddleware = RequestLoggingMiddleware()
 
     /// Creates a request handler that serves static files and dispatches
     /// controller routes.
@@ -110,6 +112,18 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
         }
     }
 
+    // MARK: - Request Logging
+
+    private func logged(
+        method: HTTPRequest.Method,
+        path: String,
+        startTime: Date,
+        response: Response
+    ) -> Response {
+        let duration = Date().timeIntervalSince(startTime)
+        return loggingMiddleware.handle(method: method, path: path, response: response, duration: duration)
+    }
+
     // MARK: - Request Processing
 
     /// Processes an HTTP request and returns a response.
@@ -119,21 +133,24 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
     ///   - body: The raw request body data, if any.
     /// - Returns: The response to send back to the client.
     func process(request: HTTPRequest, body: Data?) async -> Response {
+        let startTime = Date()
         let uri = request.path ?? "/"
         let path = uri.split(separator: "?", maxSplits: 1).first.map(String.init) ?? uri
+        let method = request.method
 
         // Dev tools edit API (development only)
-        if path == "/_dev/edit" && request.method == .post && Environment.current == .development {
-            return handleDevEdit(body: body)
+        if path == "/_dev/edit" && method == .post && Environment.current == .development {
+            let devResponse = handleDevEdit(body: body)
+            return logged(method: method, path: path, startTime: startTime, response: devResponse)
         }
 
         if let response = serveStaticFile(path: path) {
-            return response
+            return logged(method: method, path: path, startTime: startTime, response: response)
         }
 
-        let method = request.method
         guard Self.supportedMethods.contains(method) else {
-            return Response.text("Method Not Allowed", status: .methodNotAllowed)
+            let notAllowed = Response.text("Method Not Allowed", status: .methodNotAllowed)
+            return logged(method: method, path: path, startTime: startTime, response: notAllowed)
         }
 
         do {
@@ -142,7 +159,7 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
             guard let handler = resolved.handler else {
                 var response = Response.text("OK")
                 response.headers["content-type"] = "text/plain"
-                return response
+                return logged(method: method, path: path, startTime: startTime, response: response)
             }
 
             let queryParams = RequestContext.parseQuery(uri)
@@ -165,19 +182,21 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
 
             let result = try await handler(requestContext)
             if let response = result as? Response {
-                return response
+                return logged(method: method, path: path, startTime: startTime, response: response)
             }
-            return Response.text("OK")
+            let okResponse = Response.text("OK")
+            return logged(method: method, path: path, startTime: startTime, response: okResponse)
 
         } catch let error as RoutingError {
             switch error {
             case .notFound:
-                return serveErrorPage(statusCode: 404, message: "Not Found")
+                let notFound = serveErrorPage(statusCode: 404, message: "Not Found")
+                return logged(method: method, path: path, startTime: startTime, response: notFound)
             case .methodNotAllowed(_, let allowed):
                 let allowHeader = allowed.map(\.rawValue).joined(separator: ", ")
                 var response = Response.text("Method Not Allowed", status: .methodNotAllowed)
                 response.headers["Allow"] = allowHeader
-                return response
+                return logged(method: method, path: path, startTime: startTime, response: response)
             }
         } catch {
             let environment = Environment.current
@@ -187,9 +206,11 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
                     path: path,
                     environment: environment
                 )
-                return Response.html(html, status: .internalServerError)
+                let errorResponse = Response.html(html, status: .internalServerError)
+                return logged(method: method, path: path, startTime: startTime, response: errorResponse)
             }
-            return serveErrorPage(statusCode: 500, message: "Internal Server Error")
+            let serverError = serveErrorPage(statusCode: 500, message: "Internal Server Error")
+            return logged(method: method, path: path, startTime: startTime, response: serverError)
         }
     }
 

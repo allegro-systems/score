@@ -113,20 +113,57 @@ public struct SyntaxTheme: Sendable, Hashable {
 
 extension SyntaxTheme {
 
-    /// The default Score syntax theme, matching the Allegro design handbook.
+    /// CSS custom property names for syntax highlighting tokens.
     ///
-    /// Uses the OKLCH equivalents of the handbook's Syntax Highlighting
-    /// colours for perceptual consistency across all Allegro properties.
+    /// Both the code block renderer and the theme CSS emitter reference these
+    /// constants, ensuring the variable names stay in sync across modules.
+    public enum CSSVariable {
+        public static let background = "--syntax-bg"
+        public static let keyword = "--syntax-keyword"
+        public static let string = "--syntax-string"
+        public static let comment = "--syntax-comment"
+        public static let number = "--syntax-number"
+        public static let type = "--syntax-type"
+        public static let function = "--syntax-function"
+        public static let `operator` = "--syntax-operator"
+        public static let variable = "--syntax-variable"
+    }
+
+    /// Returns CSS custom property name–value pairs for this theme.
+    public var cssProperties: [(name: String, value: ColorValue)] {
+        [
+            (CSSVariable.background, background),
+            (CSSVariable.keyword, keyword),
+            (CSSVariable.string, string),
+            (CSSVariable.comment, comment),
+            (CSSVariable.number, number),
+            (CSSVariable.type, type),
+            (CSSVariable.function, function),
+            (CSSVariable.operator, operatorColor),
+            (CSSVariable.variable, variable),
+        ]
+    }
+
+    /// The default Score syntax theme, derived from the Allegro product palette.
+    ///
+    /// Maps Allegro product accent colours to syntax categories:
+    /// - **Stage rose** → keywords (control flow)
+    /// - **Composer green** → strings (content)
+    /// - **Score blue** → types (type system)
+    /// - **Libretto amber** → functions (invocations)
+    ///
+    /// Variables and plain text use high-lightness, low-chroma values for
+    /// readability. Background matches the Allegro dark mode `bg`.
     public static let scoreDefault = SyntaxTheme(
-        background: .oklch(0.17, 0.014, 240),
-        keyword: .oklch(0.65, 0.13, 348),
-        string: .oklch(0.76, 0.12, 153),
-        comment: .oklch(0.46, 0.02, 80),
-        number: .oklch(0.71, 0.08, 58),
-        type: .oklch(0.68, 0.08, 246),
-        function: .oklch(0.66, 0.05, 84),
-        operatorColor: .oklch(0.75, 0.08, 83),
-        variable: .oklch(0.81, 0.03, 92)
+        background: .oklch(0.145, 0.010, 75),
+        keyword: .oklch(0.68, 0.115, 345),
+        string: .oklch(0.76, 0.105, 152),
+        comment: .oklch(0.45, 0.015, 75),
+        number: .oklch(0.76, 0.095, 78),
+        type: .oklch(0.72, 0.08, 240),
+        function: .oklch(0.76, 0.095, 78),
+        operatorColor: .oklch(0.65, 0.04, 75),
+        variable: .oklch(0.88, 0.02, 80)
     )
 
     /// A warm, minimal dark theme inspired by Vesper.

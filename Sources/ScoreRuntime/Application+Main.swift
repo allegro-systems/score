@@ -32,6 +32,9 @@ extension Application {
         }
 
         if args.contains("--build") {
+            // Force production environment for static builds so dev tools
+            // are excluded from the emitted output.
+            setenv("SCORE_ENV", "production", 1)
             try StaticSiteEmitter.emit(application: app)
             return
         }

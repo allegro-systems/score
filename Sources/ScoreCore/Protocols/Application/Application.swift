@@ -85,6 +85,13 @@ public protocol Application: Sendable {
     /// Defaults to `"Resources"`.
     var resourcesDirectory: String { get }
 
+    /// The plugins registered with this application.
+    ///
+    /// Plugins extend the application with additional stylesheets, scripts,
+    /// components, and controllers. Resources from all plugins are merged
+    /// into the build pipeline automatically.
+    var plugins: [any ScorePlugin] { get }
+
     /// The custom error page type used for error responses.
     ///
     /// Set this to your ``ErrorPage`` conforming type to replace the
@@ -100,6 +107,31 @@ public protocol Application: Sendable {
     /// - On the development server for 500 errors in production mode.
     /// - During static site generation to emit a `404.html` file.
     var errorPage: (any ErrorPage.Type)? { get }
+
+    /// The internationalization configuration for this application.
+    ///
+    /// When set, the static site emitter generates pages for each supported
+    /// locale. The default locale's pages are emitted at their original paths
+    /// (e.g. `/about`), while other locales are emitted under a locale prefix
+    /// (e.g. `/es/about`). The ``LocalizationContext`` is set automatically
+    /// during each rendering pass, making translations available to
+    /// ``Localized`` nodes and the ``t(_:default:)`` function.
+    ///
+    /// Return `nil` to disable internationalization (the default).
+    ///
+    /// ```swift
+    /// var localization: Localization? {
+    ///     Localization(
+    ///         defaultLocale: "en",
+    ///         supportedLocales: ["en", "es", "de"],
+    ///         translations: [
+    ///             "en": ["nav.about": "About"],
+    ///             "es": ["nav.about": "Acerca de"],
+    ///         ]
+    ///     )
+    /// }
+    /// ```
+    var localization: Localization? { get }
 }
 
 extension Application {
@@ -138,6 +170,14 @@ extension Application {
     /// Defaults to `"Resources"`.
     public var resourcesDirectory: String { "Resources" }
 
+    /// The plugins registered with this application.
+    ///
+    /// Defaults to an empty array.
+    public var plugins: [any ScorePlugin] { [] }
+
     /// Returns `nil`, keeping the framework's default error responses.
     public var errorPage: (any ErrorPage.Type)? { nil }
+
+    /// Returns `nil`, disabling internationalization.
+    public var localization: Localization? { nil }
 }

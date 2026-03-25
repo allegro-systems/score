@@ -80,12 +80,15 @@ extension Component {
     public static var scopeKey: String? { nil }
 }
 
-/// Marks a struct as a `Component` and generates an initializer when needed.
+/// Marks a struct as a `Component` and generates boilerplate automatically.
 ///
-/// Apply `@Component` to a struct to automatically add `Component` protocol
-/// conformance. If the struct declares a `content: Content` stored property,
-/// the macro also generates an `init` with a `@NodeBuilder` trailing-closure
-/// parameter for composing child nodes:
+/// Apply `@Component` to a struct to:
+/// 1. Add `Component` protocol conformance.
+/// 2. Apply `@NodeBuilder` to the `body` property so multi-expression
+///    bodies work without an explicit annotation.
+/// 3. If the struct declares a `content: Content` stored property, generate
+///    an `init` with a `@NodeBuilder` trailing-closure parameter for
+///    composing child nodes.
 ///
 /// ```swift
 /// @Component
@@ -104,7 +107,8 @@ extension Component {
 /// }
 /// ```
 ///
-/// Structs without a `content: Content` property receive only the conformance:
+/// Structs without a `content: Content` property receive conformance and
+/// the `@NodeBuilder` attribute — no initializer is generated:
 ///
 /// ```swift
 /// @Component
@@ -114,5 +118,6 @@ extension Component {
 /// }
 /// ```
 @attached(member, names: named(init))
+@attached(memberAttribute)
 @attached(extension, conformances: Component)
 public macro Component() = #externalMacro(module: "ScoreMacros", type: "ComponentMacro")

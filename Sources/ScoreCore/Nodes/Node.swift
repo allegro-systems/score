@@ -97,6 +97,14 @@ public struct EmptyNode: Node {
     public init() {}
 }
 
+extension Node {
+    /// Returns `true` when this node is a leaf (`Body == Never`) without
+    /// evaluating `body`, which would trigger `fatalError` on leaf nodes.
+    public var isLeafNode: Bool {
+        Body.self == Never.self
+    }
+}
+
 /// Conformance that allows `Never` to satisfy the `Node` associated-type
 /// constraint used by primitive nodes.
 ///

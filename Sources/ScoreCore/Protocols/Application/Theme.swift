@@ -86,6 +86,7 @@ public struct ColorToken: Sendable, Hashable {
     /// A neutral gray shade from the neutral palette.
     ///
     /// - Parameter shade: The shade step (e.g. `100`, `400`, `700`).
+    /// - Returns: A color token referencing the neutral palette at the given shade.
     public static func neutral(_ shade: Int) -> ColorToken {
         ColorToken(kind: .palette("neutral", shade))
     }
@@ -93,6 +94,7 @@ public struct ColorToken: Sendable, Hashable {
     /// A blue shade from the blue palette.
     ///
     /// - Parameter shade: The shade step (e.g. `100`, `500`, `900`).
+    /// - Returns: A color token referencing the blue palette at the given shade.
     public static func blue(_ shade: Int) -> ColorToken {
         ColorToken(kind: .palette("blue", shade))
     }
@@ -100,6 +102,7 @@ public struct ColorToken: Sendable, Hashable {
     /// A red shade from the red palette.
     ///
     /// - Parameter shade: The shade step (e.g. `100`, `500`, `900`).
+    /// - Returns: A color token referencing the red palette at the given shade.
     public static func red(_ shade: Int) -> ColorToken {
         ColorToken(kind: .palette("red", shade))
     }
@@ -107,6 +110,7 @@ public struct ColorToken: Sendable, Hashable {
     /// A green shade from the green palette.
     ///
     /// - Parameter shade: The shade step (e.g. `100`, `500`, `900`).
+    /// - Returns: A color token referencing the green palette at the given shade.
     public static func green(_ shade: Int) -> ColorToken {
         ColorToken(kind: .palette("green", shade))
     }
@@ -114,6 +118,7 @@ public struct ColorToken: Sendable, Hashable {
     /// An amber shade from the amber palette.
     ///
     /// - Parameter shade: The shade step (e.g. `100`, `400`, `700`).
+    /// - Returns: A color token referencing the amber palette at the given shade.
     public static func amber(_ shade: Int) -> ColorToken {
         ColorToken(kind: .palette("amber", shade))
     }
@@ -121,6 +126,7 @@ public struct ColorToken: Sendable, Hashable {
     /// A sky blue shade from the sky palette.
     ///
     /// - Parameter shade: The shade step (e.g. `100`, `400`, `700`).
+    /// - Returns: A color token referencing the sky palette at the given shade.
     public static func sky(_ shade: Int) -> ColorToken {
         ColorToken(kind: .palette("sky", shade))
     }
@@ -128,6 +134,7 @@ public struct ColorToken: Sendable, Hashable {
     /// A slate shade from the slate palette.
     ///
     /// - Parameter shade: The shade step (e.g. `100`, `400`, `700`).
+    /// - Returns: A color token referencing the slate palette at the given shade.
     public static func slate(_ shade: Int) -> ColorToken {
         ColorToken(kind: .palette("slate", shade))
     }
@@ -135,6 +142,7 @@ public struct ColorToken: Sendable, Hashable {
     /// A cyan shade from the cyan palette.
     ///
     /// - Parameter shade: The shade step (e.g. `100`, `400`, `700`).
+    /// - Returns: A color token referencing the cyan palette at the given shade.
     public static func cyan(_ shade: Int) -> ColorToken {
         ColorToken(kind: .palette("cyan", shade))
     }
@@ -142,6 +150,7 @@ public struct ColorToken: Sendable, Hashable {
     /// An emerald shade from the emerald palette.
     ///
     /// - Parameter shade: The shade step (e.g. `100`, `400`, `700`).
+    /// - Returns: A color token referencing the emerald palette at the given shade.
     public static func emerald(_ shade: Int) -> ColorToken {
         ColorToken(kind: .palette("emerald", shade))
     }
@@ -152,8 +161,34 @@ public struct ColorToken: Sendable, Hashable {
     ///   - lightness: Perceptual lightness (`0.0`–`1.0`).
     ///   - chroma: Color saturation (`0.0` is achromatic).
     ///   - hue: Hue angle in degrees (`0`–`360`).
+    /// - Returns: A color token with the specified OKLCH values.
     public static func oklch(_ lightness: Double, _ chroma: Double, _ hue: Double) -> ColorToken {
         ColorToken(kind: .oklch(lightness, chroma, hue))
+    }
+
+}
+
+/// Generates static `ColorToken` properties for each name.
+///
+/// Use inside an `extension ColorToken` block to avoid manually writing
+/// `static let x = ColorToken("x")` for every custom color role.
+///
+/// ```swift
+/// extension ColorToken {
+///     #colorTokens("bg", "score", "stage")
+/// }
+/// ```
+@freestanding(declaration, names: arbitrary)
+public macro colorTokens(_ names: String...) = #externalMacro(module: "ScoreMacros", type: "ColorTokensMacro")
+
+extension ColorToken: DevDescribable {
+    public var devDescription: String {
+        switch kind {
+        case .semantic(let name): return ".\(name)"
+        case .named(let name): return ".\(name)"
+        case .palette(let name, let shade): return ".\(name)(\(shade))"
+        case .oklch(let l, let c, let h): return ".oklch(\(l), \(c), \(h))"
+        }
     }
 }
 

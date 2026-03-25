@@ -1,5 +1,7 @@
 import ScoreCore
 
+private let _excludedElementTags: Set<String> = ["div", "span"]
+
 // MARK: - Attribute Injectable
 
 /// A node that can render itself with additional attributes merged into
@@ -47,12 +49,30 @@ package protocol HTMLContainerElement: HTMLRenderable, HTMLAttributeInjectable {
 extension HTMLContainerElement {
     package var htmlAttributes: [(String, String)] { [] }
 
-    package func renderHTML(into output: inout String, renderer: HTMLRenderer) {
-        var attrs = htmlAttributes
-        if renderer.isDevMode, let loc = (self as? SourceLocatable)?.sourceLocation {
+    /// Tags that are too common/structural to show in the dev tools element tree.
+    private static var excludedElementTags: Set<String> { _excludedElementTags }
+
+    private func devElementName() -> String? {
+        guard self is SourceLocatable else { return nil }
+        guard !Self.excludedElementTags.contains(htmlTagName) else { return nil }
+        return String(describing: type(of: self))
+            .split(separator: "<").first.map(String.init) ?? htmlTagName
+    }
+
+    private func appendDevAttributes(to attrs: inout [(String, String)], renderer: HTMLRenderer) {
+        guard renderer.isDevMode else { return }
+        if let name = devElementName() {
+            attrs.append(("data-score-element", name))
+        }
+        if let loc = (self as? SourceLocatable)?.sourceLocation {
             attrs.append(("data-source", "\(loc.fileID):\(loc.line):\(loc.column)"))
             attrs.append(("data-source-path", "\(loc.filePath):\(loc.line):\(loc.column)"))
         }
+    }
+
+    package func renderHTML(into output: inout String, renderer: HTMLRenderer) {
+        var attrs = htmlAttributes
+        appendDevAttributes(to: &attrs, renderer: renderer)
         renderer.tag(htmlTagName, attrs, content: content, to: &output)
     }
 
@@ -62,10 +82,7 @@ extension HTMLContainerElement {
         renderer: HTMLRenderer
     ) {
         var merged = Self.mergeAttributes(htmlAttributes, extraAttributes)
-        if renderer.isDevMode, let loc = (self as? SourceLocatable)?.sourceLocation {
-            merged.append(("data-source", "\(loc.fileID):\(loc.line):\(loc.column)"))
-            merged.append(("data-source-path", "\(loc.filePath):\(loc.line):\(loc.column)"))
-        }
+        appendDevAttributes(to: &merged, renderer: renderer)
         renderer.tag(htmlTagName, merged, content: content, to: &output)
     }
 }

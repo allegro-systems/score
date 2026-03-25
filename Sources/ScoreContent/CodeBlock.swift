@@ -1,4 +1,5 @@
 import ScoreCore
+import ScoreHTML
 
 /// A composite node that renders a fenced code block with syntax highlighting,
 /// an optional filename header, a copy button, and line numbers.
@@ -106,9 +107,9 @@ public struct CodeBlock: Node {
             html.append("<div data-code-header>")
             html.append("<span data-code-label>")
             if let filename {
-                html.append(escapeHTML(filename))
+                html.append(filename.attributeEscaped)
             } else if let language {
-                html.append(escapeHTML(language))
+                html.append(language.attributeEscaped)
             }
             html.append("</span>")
             if showsCopyButton {
@@ -125,7 +126,7 @@ public struct CodeBlock: Node {
         }
 
         html.append(
-            "<pre id=\"\(codeId)\" data-code-source>\(escapeHTML(trimmedCode))</pre>"
+            "<pre id=\"\(codeId)\" data-code-source>\(trimmedCode.attributeEscaped)</pre>"
         )
 
         let gridColumns = showsLineNumbers ? "auto 1fr" : "1fr"
@@ -171,13 +172,13 @@ public struct CodeBlock: Node {
                 }
                 guard currentLine < lineCount else { break }
 
-                let escaped = escapeHTML(String(part))
+                let escaped = String(part).attributeEscaped
                 if !escaped.isEmpty {
                     if let color {
-                        result[currentLine] += "<span style=\"color: \(color);\">\(escaped)</span>"
+                        result[currentLine] += "<span style=\"color: var(\(color));\">\(escaped)</span>"
                     } else {
                         result[currentLine] +=
-                            "<span style=\"color: \(theme.variable.cssValue);\">\(escaped)</span>"
+                            "<span style=\"color: var(\(SyntaxTheme.CSSVariable.variable));\">\(escaped)</span>"
                     }
                 }
             }
@@ -188,23 +189,16 @@ public struct CodeBlock: Node {
 
     private func cssColor(for category: TokenCategory) -> String? {
         switch category {
-        case .keyword: theme.keyword.cssValue
-        case .string: theme.string.cssValue
-        case .comment: theme.comment.cssValue
-        case .number: theme.number.cssValue
-        case .type: theme.type.cssValue
-        case .function: theme.function.cssValue
-        case .operator: theme.operatorColor.cssValue
-        case .variable: theme.variable.cssValue
+        case .keyword: SyntaxTheme.CSSVariable.keyword
+        case .string: SyntaxTheme.CSSVariable.string
+        case .comment: SyntaxTheme.CSSVariable.comment
+        case .number: SyntaxTheme.CSSVariable.number
+        case .type: SyntaxTheme.CSSVariable.type
+        case .function: SyntaxTheme.CSSVariable.function
+        case .operator: SyntaxTheme.CSSVariable.operator
+        case .variable: SyntaxTheme.CSSVariable.variable
         case .plain: nil
         }
     }
 
-    private func escapeHTML(_ text: String) -> String {
-        text.replacingOccurrences(of: "&", with: "&amp;")
-            .replacingOccurrences(of: "<", with: "&lt;")
-            .replacingOccurrences(of: ">", with: "&gt;")
-            .replacingOccurrences(of: "\"", with: "&quot;")
-            .replacingOccurrences(of: "'", with: "&#39;")
-    }
 }

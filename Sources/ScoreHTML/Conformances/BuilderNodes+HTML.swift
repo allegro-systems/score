@@ -14,6 +14,15 @@ extension TextNode: HTMLRenderable {
     }
 }
 
+/// Renders a localized text node by resolving the translation key
+/// against the active ``LocalizationContext``.
+extension Localized: HTMLRenderable {
+    /// Appends the resolved translated text with HTML escaping.
+    package func renderHTML(into output: inout String, renderer: HTMLRenderer) {
+        output.append(resolvedText.htmlEscaped)
+    }
+}
+
 /// Renders raw content directly into the output stream without escaping.
 extension RawTextNode: HTMLRenderable {
     /// Appends the raw content verbatim with no HTML escaping.
@@ -66,6 +75,19 @@ extension ModifiedNode: HTMLRenderable {
                 extraAttributes.append((name, value))
             }
 
+            if renderer.isDevMode {
+                let styleModifiers = allModifiers.filter {
+                    !($0 is EventBindingModifier) && !($0 is ReactiveVisibilityModifier)
+                        && !($0 is HTMLAttributeModifier) && !($0 is AccessibilityModifier)
+                }
+                if !styleModifiers.isEmpty {
+                    let descriptions = styleModifiers.map { $0.devDescription }
+                    let escaped = descriptions.joined(separator: ";;")
+                        .replacingOccurrences(of: "\"", with: "&quot;")
+                    extraAttributes.append(("data-score-modifiers", escaped))
+                }
+            }
+
             if let injectable = innerContent as? HTMLAttributeInjectable {
                 injectable.renderHTML(merging: extraAttributes, into: &output, renderer: renderer)
             } else {
@@ -113,6 +135,18 @@ extension ModifiedNode: HTMLRenderable {
                 if let role = a11y.role {
                     result["role"] = role
                 }
+                continue
+            }
+            if let scrollMod = modifier as? IntersectionObserverModifier {
+                var config: [String] = []
+                config.append("t:\(scrollMod.threshold)")
+                if scrollMod.rootMargin != "0px" {
+                    config.append("m:\(scrollMod.rootMargin)")
+                }
+                if !scrollMod.once {
+                    config.append("once:0")
+                }
+                result["data-scroll-animate"] = config.joined(separator: ";")
                 continue
             }
             guard let attrMod = modifier as? HTMLAttributeModifier else { continue }

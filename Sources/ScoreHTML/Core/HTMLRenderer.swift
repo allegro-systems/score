@@ -1,5 +1,4 @@
 import ScoreCore
-import os
 
 /// Information about a component scope for state emission.
 public struct ScopeInfo: Sendable {
@@ -46,8 +45,8 @@ public struct HTMLRenderer: Sendable {
     /// Mutable counter for `data-s` event binding indices, protected by a lock
     /// to prevent data races.
     final class RenderContext: @unchecked Sendable {
-        private let eventLock = OSAllocatedUnfairLock(initialState: 0)
-        private let reactiveLock = OSAllocatedUnfairLock(initialState: 0)
+        private let eventCounter = LockedValue(0)
+        private let reactiveCounter = LockedValue(0)
 
         /// Component scope stack, mutated only during the synchronous
         /// recursive `write()` pass — no lock needed.
@@ -55,7 +54,7 @@ public struct HTMLRenderer: Sendable {
 
         /// Returns the next event index and increments the counter.
         func nextEventIndex() -> Int {
-            eventLock.withLock { index in
+            eventCounter.withLock { index in
                 let current = index
                 index += 1
                 return current
@@ -64,7 +63,7 @@ public struct HTMLRenderer: Sendable {
 
         /// Returns the next reactive binding index and increments the counter.
         func nextReactiveIndex() -> Int {
-            reactiveLock.withLock { index in
+            reactiveCounter.withLock { index in
                 let current = index
                 index += 1
                 return current
@@ -164,7 +163,7 @@ public struct HTMLRenderer: Sendable {
             return
         }
 
-        if isLeafNode(node) { return }
+        if node.isLeafNode { return }
 
         // Resolve the CSS class name for component scope tracking.
         let componentScope =
@@ -242,12 +241,6 @@ public struct HTMLRenderer: Sendable {
             return String(full[..<angleBracket])
         }
         return full
-    }
-
-    /// Checks whether a node is a leaf (has `Body == Never`) without
-    /// evaluating `body`, which would trigger `fatalError` on leaf nodes.
-    private func isLeafNode<N: Node>(_ node: N) -> Bool {
-        N.Body.self == Never.self
     }
 
 }

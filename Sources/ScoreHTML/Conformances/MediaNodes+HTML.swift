@@ -170,7 +170,5 @@ extension SvgLine: HTMLVoidElement {
 /// Formats a `Double` for SVG attributes, omitting the decimal point for
 /// whole numbers (e.g. `1.0` → `"1"`, `1.5` → `"1.5"`).
 private func svgNumber(_ value: Double) -> String {
-    value.truncatingRemainder(dividingBy: 1) == 0
-        ? "\(Int(value))"
-        : "\(value)"
+    value.cleanValue
 }

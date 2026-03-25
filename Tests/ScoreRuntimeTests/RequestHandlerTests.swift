@@ -1,7 +1,5 @@
 import Foundation
-import NIOCore
-import NIOEmbedded
-import NIOHTTP1
+import HTTPTypes
 import ScoreCore
 import ScoreRouter
 import Testing
@@ -95,21 +93,9 @@ private struct RuntimeAppWithErrorPage: Application {
     var errorPage: (any ErrorPage.Type)? { RuntimeErrorPage.self }
 }
 
-private struct CapturedResponse {
-    let status: HTTPResponseStatus
-    let headers: HTTPHeaders
-    let body: String
-}
-
-private enum ResponseCaptureError: Error {
-    case missingPart
-    case invalidPart
-    case invalidBody
-}
-
-private func makeEmittedChannel(
+private func makeHandler(
     errorPageType: (any ErrorPage.Type)? = nil
-) async throws -> (NIOAsyncTestingChannel, String) {
+) throws -> (RequestHandler, String) {
     let tempDir = FileManager.default.temporaryDirectory
         .appendingPathComponent("score-handler-test-\(UUID().uuidString)")
         .path
@@ -123,157 +109,128 @@ private func makeEmittedChannel(
 
     try StaticSiteEmitter.emit(application: app)
 
-    let channel = await NIOAsyncTestingChannel(
-        handler: RequestHandler(
-            outputDirectory: tempDir,
-            routeTable: RouteTable(app)
-        )
+    let handler = RequestHandler(
+        outputDirectory: tempDir,
+        routeTable: RouteTable(app)
     )
-    return (channel, tempDir)
+    return (handler, tempDir)
 }
 
 private func performRequest(
-    method: NIOHTTP1.HTTPMethod,
+    method: HTTPRequest.Method,
     uri: String,
-    body: ByteBuffer? = nil,
+    body: Data? = nil,
     errorPage: (any ErrorPage.Type)? = nil
-) async throws -> CapturedResponse {
-    let (channel, tempDir) = try await makeEmittedChannel(errorPageType: errorPage)
+) async throws -> Response {
+    let (handler, tempDir) = try makeHandler(errorPageType: errorPage)
     defer { try? FileManager.default.removeItem(atPath: tempDir) }
 
-    let head = HTTPRequestHead(version: .http1_1, method: method, uri: uri)
-
-    try await channel.writeInbound(HTTPServerRequestPart.head(head))
-    if let body = body {
-        try await channel.writeInbound(HTTPServerRequestPart.body(body))
-    }
-    try await channel.writeInbound(HTTPServerRequestPart.end(nil))
-
-    let responseHead = try await readResponsePart(from: channel)
-    guard case .head(let head) = responseHead else {
-        throw ResponseCaptureError.invalidPart
-    }
-
-    let responseBody = try await readResponsePart(from: channel)
-    guard case .body(.byteBuffer(var buffer)) = responseBody else {
-        throw ResponseCaptureError.invalidBody
-    }
-
-    let responseEnd = try await readResponsePart(from: channel)
-    guard case .end = responseEnd else {
-        throw ResponseCaptureError.invalidPart
-    }
-
-    guard let body = buffer.readString(length: buffer.readableBytes) else {
-        throw ResponseCaptureError.invalidBody
-    }
-
-    return CapturedResponse(status: head.status, headers: head.headers, body: body)
-}
-
-private func readResponsePart(from channel: NIOAsyncTestingChannel) async throws -> HTTPServerResponsePart {
-    try await channel.waitForOutboundWrite(as: HTTPServerResponsePart.self)
+    let request = HTTPRequest(method: method, scheme: nil, authority: nil, path: uri)
+    return await handler.process(request: request, body: body)
 }
 
 @Test func requestHandlerServesStaticPagesForGetRequests() async throws {
-    let response = try await performRequest(method: NIOHTTP1.HTTPMethod.GET, uri: "/?debug=1")
+    let response = try await performRequest(method: .get, uri: "/?debug=1")
 
-    #expect(response.status == HTTPResponseStatus.ok)
-    #expect(response.headers["Content-Type"].first == "text/html; charset=utf-8")
-    #expect(response.body.contains("Runtime Home</h1>"))
-    #expect(response.body.contains("<title>Runtime Site</title>"))
+    #expect(response.status == .ok)
+    #expect(response.headers["content-type"] == "text/html; charset=utf-8")
+    let body = String(data: response.body, encoding: .utf8) ?? ""
+    #expect(body.contains("Runtime Home</h1>"))
+    #expect(body.contains("<title>Runtime Site</title>"))
 }
 
 @Test func requestHandlerInvokesControllerHandlers() async throws {
-    let response = try await performRequest(method: NIOHTTP1.HTTPMethod.GET, uri: "/api/echo/value-42")
+    let response = try await performRequest(method: .get, uri: "/api/echo/value-42")
 
-    #expect(response.status == HTTPResponseStatus.ok)
-    #expect(response.headers["Content-Type"].first == "text/plain; charset=utf-8")
-    #expect(response.body == "value-42")
+    #expect(response.status == .ok)
+    #expect(response.headers["content-type"] == "text/plain; charset=utf-8")
+    #expect(String(data: response.body, encoding: .utf8) == "value-42")
 }
 
 @Test func requestHandlerUsesFallbackForUnknownHTTPMethods() async throws {
-    let response = try await performRequest(
-        method: NIOHTTP1.HTTPMethod(rawValue: "TRACE"), uri: "/api/echo/fallback"
-    )
+    let response = try await performRequest(method: HTTPRequest.Method("TRACE")!, uri: "/api/echo/fallback")
 
-    #expect(response.status == HTTPResponseStatus.methodNotAllowed)
-    #expect(response.body == "Method Not Allowed")
+    #expect(response.status == .methodNotAllowed)
+    #expect(String(data: response.body, encoding: .utf8) == "Method Not Allowed")
 }
 
 @Test func requestHandlerReturnsInternalServerErrorWhenControllerThrows() async throws {
-    let response = try await performRequest(method: NIOHTTP1.HTTPMethod.GET, uri: "/api/boom")
+    let response = try await performRequest(method: .get, uri: "/api/boom")
 
-    #expect(response.status == HTTPResponseStatus.internalServerError)
-    #expect(response.headers["Content-Type"].first == "text/html; charset=utf-8")
-    #expect(response.body.contains("Score Development Error"))
+    #expect(response.status == .internalServerError)
+    #expect(response.headers["content-type"] == "text/html; charset=utf-8")
+    let body = String(data: response.body, encoding: .utf8) ?? ""
+    #expect(body.contains("Score Development Error"))
 }
 
 @Test func requestHandlerReturnsPlainOkForRoutesWithoutPageOrHandler() async throws {
-    let response = try await performRequest(method: NIOHTTP1.HTTPMethod.GET, uri: "/api/noop")
+    let response = try await performRequest(method: .get, uri: "/api/noop")
 
-    #expect(response.status == HTTPResponseStatus.ok)
-    #expect(response.headers["Content-Type"].first == "text/plain")
-    #expect(response.body == "OK")
+    #expect(response.status == .ok)
+    #expect(response.headers["content-type"] == "text/plain")
+    #expect(String(data: response.body, encoding: .utf8) == "OK")
 }
 
 @Test func requestHandlerReturnsNotFoundForUnknownPaths() async throws {
-    let response = try await performRequest(method: NIOHTTP1.HTTPMethod.GET, uri: "/missing")
+    let response = try await performRequest(method: .get, uri: "/missing")
 
-    #expect(response.status == HTTPResponseStatus.notFound)
-    #expect(response.body == "Not Found")
+    #expect(response.status == .notFound)
+    #expect(String(data: response.body, encoding: .utf8) == "Not Found")
 }
 
 @Test func requestHandlerReturnsMethodNotAllowedWithAllowHeader() async throws {
-    let response = try await performRequest(method: NIOHTTP1.HTTPMethod.DELETE, uri: "/api/echo/value-42")
+    let response = try await performRequest(method: .delete, uri: "/api/echo/value-42")
 
-    #expect(response.status == HTTPResponseStatus.methodNotAllowed)
-    #expect(response.headers["Allow"].first == "GET, POST")
-    #expect(response.body == "Method Not Allowed")
+    #expect(response.status == .methodNotAllowed)
+    #expect(response.headers["Allow"] == "GET, POST")
+    #expect(String(data: response.body, encoding: .utf8) == "Method Not Allowed")
 }
 
 @Test func requestHandlerPassesQueryParametersToHandler() async throws {
-    let response = try await performRequest(method: NIOHTTP1.HTTPMethod.GET, uri: "/api/query?name=Alice")
+    let response = try await performRequest(method: .get, uri: "/api/query?name=Alice")
 
-    #expect(response.status == HTTPResponseStatus.ok)
-    #expect(response.body == "Alice")
+    #expect(response.status == .ok)
+    #expect(String(data: response.body, encoding: .utf8) == "Alice")
 }
 
 @Test func requestHandlerPassesRequestBodyToHandler() async throws {
-    var buffer = ByteBuffer()
-    buffer.writeString("{\"key\":\"value\"}")
-    let response = try await performRequest(method: NIOHTTP1.HTTPMethod.POST, uri: "/api/body", body: buffer)
+    let response = try await performRequest(
+        method: .post,
+        uri: "/api/body",
+        body: Data("{\"key\":\"value\"}".utf8)
+    )
 
-    #expect(response.status == HTTPResponseStatus.ok)
-    #expect(response.body == "{\"key\":\"value\"}")
+    #expect(response.status == .ok)
+    #expect(String(data: response.body, encoding: .utf8) == "{\"key\":\"value\"}")
 }
 
 @Test func requestHandlerRespectsResponseStatusAndHeaders() async throws {
-    let response = try await performRequest(method: NIOHTTP1.HTTPMethod.POST, uri: "/api/status")
+    let response = try await performRequest(method: .post, uri: "/api/status")
 
-    #expect(response.status == HTTPResponseStatus.created)
-    #expect(response.headers["x-custom"].first == "yes")
-    #expect(response.body == "created")
+    #expect(response.status == .created)
+    #expect(response.headers["x-custom"] == "yes")
+    #expect(String(data: response.body, encoding: .utf8) == "created")
 }
 
 @Test func requestHandlerServesCustomErrorPageFor404() async throws {
     let response = try await performRequest(
-        method: NIOHTTP1.HTTPMethod.GET,
+        method: .get,
         uri: "/no-such-page",
         errorPage: RuntimeErrorPage.self
     )
 
-    #expect(response.status == HTTPResponseStatus.notFound)
-    #expect(response.headers["Content-Type"].first == "text/html; charset=utf-8")
-    #expect(response.body.contains("Error 404"))
+    #expect(response.status == .notFound)
+    #expect(response.headers["content-type"] == "text/html; charset=utf-8")
+    let body = String(data: response.body, encoding: .utf8) ?? ""
+    #expect(body.contains("Error 404"))
 }
 
 @Test func requestHandlerFallsBackToPlainTextWithoutErrorPage() async throws {
     let response = try await performRequest(
-        method: NIOHTTP1.HTTPMethod.GET,
+        method: .get,
         uri: "/no-such-page"
     )
 
-    #expect(response.status == HTTPResponseStatus.notFound)
-    #expect(response.body == "Not Found")
+    #expect(response.status == .notFound)
+    #expect(String(data: response.body, encoding: .utf8) == "Not Found")
 }

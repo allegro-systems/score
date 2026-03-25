@@ -75,7 +75,7 @@ private struct StyledPage: Page {
 
 @Test func renderStyledPageIncludesCSS() {
     let result = PageRenderer.render(page: StyledPage(), metadata: nil, theme: nil)
-    let hasCSS = result.componentCSS.contains("padding: 16px") || result.flatCSS.contains("padding: 16px")
+    let hasCSS = result.css.full.contains("padding: 16px") || result.css.flat.contains("padding: 16px")
     #expect(hasCSS)
 }
 

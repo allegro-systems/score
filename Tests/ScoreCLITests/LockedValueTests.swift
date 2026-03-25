@@ -1,4 +1,5 @@
 import Foundation
+import ScoreCore
 import Testing
 
 @testable import ScoreCLI
@@ -33,7 +34,7 @@ import Testing
 }
 
 @Test func lockedValueWithOptional() {
-    let box = LockedValue<String?>(nil)
+    let box = LockedValue<String?>(nil as String?)
     #expect(box.withLock { $0 } == nil)
 
     box.withLock { $0 = "hello" }

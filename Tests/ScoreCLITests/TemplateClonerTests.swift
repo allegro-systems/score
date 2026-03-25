@@ -18,3 +18,7 @@ import Testing
 @Test func clonerRepoURL() {
     #expect(TemplateCloner.repoURL.contains("allegro-systems/score"))
 }
+
+@Test func clonerPluginTemplateRepoURL() {
+    #expect(TemplateCloner.pluginTemplateRepoURL.contains("score-plugin-template"))
+}

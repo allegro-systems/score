@@ -1,3 +1,4 @@
+import ScoreCore
 import Testing
 
 @testable import ScoreCLI

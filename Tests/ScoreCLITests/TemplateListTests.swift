@@ -27,5 +27,5 @@ import Testing
 }
 
 @Test func templateCaseCount() {
-    #expect(Template.allCases.count == 9)
+    #expect(Template.allCases.count == 10)
 }

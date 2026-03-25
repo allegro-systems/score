@@ -49,7 +49,7 @@ import Testing
     #expect(script.isEmpty)
 }
 
-@Test func metadataScriptEmptyContentIsEmpty() {
+@Test func metadataScriptEmptyContentOmitsPageData() {
     let script = DevToolsInjector.metadataScript(
         pageStates: [],
         pageComputeds: [],
@@ -57,7 +57,9 @@ import Testing
         componentScopes: [],
         environment: .development
     )
-    #expect(script.isEmpty)
+    #expect(script.contains("__SCORE_DEV__"))
+    #expect(!script.contains("page:"))
+    #expect(!script.contains("elements:"))
 }
 
 @Test func metadataScriptIncludesComponentScopes() {

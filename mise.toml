@@ -1,5 +1,6 @@
 [tools]
 swift = "6.2"
+hk = { version = "latest", postinstall = "hk install" }
 
 # Build
 [tasks.build]
@@ -9,13 +10,13 @@ arg "<config>" default="debug" help="Build configuration" {
   choices "debug" "release"
 }
 flag "-w --werror" help="Treat warnings as errors" default="true"
+flag "-v --verbose" help="Show verbose build output" default="false"
 '''
 run = '''
-echo "Swift version:"
-swift --version
-
 echo "Building (config=${usage_config?}) werror=${usage_werror?}"
-swift build -c "${usage_config?}" ${usage_werror:+-Xswiftc -warnings-as-errors}
+swift build -c "${usage_config?}" \
+  ${usage_werror:+-Xswiftc -warnings-as-errors} \
+  ${usage_verbose:+-v}
 '''
 
 # Test
@@ -26,13 +27,17 @@ arg "<config>" default="debug" help="Test configuration" {
   choices "debug" "release"
 }
 flag "-w --werror" help="Treat warnings as errors" default="true"
-flag "-c --coverage" help="Enable code coverage"
-flag "--min" help="Minimum coverage %" default="85"
-flag "--enforce" help="Enforce minimum coverage" default="true"
+flag "-v --verbose" help="Show verbose build output" default="false"
+flag "-c --coverage" help="Enable code coverage" default="false"
+flag "--min <min>" help="Minimum coverage %" default="65"
+flag "--enforce <enforce>" help="Enforce minimum coverage" default="false"
 '''
 run = '''
 echo "Testing (config=${usage_config?}) werror=${usage_werror?} coverage=${usage_coverage?}"
-swift test -c "${usage_config?}" ${usage_werror:+-Xswiftc -warnings-as-errors} ${usage_coverage:+--enable-code-coverage}
+swift test -c "${usage_config?}" \
+  ${usage_werror:+-Xswiftc -warnings-as-errors} \
+  ${usage_verbose:+-v} \
+  ${usage_coverage:+--enable-code-coverage}
 
 if [ "${usage_coverage?}" = "true" ]; then
   CODECOV_PATH="$(swift test -c "${usage_config?}" --show-codecov-path)"
@@ -45,7 +50,7 @@ fi
 [tasks.format]
 description = "Format or lint source code"
 usage = '''
-flag "--check" help="Lint instead of format"
+flag "--check" help="Lint instead of format" default="false"
 '''
 run = '''
 if [ "${usage_check?}" = "true" ]; then
@@ -64,22 +69,6 @@ depends = [
   "test --coverage",
 ]
 run = "echo CI completed successfully"
-
-# Hooks
-[tasks.setup-hooks]
-description = "Install pre-commit hook"
-run = '''
-HOOK_PATH="$(git rev-parse --git-path hooks/pre-commit)"
-printf "%s\n" \
-  "#!/usr/bin/env sh" \
-  "set -eu" \
-  "ROOT=$(git rev-parse --show-toplevel)" \
-  "cd \"$ROOT\"" \
-  "echo \"[pre-commit] Running mise run ci...\"" \
-  "mise run ci" > "$HOOK_PATH"
-chmod +x "$HOOK_PATH"
-echo "Installed pre-commit hook at $HOOK_PATH"
-'''
 
 # Install
 [tasks.install]

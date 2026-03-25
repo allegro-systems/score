@@ -29,7 +29,8 @@ struct InitCommand: AsyncParsableCommand {
         try await noora.progressStep(
             message: "Configuring project as \(projectName)"
         ) { _ in
-            try ProjectNameRewriter().rewrite(at: destination, projectName: projectName)
+            try ProjectNameRewriter().rewrite(
+                at: destination, projectName: projectName, isPlugin: selectedTemplate.isPlugin)
             try SwiftFormatConfig.write(to: destination)
         }
 

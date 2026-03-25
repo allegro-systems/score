@@ -1,5 +1,7 @@
 import Foundation
 
+@preconcurrency import class ScoreCore.LockedValue
+
 /// Discovers and interacts with the local Swift toolchain.
 struct SwiftToolchain: Sendable {
 

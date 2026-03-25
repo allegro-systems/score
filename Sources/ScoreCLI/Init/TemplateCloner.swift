@@ -1,14 +1,15 @@
 import Foundation
 
-/// Clones a template from the Score repository's `Examples/` directory.
+/// Clones a template into a new project directory.
+///
+/// App templates are fetched from the Score repository's `Examples/` directory
+/// via sparse checkout. The plugin template is cloned from a dedicated repo.
 struct TemplateCloner: Sendable {
 
     static let repoURL = "https://github.com/allegro-systems/score"
+    static let pluginTemplateRepoURL = "https://github.com/allegro-systems/score-plugin-template"
 
     /// Clones the specified template into the target directory.
-    ///
-    /// Downloads the example directory from the Score repository using
-    /// `git clone` with sparse checkout to fetch only the requested template.
     ///
     /// - Parameters:
     ///   - template: The template to clone.
@@ -21,6 +22,34 @@ struct TemplateCloner: Sendable {
             throw CLIError.directoryExists(destination)
         }
 
+        if template.isPlugin {
+            try clonePluginTemplate(to: destination)
+        } else {
+            try cloneAppTemplate(template, to: destination)
+        }
+    }
+
+    // MARK: - Private
+
+    private func clonePluginTemplate(to destination: String) throws {
+        let result = try ProcessRunner.run(
+            "git",
+            arguments: ["clone", "--depth", "1", Self.pluginTemplateRepoURL, destination])
+
+        guard result.succeeded else {
+            throw CLIError.processFailure(
+                command: "git clone",
+                exitCode: result.exitCode,
+                stderr: result.stderr
+            )
+        }
+
+        // Remove the cloned .git directory so the user starts fresh.
+        try? FileManager.default.removeItem(atPath: "\(destination)/.git")
+    }
+
+    private func cloneAppTemplate(_ template: Template, to destination: String) throws {
+        let fileManager = FileManager.default
         let tempDir = fileManager.temporaryDirectory
             .appendingPathComponent("score-init-\(ProcessInfo.processInfo.processIdentifier)")
             .path

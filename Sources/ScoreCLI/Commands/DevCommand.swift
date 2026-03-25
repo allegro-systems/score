@@ -2,6 +2,8 @@ import ArgumentParser
 import Foundation
 import Noora
 
+@preconcurrency import class ScoreCore.LockedValue
+
 struct DevCommand: AsyncParsableCommand {
 
     static let configuration = CommandConfiguration(
@@ -77,7 +79,7 @@ final class DevRunner: Sendable {
 
         let watcher = FileWatcher(
             directories: watchDirectories(),
-            extensions: ["swift"]
+            extensions: ["swift", "md"]
         )
 
         await watcher.watch { [self] changed in
@@ -109,37 +111,24 @@ final class DevRunner: Sendable {
     }
 
     private func initialBuild() async throws -> Bool {
-        let resultBox = LockedValue<BuildResult?>(nil)
+        printStatusBlock(icon: "◉", style: .info, message: "Building project...")
 
-        do {
-            try await noora.collapsibleStep(
-                title: "Building project",
-                successMessage: "Build succeeded",
-                errorMessage: "Build failed",
-                visibleLines: 5
-            ) { addLine in
-                let buildResult = try SwiftToolchain.buildStreaming(release: false, in: self.directory) { line in
-                    addLine(TerminalText("\(line)"))
-                }
-                resultBox.withLock { $0 = buildResult }
+        let result = try SwiftToolchain.buildStreaming(release: false, in: directory) { line in
+            print("  \(line)")
+        }
 
-                if !buildResult.succeeded {
-                    throw CLIError.processFailure(command: "swift build", exitCode: 1, stderr: "")
+        guard result.succeeded else {
+            let errors = result.errors.filter { $0.severity == .error }
+            if !errors.isEmpty {
+                for diagnostic in errors.prefix(10) {
+                    print("  \(diagnostic.file):\(diagnostic.line):\(diagnostic.column) — \(diagnostic.message)")
                 }
             }
-            return true
-        } catch is CLIError {
-            if let result = resultBox.withLock({ $0 }) {
-                let errors = result.errors.filter { $0.severity == .error }
-                if !errors.isEmpty {
-                    let takeaways = errors.prefix(10).map {
-                        TerminalText("\($0.file):\($0.line):\($0.column) — \($0.message)")
-                    }
-                    noora.error(.alert("Build failed with \(errors.count) error(s)", takeaways: takeaways))
-                }
-            }
+            printStatusBlock(icon: "⨯", style: .error, message: "Build failed with \(errors.count) error(s)")
             return false
         }
+        replaceStatusBlock(icon: "✔", style: .success, message: "Build succeeded")
+        return true
     }
 
     private func startServer(executable: String) {
@@ -171,7 +160,7 @@ final class DevRunner: Sendable {
     }
 
     private func watchDirectories() -> [String] {
-        let candidates = ["Sources", "Resources"]
+        let candidates = ["Sources", "Resources", "Content"]
         let fm = FileManager.default
         return
             candidates

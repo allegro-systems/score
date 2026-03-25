@@ -8,6 +8,7 @@ enum Template: String, CaseIterable, Sendable, Equatable, CustomStringConvertibl
     case saas
     case social
     case localised
+    case plugin
 
     var description: String {
         "\(rawValue) — \(summary)"
@@ -24,8 +25,12 @@ enum Template: String, CaseIterable, Sendable, Equatable, CustomStringConvertibl
         case .saas: "Auth, CRUD, durability defaults + Stripe integration"
         case .social: "Local-first data, sync, conflict resolution, feeds"
         case .localised: "5 locales (en, es, it, de, ru), locale picker, localised formatting"
+        case .plugin: "Score plugin — library target, tests, mise CI, ready for publishing"
         }
     }
 
     var directoryName: String { rawValue }
+
+    /// Whether this template produces a plugin (library) rather than an app (executable).
+    var isPlugin: Bool { self == .plugin }
 }

@@ -2,6 +2,8 @@ import ArgumentParser
 import Foundation
 import Noora
 
+@preconcurrency import class ScoreCore.LockedValue
+
 struct BuildCommand: AsyncParsableCommand {
 
     static let configuration = CommandConfiguration(

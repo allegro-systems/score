@@ -1,5 +1,7 @@
 import Foundation
 
+@preconcurrency import class ScoreCore.LockedValue
+
 /// The result of a subprocess execution.
 struct ProcessResult: Sendable {
     /// The process exit code.

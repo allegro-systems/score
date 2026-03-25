@@ -90,6 +90,52 @@ public struct BorderModifier: ModifierValue {
     }
 }
 
+/// A modifier that overrides only the border color of a node.
+///
+/// Use this when you need to change just the border color without
+/// respecifying width and style — for example, inside a `.hover {}` block.
+///
+/// ### CSS Mapping
+///
+/// Maps to the CSS `border-color` property.
+public struct BorderColorModifier: ModifierValue {
+    /// The design-token color to apply to the border.
+    public let color: ColorToken
+
+    /// Creates a border color modifier.
+    ///
+    /// - Parameter color: The design-token color for the border.
+    public init(_ color: ColorToken) {
+        self.color = color
+    }
+}
+
+extension Node {
+    /// Overrides only the border color of this node.
+    ///
+    /// Use this modifier when the border width and style are already set
+    /// and you only need to change the color — for example, inside a
+    /// `.hover {}` block.
+    ///
+    /// ### Example
+    ///
+    /// ```swift
+    /// Card()
+    ///     .border(width: 1, color: .border, style: .solid)
+    ///     .hover { $0.borderColor(.accent) }
+    /// ```
+    ///
+    /// ### CSS Mapping
+    ///
+    /// Maps to the CSS `border-color` property.
+    ///
+    /// - Parameter color: The design-token color for the border.
+    /// - Returns: A `ModifiedNode` with the border color modifier applied.
+    public func borderColor(_ color: ColorToken) -> ModifiedNode<Self> {
+        ModifiedNode(content: self, modifiers: [BorderColorModifier(color)])
+    }
+}
+
 extension Node {
     /// Applies a border to this node using a variadic list of edges.
     ///

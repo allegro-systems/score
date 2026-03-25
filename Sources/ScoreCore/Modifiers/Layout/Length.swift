@@ -24,6 +24,17 @@ public enum Length: Sendable, Hashable {
     case percent(Double)
 }
 
+extension Length: DevDescribable {
+    public var devDescription: String {
+        switch self {
+        case .pixels(let v):
+            return v.cleanValue
+        case .percent(let v):
+            return "\(v.cleanValue)%"
+        }
+    }
+}
+
 extension Length: ExpressibleByIntegerLiteral {
     public init(integerLiteral value: IntegerLiteralType) {
         self = .pixels(Double(value))

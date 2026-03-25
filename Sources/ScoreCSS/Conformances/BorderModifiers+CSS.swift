@@ -1,5 +1,12 @@
 import ScoreCore
 
+/// Enables CSS emission for `BorderColorModifier` modifiers.
+extension BorderColorModifier: CSSRepresentable {
+    func cssDeclarations() -> [CSSDeclaration] {
+        [.init(property: "border-color", value: color.cssValue)]
+    }
+}
+
 /// Enables CSS emission for `BorderModifier` modifiers.
 extension BorderModifier: CSSRepresentable {
     /// Converts this modifier into one or more CSS declarations.

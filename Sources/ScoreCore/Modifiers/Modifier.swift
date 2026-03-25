@@ -164,6 +164,134 @@ extension ModifiedNode: ModifierChainLinkable {
 ///   can be safely shared across concurrency boundaries.
 public protocol ModifierValue: Sendable {}
 
+/// A protocol for modifier types that provide custom dev tools descriptions
+/// instead of the default Mirror-based reflection.
+public protocol CustomModifierDescription {
+    /// A concise, human-readable description for the dev tools inspector.
+    var devDescription: String { get }
+}
+
+extension ModifierValue {
+
+    /// A human-readable description of this modifier for development tools.
+    ///
+    /// Produces output like `font(size: 24, weight: bold)` by stripping
+    /// the "Modifier" suffix from the type name and listing non-nil
+    /// stored properties via Mirror reflection.
+    public var devDescription: String {
+        // Check for custom description first (dynamic dispatch via protocol).
+        if let custom = self as? CustomModifierDescription {
+            return custom.devDescription
+        }
+        let typeName = String(describing: type(of: self))
+        let baseName: String
+        if typeName.hasSuffix("Modifier") {
+            baseName = String(typeName.dropLast(8))
+        } else if typeName.hasSuffix("Value") {
+            baseName = String(typeName.dropLast(5))
+        } else {
+            baseName = typeName
+        }
+        // Convert PascalCase to camelCase.
+        let name = baseName.prefix(1).lowercased() + baseName.dropFirst()
+
+        let mirror = Mirror(reflecting: self)
+        var parts: [String] = []
+        for child in mirror.children {
+            guard let label = child.label else { continue }
+            // Skip internal properties.
+            if label.hasPrefix("_") { continue }
+            let childMirror = Mirror(reflecting: child.value)
+            // Skip nil optionals.
+            if childMirror.displayStyle == .optional && childMirror.children.isEmpty { continue }
+            // Skip empty arrays.
+            if childMirror.displayStyle == .collection && childMirror.children.isEmpty { continue }
+            let value = formatDevValue(child.value)
+            parts.append("\(label): \(value)")
+        }
+        if parts.isEmpty { return name }
+        return "\(name)(\(parts.joined(separator: ", ")))"
+    }
+}
+
+/// A type that provides a concise description for dev tools display.
+public protocol DevDescribable {
+    /// A concise description for display in the Score dev tools inspector.
+    var devDescription: String { get }
+}
+
+/// Formats a value for display in dev tool modifier descriptions.
+private func formatDevValue(_ value: Any) -> String {
+    let mirror = Mirror(reflecting: value)
+    // Unwrap optionals.
+    if mirror.displayStyle == .optional {
+        if let child = mirror.children.first {
+            return formatDevValue(child.value)
+        }
+        return "nil"
+    }
+    // Types with custom dev descriptions (ColorToken, Length, etc.).
+    if let describable = value as? DevDescribable {
+        return describable.devDescription
+    }
+    // Doubles: clean up trailing .0 for whole numbers.
+    if let d = value as? Double {
+        return d.cleanValue
+    }
+    // Enums with associated values: format nicely.
+    if mirror.displayStyle == .enum {
+        return formatDevEnum(value, mirror: mirror)
+    }
+    // Sets.
+    if mirror.displayStyle == .set {
+        let items = mirror.children.map { formatDevValue($0.value) }
+        return "[\(items.joined(separator: ", "))]"
+    }
+    // Collections.
+    if mirror.displayStyle == .collection {
+        let items = mirror.children.map { child -> String in
+            if let mod = child.value as? any ModifierValue {
+                return mod.devDescription
+            }
+            return formatDevValue(child.value)
+        }
+        return "[\(items.joined(separator: ", "))]"
+    }
+    // Strings: show as-is without quotes for conciseness.
+    if value is String { return String(describing: value) }
+    // Numbers, bools: show directly.
+    return String(describing: value)
+}
+
+/// Formats an enum value with clean associated value display.
+private func formatDevEnum(_ value: Any, mirror: Mirror) -> String {
+    let desc = String(describing: value)
+    // Check for associated values in the mirror.
+    if let child = mirror.children.first {
+        let caseName: String
+        if let dot = desc.firstIndex(of: "(") {
+            caseName = String(desc[..<dot])
+        } else {
+            caseName = desc
+        }
+        // Tuple associated values (multiple).
+        let valMirror = Mirror(reflecting: child.value)
+        if valMirror.displayStyle == .tuple {
+            let parts = valMirror.children.map { formatDevValue($0.value) }
+            return ".\(caseName)(\(parts.joined(separator: ", ")))"
+        }
+        // Single associated value.
+        return ".\(caseName)(\(formatDevValue(child.value)))"
+    }
+    return ".\(desc)"
+}
+
+/// Formats a dev description for modifiers that wrap a labeled group of overrides.
+func overridesDevDescription(label: String, _ overrides: [any ModifierValue]) -> String {
+    let inner = overrides.map { $0.devDescription }.joined(separator: ", ")
+    return "\(label)(\(inner))"
+}
+
 extension Node {
 
     /// Wraps this node in a `ModifiedNode` carrying the given modifier value.

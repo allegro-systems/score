@@ -27,7 +27,7 @@
 ///
 /// Maps to a CSS `[data-variant~="<name>"]` selector wrapping the override
 /// declarations, nested inside the component scope when applicable.
-public struct VariantModifier: ModifierValue {
+public struct VariantModifier: ModifierValue, CustomModifierDescription {
 
     /// The variant name used in the CSS `[data-variant~="<name>"]` selector.
     public let name: String
@@ -43,6 +43,11 @@ public struct VariantModifier: ModifierValue {
     public init(name: String, overrides: [any ModifierValue]) {
         self.name = name
         self.overrides = overrides
+    }
+
+    public var devDescription: String {
+        let inner = overrides.map { $0.devDescription }.joined(separator: ", ")
+        return "variant(\(name), \(inner))"
     }
 }
 

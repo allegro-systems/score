@@ -96,9 +96,9 @@ public struct ValidationErrors: Sendable, Equatable {
         errors[field] ?? []
     }
 
-    /// Whether there are any validation errors.
-    public var hasErrors: Bool {
-        !errors.isEmpty
+    /// Whether the validation result contains no errors.
+    public var isEmpty: Bool {
+        errors.isEmpty
     }
 
     /// All field names that have errors.
@@ -278,6 +278,9 @@ public struct PatternRule: ValidationRule, StringValidating {
     public let pattern: String
     public let errorMessage: String
 
+    /// The compiled regex, or `nil` if the pattern was invalid.
+    private let compiledRegex: NSRegularExpression?
+
     /// Creates a pattern validation rule.
     ///
     /// - Parameters:
@@ -286,10 +289,11 @@ public struct PatternRule: ValidationRule, StringValidating {
     public init(_ pattern: String, message: String = "Invalid format") {
         self.pattern = pattern
         self.errorMessage = message
+        self.compiledRegex = try? NSRegularExpression(pattern: pattern)
     }
 
     public func validate(_ value: String) -> ValidationResult {
-        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+        guard let regex = compiledRegex else {
             return .invalid("Invalid regex pattern")
         }
         let range = NSRange(value.startIndex..., in: value)
@@ -306,6 +310,10 @@ public struct EmailRule: ValidationRule, StringValidating {
 
     public let errorMessage: String
 
+    /// Compiled email regex, shared across all instances.
+    private static let emailRegex: NSRegularExpression? =
+        try? NSRegularExpression(pattern: "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
+
     /// Creates an email validation rule.
     ///
     /// - Parameter message: The error message.
@@ -314,8 +322,7 @@ public struct EmailRule: ValidationRule, StringValidating {
     }
 
     public func validate(_ value: String) -> ValidationResult {
-        let pattern = "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
-        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+        guard let regex = Self.emailRegex else {
             return .invalid(errorMessage)
         }
         let range = NSRange(value.startIndex..., in: value)

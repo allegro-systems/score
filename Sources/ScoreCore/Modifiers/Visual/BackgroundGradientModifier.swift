@@ -66,6 +66,7 @@ public struct RadialGradient: Sendable {
     ///   - width: Horizontal extent as a percentage (e.g. `120` for 120%).
     ///   - height: Vertical extent as a percentage (e.g. `80` for 80%).
     ///   - position: Where to place the gradient center. Defaults to `.center`.
+    /// - Returns: A radial gradient with the given parameters.
     public static func radial(
         color: ColorToken,
         opacity: Double,
@@ -104,9 +105,19 @@ public struct RadialGradient: Sendable {
 /// ### CSS Mapping
 ///
 /// Maps to a CSS `background-image: radial-gradient(...)` declaration.
-public struct BackgroundGradientModifier: ModifierValue {
+public struct BackgroundGradientModifier: ModifierValue, CustomModifierDescription {
     /// The radial gradient specification.
     public let gradient: RadialGradient
+
+    public var devDescription: String {
+        let pos: String
+        switch gradient.position {
+        case .top: pos = "top"
+        case .center: pos = "center"
+        case .bottom: pos = "bottom"
+        }
+        return "backgroundGradient(.radial(color: \(gradient.color.devDescription), opacity: \(gradient.opacity), at: .\(pos)))"
+    }
 
     /// Creates a background gradient modifier.
     ///

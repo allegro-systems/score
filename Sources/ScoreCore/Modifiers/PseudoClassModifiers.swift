@@ -32,97 +32,51 @@ public enum PseudoClass: String, Sendable, Hashable {
     case focusVisible = "focus-visible"
 }
 
-/// A declarative style override applied under a pseudo-class condition.
-///
-/// `PseudoStyle` represents a single CSS property change that takes effect
-/// when its parent pseudo-class selector matches. Each case mirrors a
-/// commonly overridden CSS property, keeping the API surface small and
-/// discoverable while covering the most frequent interactive styling needs.
-///
-/// ### Example
-///
-/// ```swift
-/// Button("Submit")
-///     .background(.accent)
-///     .hover(.background(.oklch(0.68, 0.10, 75)))
-/// ```
-///
-/// ### CSS Mapping
-///
-/// Each case maps to a single CSS declaration emitted inside the
-/// pseudo-class selector block.
-public enum PseudoStyle: Sendable, Hashable {
-    /// Overrides the background color.
-    ///
-    /// CSS equivalent: `background-color: <color>`.
-    case background(ColorToken)
-
-    /// Overrides the foreground (text) color.
-    ///
-    /// CSS equivalent: `color: <color>`.
-    case foreground(ColorToken)
-
-    /// Overrides the border color.
-    ///
-    /// CSS equivalent: `border-color: <color>`.
-    case borderColor(ColorToken)
-
-    /// Overrides the element opacity.
-    ///
-    /// CSS equivalent: `opacity: <value>`.
-    case opacity(Double)
-
-    /// Overrides the text decoration.
-    ///
-    /// CSS equivalent: `text-decoration: <value>`.
-    case textDecoration(TextDecoration)
-
-    /// Applies CSS transforms.
-    ///
-    /// CSS equivalent: `transform: <value>`.
-    case transform([Transform])
-}
-
 /// A modifier that applies styles conditionally under a CSS pseudo-class.
 ///
 /// `PseudoClassModifier` stores a pseudo-class selector and an array of
-/// `PseudoStyle` overrides. The CSS pipeline emits these as a separate
+/// modifier overrides. The CSS pipeline emits these as a separate
 /// rule set under the pseudo-class selector, sharing the same scope as
 /// the element's base styles.
 ///
-/// This modifier is transparent to the HTML renderer — it does not produce
-/// a wrapper `<div>` or any base CSS declarations. The pseudo-class rule
-/// is emitted alongside the base rule in the stylesheet.
+/// The modifier overrides are extracted from a transform closure using
+/// the same mechanism as breakpoint and variant modifiers, ensuring all
+/// existing modifiers (`.font(color:)`, `.background()`, etc.) can be
+/// reused inside pseudo-class blocks.
 ///
 /// ### Example
 ///
 /// ```swift
 /// Link(to: "/about") { "About" }
 ///     .font(size: 14, color: .muted)
-///     .hover(.foreground(.text), .textDecoration(.none))
+///     .hover { $0.font(color: .text) }
 /// ```
 ///
 /// ### CSS Output
 ///
 /// ```css
 /// .nav-link { font-size: 14px; color: var(--color-muted); }
-/// .nav-link:hover { color: var(--color-text); text-decoration: none; }
+/// .nav-link:hover { color: var(--color-text); }
 /// ```
-public struct PseudoClassModifier: ModifierValue {
+public struct PseudoClassModifier: ModifierValue, CustomModifierDescription {
     /// The pseudo-class under which the styles apply.
     public let pseudoClass: PseudoClass
 
-    /// The style overrides to apply when the pseudo-class matches.
-    public let styles: [PseudoStyle]
+    /// The modifier overrides to apply when the pseudo-class matches.
+    public let overrides: [any ModifierValue]
 
     /// Creates a pseudo-class modifier.
     ///
     /// - Parameters:
     ///   - pseudoClass: The pseudo-class condition (e.g. `.hover`).
-    ///   - styles: The style overrides to apply.
-    public init(_ pseudoClass: PseudoClass, styles: [PseudoStyle]) {
+    ///   - overrides: The modifier overrides to apply.
+    public init(_ pseudoClass: PseudoClass, overrides: [any ModifierValue]) {
         self.pseudoClass = pseudoClass
-        self.styles = styles
+        self.overrides = overrides
+    }
+
+    public var devDescription: String {
+        overridesDevDescription(label: pseudoClass.rawValue, overrides)
     }
 }
 
@@ -138,13 +92,14 @@ extension Node {
     /// Article { content }
     ///     .background(.surface)
     ///     .border(width: 1, color: .border)
-    ///     .hover(.background(.oklch(0.12, 0.01, 60)), .borderColor(.oklch(0.30, 0.03, 60)))
+    ///     .hover { $0.background(.elevated).borderColor(.accent) }
     /// ```
     ///
-    /// - Parameter styles: The style overrides to apply on hover.
+    /// - Parameter transform: A closure that receives the node and returns
+    ///   its modified form with hover-specific overrides.
     /// - Returns: A `ModifiedNode` with the hover modifier applied.
-    public func hover(_ styles: PseudoStyle...) -> ModifiedNode<Self> {
-        ModifiedNode(content: self, modifiers: [PseudoClassModifier(.hover, styles: styles)])
+    public func hover(@NodeBuilder _ transform: (Self) -> some Node) -> ModifiedNode<Self> {
+        pseudoClassModified(.hover, transform)
     }
 
     /// Applies style overrides when the element has focus.
@@ -157,13 +112,14 @@ extension Node {
     /// ```swift
     /// Input()
     ///     .border(width: 1, color: .border)
-    ///     .focus(.borderColor(.accent))
+    ///     .focus { $0.border(width: 1, color: .accent) }
     /// ```
     ///
-    /// - Parameter styles: The style overrides to apply on focus.
+    /// - Parameter transform: A closure that receives the node and returns
+    ///   its modified form with focus-specific overrides.
     /// - Returns: A `ModifiedNode` with the focus modifier applied.
-    public func focus(_ styles: PseudoStyle...) -> ModifiedNode<Self> {
-        ModifiedNode(content: self, modifiers: [PseudoClassModifier(.focus, styles: styles)])
+    public func focus(@NodeBuilder _ transform: (Self) -> some Node) -> ModifiedNode<Self> {
+        pseudoClassModified(.focus, transform)
     }
 
     /// Applies style overrides while the element is being activated.
@@ -176,13 +132,14 @@ extension Node {
     /// ```swift
     /// Button("Press me")
     ///     .background(.accent)
-    ///     .active(.background(.oklch(0.60, 0.10, 75)))
+    ///     .active { $0.background(.oklch(0.60, 0.10, 75)) }
     /// ```
     ///
-    /// - Parameter styles: The style overrides to apply while active.
+    /// - Parameter transform: A closure that receives the node and returns
+    ///   its modified form with active-specific overrides.
     /// - Returns: A `ModifiedNode` with the active modifier applied.
-    public func active(_ styles: PseudoStyle...) -> ModifiedNode<Self> {
-        ModifiedNode(content: self, modifiers: [PseudoClassModifier(.active, styles: styles)])
+    public func active(@NodeBuilder _ transform: (Self) -> some Node) -> ModifiedNode<Self> {
+        pseudoClassModified(.active, transform)
     }
 
     /// Applies style overrides when the element has keyboard-triggered focus.
@@ -194,12 +151,22 @@ extension Node {
     ///
     /// ```swift
     /// Button("Tab to me")
-    ///     .focusVisible(.borderColor(.accent))
+    ///     .focusVisible { $0.border(width: 2, color: .accent) }
     /// ```
     ///
-    /// - Parameter styles: The style overrides to apply on keyboard focus.
+    /// - Parameter transform: A closure that receives the node and returns
+    ///   its modified form with focus-visible-specific overrides.
     /// - Returns: A `ModifiedNode` with the focus-visible modifier applied.
-    public func focusVisible(_ styles: PseudoStyle...) -> ModifiedNode<Self> {
-        ModifiedNode(content: self, modifiers: [PseudoClassModifier(.focusVisible, styles: styles)])
+    public func focusVisible(@NodeBuilder _ transform: (Self) -> some Node) -> ModifiedNode<Self> {
+        pseudoClassModified(.focusVisible, transform)
+    }
+
+    private func pseudoClassModified(_ pseudoClass: PseudoClass, @NodeBuilder _ transform: (Self) -> some Node) -> ModifiedNode<Self> {
+        let transformed = transform(self)
+        let overrides = VariantModifier.extractOverrides(
+            from: transformed,
+            originalModifierCount: VariantModifier.modifierCount(in: self)
+        )
+        return ModifiedNode(content: self, modifiers: [PseudoClassModifier(pseudoClass, overrides: overrides)])
     }
 }

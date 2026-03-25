@@ -350,10 +350,6 @@ public struct CSSCollector: Sendable {
 
     // MARK: - Tree Walking
 
-    private func isLeafNode<N: Node>(_ node: N) -> Bool {
-        N.Body.self == Never.self
-    }
-
     private mutating func walk(_ node: some Node) {
         if let modified = node as? any ModifierChainLinkable {
             let (allModifiers, innerNode) = flattenChain(modified)
@@ -368,7 +364,7 @@ public struct CSSCollector: Sendable {
             return
         }
 
-        if isLeafNode(node) { return }
+        if node.isLeafNode { return }
 
         if node is any Component {
             let name = CSSNaming.className(from: String(describing: type(of: node)))
@@ -414,13 +410,7 @@ public struct CSSCollector: Sendable {
         }
         declarations = Self.mergeTransitions(declarations)
 
-        var pseudoEntries: [PseudoEntry] = []
-        for pseudo in pseudoModifiers {
-            let decls = pseudo.styles.map { $0.cssDeclaration() }
-            if !decls.isEmpty {
-                pseudoEntries.append(PseudoEntry(pseudoClass: pseudo.pseudoClass, declarations: decls))
-            }
-        }
+        let pseudoEntries = pseudoModifiers.compactMap { Self.pseudoEntry(from: $0) }
 
         let baseDeclarationKey: String?
         if !declarations.isEmpty || !pseudoEntries.isEmpty {
@@ -467,9 +457,8 @@ public struct CSSCollector: Sendable {
 
         for modifier in variant.overrides {
             if let pseudo = modifier as? PseudoClassModifier {
-                let decls = pseudo.styles.map { $0.cssDeclaration() }
-                if !decls.isEmpty {
-                    pseudoEntries.append(PseudoEntry(pseudoClass: pseudo.pseudoClass, declarations: decls))
+                if let entry = Self.pseudoEntry(from: pseudo) {
+                    pseudoEntries.append(entry)
                 }
             } else {
                 declarations.append(contentsOf: CSSEmitter.declarations(for: modifier))
@@ -508,9 +497,8 @@ public struct CSSCollector: Sendable {
 
         for modifier in bp.overrides {
             if let pseudo = modifier as? PseudoClassModifier {
-                let decls = pseudo.styles.map { $0.cssDeclaration() }
-                if !decls.isEmpty {
-                    pseudoEntries.append(PseudoEntry(pseudoClass: pseudo.pseudoClass, declarations: decls))
+                if let entry = Self.pseudoEntry(from: pseudo) {
+                    pseudoEntries.append(entry)
                 }
             } else {
                 declarations.append(contentsOf: CSSEmitter.declarations(for: modifier))
@@ -542,6 +530,15 @@ public struct CSSCollector: Sendable {
     }
 
     // MARK: - Helpers
+
+    private static func pseudoEntry(from pseudo: PseudoClassModifier) -> PseudoEntry? {
+        var decls: [CSSDeclaration] = []
+        for override in pseudo.overrides {
+            decls.append(contentsOf: CSSEmitter.declarations(for: override))
+        }
+        guard !decls.isEmpty else { return nil }
+        return PseudoEntry(pseudoClass: pseudo.pseudoClass, declarations: decls)
+    }
 
     private func emitMediaEntries(
         _ entries: [Entry],
@@ -637,9 +634,10 @@ public struct CSSCollector: Sendable {
 
     /// Generates a semantic class name from component, tag, and ordinal context.
     ///
-    /// When a component scope is present, class names are short (e.g. `.small`)
-    /// because they are nested inside the component selector. When no scope
-    /// exists, the page name is prefixed instead (e.g. `.home-small`).
+    /// When a component scope is present, class names include the component
+    /// prefix (e.g. `.site-header-stack`) to avoid descendant selector
+    /// collisions in nested CSS rules. When no scope exists, the page name
+    /// is prefixed instead (e.g. `.home-stack`).
     static func semanticClassName(
         component: String?,
         tag: String?,
@@ -659,7 +657,7 @@ public struct CSSCollector: Sendable {
     /// Merges multiple `transition` shorthand declarations into a single
     /// comma-separated declaration, preventing later values from overwriting
     /// earlier ones.
-    static func mergeTransitions(_ declarations: [CSSDeclaration]) -> [CSSDeclaration] {
+    public static func mergeTransitions(_ declarations: [CSSDeclaration]) -> [CSSDeclaration] {
         var transitionValues: [String] = []
         var result: [CSSDeclaration] = []
         for decl in declarations {

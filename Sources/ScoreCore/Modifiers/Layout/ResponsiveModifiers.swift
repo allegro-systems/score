@@ -70,7 +70,7 @@ public enum Breakpoint: String, Sendable {
 /// ### CSS Mapping
 ///
 /// Maps to a CSS `@media` width query wrapping the modified styles.
-public struct BreakpointModifier: ModifierValue {
+public struct BreakpointModifier: ModifierValue, CustomModifierDescription {
 
     /// The viewport breakpoint at which the contained styles become active.
     public let breakpoint: Breakpoint
@@ -86,6 +86,10 @@ public struct BreakpointModifier: ModifierValue {
     public init(_ breakpoint: Breakpoint, overrides: [any ModifierValue]) {
         self.breakpoint = breakpoint
         self.overrides = overrides
+    }
+
+    public var devDescription: String {
+        overridesDevDescription(label: breakpoint.rawValue, overrides)
     }
 }
 

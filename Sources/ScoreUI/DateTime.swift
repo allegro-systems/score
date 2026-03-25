@@ -203,50 +203,50 @@ public struct DateTime: Node, SourceLocatable {
         switch format {
         case .date:
             return """
-            (function(){try{var e=document.currentScript.previousElementSibling;\
-            var d=Temporal.PlainDate.from(\"\(isoStr)\");\
-            var fmt=new Intl.DateTimeFormat(undefined,{year:\"numeric\",month:\"long\",day:\"numeric\"});\
-            e.textContent=fmt.format(d)}catch(x){}})()
-            """
+                (function(){try{var e=document.currentScript.previousElementSibling;\
+                var d=Temporal.PlainDate.from(\"\(isoStr)\");\
+                var fmt=new Intl.DateTimeFormat(undefined,{year:\"numeric\",month:\"long\",day:\"numeric\"});\
+                e.textContent=fmt.format(d)}catch(x){}})()
+                """
         case .time:
             return """
-            (function(){try{var e=document.currentScript.previousElementSibling;\
-            var t=Temporal.PlainTime.from(\"\(isoStr)\");\
-            var fmt=new Intl.DateTimeFormat(undefined,{hour:\"numeric\",minute:\"2-digit\"});\
-            e.textContent=fmt.format(t)}catch(x){}})()
-            """
+                (function(){try{var e=document.currentScript.previousElementSibling;\
+                var t=Temporal.PlainTime.from(\"\(isoStr)\");\
+                var fmt=new Intl.DateTimeFormat(undefined,{hour:\"numeric\",minute:\"2-digit\"});\
+                e.textContent=fmt.format(t)}catch(x){}})()
+                """
         case .dateTime:
             return """
-            (function(){try{var e=document.currentScript.previousElementSibling;\
-            var tz=\(tzArg);\
-            var zdt=Temporal.PlainDateTime.from(\"\(isoStr)\").toZonedDateTime(tz);\
-            var fmt=new Intl.DateTimeFormat(undefined,{year:\"numeric\",month:\"long\",day:\"numeric\",hour:\"numeric\",minute:\"2-digit\",timeZoneName:\"short\",timeZone:tz});\
-            e.textContent=fmt.format(zdt.toInstant())}catch(x){}})()
-            """
+                (function(){try{var e=document.currentScript.previousElementSibling;\
+                var tz=\(tzArg);\
+                var zdt=Temporal.PlainDateTime.from(\"\(isoStr)\").toZonedDateTime(tz);\
+                var fmt=new Intl.DateTimeFormat(undefined,{year:\"numeric\",month:\"long\",day:\"numeric\",hour:\"numeric\",minute:\"2-digit\",timeZoneName:\"short\",timeZone:tz});\
+                e.textContent=fmt.format(zdt.toInstant())}catch(x){}})()
+                """
         case .relative:
             return """
-            (function(){try{var e=document.currentScript.previousElementSibling;\
-            var d=Temporal.PlainDate.from(\"\(isoStr)\");\
-            var now=Temporal.Now.plainDateISO();\
-            var dur=now.until(d,{largestUnit:\"day\"});\
-            var days=dur.days;\
-            var rtf=new Intl.RelativeTimeFormat(undefined,{numeric:\"auto\"});\
-            if(Math.abs(days)<1){e.textContent=rtf.format(0,\"day\")}\
-            else if(Math.abs(days)<7){e.textContent=rtf.format(days,\"day\")}\
-            else if(Math.abs(days)<30){e.textContent=rtf.format(Math.trunc(days/7),\"week\")}\
-            else if(Math.abs(days)<365){e.textContent=rtf.format(Math.trunc(days/30),\"month\")}\
-            else{e.textContent=rtf.format(Math.trunc(days/365),\"year\")}}catch(x){}})()
-            """
+                (function(){try{var e=document.currentScript.previousElementSibling;\
+                var d=Temporal.PlainDate.from(\"\(isoStr)\");\
+                var now=Temporal.Now.plainDateISO();\
+                var dur=now.until(d,{largestUnit:\"day\"});\
+                var days=dur.days;\
+                var rtf=new Intl.RelativeTimeFormat(undefined,{numeric:\"auto\"});\
+                if(Math.abs(days)<1){e.textContent=rtf.format(0,\"day\")}\
+                else if(Math.abs(days)<7){e.textContent=rtf.format(days,\"day\")}\
+                else if(Math.abs(days)<30){e.textContent=rtf.format(Math.trunc(days/7),\"week\")}\
+                else if(Math.abs(days)<365){e.textContent=rtf.format(Math.trunc(days/30),\"month\")}\
+                else{e.textContent=rtf.format(Math.trunc(days/365),\"year\")}}catch(x){}})()
+                """
         case .custom(let options):
             let optionPairs = options.sorted(by: { $0.key < $1.key })
                 .map { "\($0.key):\"\($0.value)\"" }
                 .joined(separator: ",")
             return """
-            (function(){try{var e=document.currentScript.previousElementSibling;\
-            var d=Temporal.PlainDate.from(\"\(isoStr)\");\
-            var fmt=new Intl.DateTimeFormat(undefined,{\(optionPairs)});\
-            e.textContent=fmt.format(d)}catch(x){}})()
-            """
+                (function(){try{var e=document.currentScript.previousElementSibling;\
+                var d=Temporal.PlainDate.from(\"\(isoStr)\");\
+                var fmt=new Intl.DateTimeFormat(undefined,{\(optionPairs)});\
+                e.textContent=fmt.format(d)}catch(x){}})()
+                """
         }
     }
 }

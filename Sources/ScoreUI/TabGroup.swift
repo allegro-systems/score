@@ -201,13 +201,13 @@ extension TabGroup: HTMLRenderable {
 
         output.append("<nav data-tab-bar>")
         if let filename {
-            output.append("<span data-code-label>\(escapeHTML(filename))</span>")
+            output.append("<span data-code-label>\(filename.attributeEscaped)</span>")
         }
         output.append("<span data-tab-labels>")
         for (index, tab) in tabs.enumerated() {
             let inputId = "\(groupId)-\(index)"
             output.append(
-                "<label for=\"\(inputId)\" data-tab-label>\(escapeHTML(tab.label))</label>"
+                "<label for=\"\(inputId)\" data-tab-label>\(tab.label.attributeEscaped)</label>"
             )
         }
         output.append("</span>")
@@ -236,7 +236,7 @@ extension TabGroup: HTMLRenderable {
         for tab in tabs {
             output.append("<div data-tab-panel>")
             if let source = tab.sourceText {
-                output.append("<pre data-tab-source hidden>\(escapeHTML(source))</pre>")
+                output.append("<pre data-tab-source hidden>\(source.attributeEscaped)</pre>")
             }
             renderer.write(tab.content, to: &output)
             output.append("</div>")
@@ -308,17 +308,5 @@ extension TabGroup: JSEventWalkable {
         for tab in tabs {
             JSEmitter.walkForReactiveBindings(tab.content, into: &bindings)
         }
-    }
-}
-
-// MARK: - Private Helpers
-
-extension TabGroup {
-    private func escapeHTML(_ text: String) -> String {
-        text.replacingOccurrences(of: "&", with: "&amp;")
-            .replacingOccurrences(of: "<", with: "&lt;")
-            .replacingOccurrences(of: ">", with: "&gt;")
-            .replacingOccurrences(of: "\"", with: "&quot;")
-            .replacingOccurrences(of: "'", with: "&#39;")
     }
 }

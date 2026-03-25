@@ -7,25 +7,37 @@ import ScoreHTML
 public struct RenderResult: Sendable {
     /// The complete HTML document string.
     public let html: String
-    /// The component-scoped CSS extracted from the page's node tree.
-    public let componentCSS: String
-    /// Per-component CSS blocks keyed by scope name, for chunking shared
-    /// styles into a separate stylesheet during static builds.
-    public let componentBlocks: [String: String]
-    /// Component scope names in DOM order, for preserving cascade ordering.
-    public let scopeOrder: [String]
-    /// CSS for entries without a component scope.
-    public let flatCSS: String
-    /// The emitted client-side JavaScript, if the page has reactive bindings.
-    public let script: String
-    /// The page-specific JavaScript without the shared runtime.
-    public let pageJS: String
-    /// JavaScript for page-level declarations (outside any `Element`).
-    public let pageLevelJS: String
-    /// Per-`Element` JavaScript blocks for scope-level deduplication.
-    public let jsScopeBlocks: [String]
-    /// Whether this page requires the Score signals runtime.
-    public let needsRuntime: Bool
+    /// The extracted CSS outputs from the page's node tree.
+    public let css: CSSOutput
+    /// The emitted client-side JavaScript outputs.
+    public let js: JSOutput
+
+    /// CSS outputs extracted during page rendering.
+    public struct CSSOutput: Sendable {
+        /// The component-scoped CSS extracted from the page's node tree.
+        public let full: String
+        /// Per-component CSS blocks keyed by scope name, for chunking shared
+        /// styles into a separate stylesheet during static builds.
+        public let componentBlocks: [String: String]
+        /// Component scope names in DOM order, for preserving cascade ordering.
+        public let scopeOrder: [String]
+        /// CSS for entries without a component scope.
+        public let flat: String
+    }
+
+    /// JavaScript outputs emitted during page rendering.
+    public struct JSOutput: Sendable {
+        /// The emitted client-side JavaScript, if the page has reactive bindings.
+        public let inline: String
+        /// The page-specific JavaScript without the shared runtime.
+        public let perPage: String
+        /// JavaScript for page-level declarations (outside any `Element`).
+        public let pageLevel: String
+        /// Per-`Element` JavaScript blocks for scope-level deduplication.
+        public let scopeBlocks: [String]
+        /// Whether this page requires the Score signals runtime.
+        public let needsRuntime: Bool
+    }
 }
 
 /// Renders a `Page` to a complete HTML document string.
@@ -39,6 +51,11 @@ public struct PageRenderer: Sendable {
     ///   - page: The page to render.
     ///   - appMeta: Application-level metadata.
     ///   - theme: The active theme.
+    ///   - locale: The locale for this rendering pass. Sets the `lang`
+    ///     attribute on `<html>` and activates the ``LocalizationContext``.
+    ///   - localization: The i18n configuration. When non-nil, a
+    ///     ``LocalizationContext`` is installed so ``Localized`` nodes and
+    ///     ``t(_:default:)`` calls resolve translations.
     ///   - cssLinks: External CSS file paths to link in `<head>`.
     ///   - scriptLinks: External JavaScript file paths to link before `</body>`.
     ///     When provided, scripts are loaded externally instead of inlined.
@@ -47,6 +64,8 @@ public struct PageRenderer: Sendable {
         page: some Page,
         metadata appMeta: (any Metadata)?,
         theme: (any Theme)?,
+        locale: SiteLocale? = nil,
+        localization: Localization? = nil,
         cssLinks: [String] = [],
         scriptLinks: [String] = []
     ) -> RenderResult {
@@ -80,90 +99,114 @@ public struct PageRenderer: Sendable {
 
         let environment = Environment.current
 
-        var renderer = HTMLRenderer(classInjector: { modifiers, scope in
-            classMap.className(for: modifiers, scope: scope)
-        })
-        renderer.componentClassInjector = { node in
-            if node is any Component || node is any Page {
-                return CSSNaming.className(from: String(describing: type(of: node)))
-            }
-            return nil
-        }
-        renderer.isDevMode = environment == .development
-        let bodyHTML = renderer.render(page.body)
-
-        // Emit client-side JavaScript for reactive bindings
-        let jsResult = JSEmitter.emitPageScript(page: page)
-
-        // Use external script links when provided, otherwise inline
-        var inlineScripts: [String]?
-        let resolvedScriptLinks: [String]
-        if !scriptLinks.isEmpty && !jsResult.pageJS.isEmpty {
-            inlineScripts = nil
-            resolvedScriptLinks = scriptLinks
-        } else if !jsResult.pageJS.isEmpty {
-            var inlineJS = ""
-            if jsResult.needsRuntime {
-                inlineJS.append(JSEmitter.clientRuntime)
-            }
-            inlineJS.append(jsResult.pageJS)
-            inlineScripts = ["<script>\n\(inlineJS)</script>"]
-            resolvedScriptLinks = []
-        } else {
-            inlineScripts = nil
-            resolvedScriptLinks = []
-        }
-
-        // Inject dev tools metadata and script tag in development mode
-        var preScripts: [String] = []
-        if environment == .development {
-            let meta = DevToolsInjector.metadataScript(
-                pageStates: jsResult.pageStates,
-                pageComputeds: jsResult.pageComputeds,
-                pageActions: jsResult.pageActions,
-                componentScopes: jsResult.componentScopes,
-                environment: environment
-            )
-            if !meta.isEmpty {
-                preScripts.append(meta)
-            }
-            let devTag = DevToolsInjector.scriptTag(environment: environment)
-            if inlineScripts != nil {
-                inlineScripts?.append(devTag)
+        // Install localization context for this rendering pass.
+        let context: LocalizationContext? =
+            if let localization, let locale {
+                LocalizationContext(locale: locale, localization: localization)
             } else {
-                inlineScripts = [devTag]
+                nil
             }
-        }
 
-        let parts = DocumentAssembler.Parts(
-            title: title,
-            description: description,
-            keywords: keywords,
-            bodyHTML: bodyHTML,
-            cssLinks: cssLinks,
-            structuredData: structuredData,
-            scripts: inlineScripts,
-            activeTheme: theme?.name,
-            canonicalURL: canonicalURL,
-            ogSiteName: ogSiteName,
-            themeNames: theme.map { Array($0.named.keys) } ?? [],
-            scriptLinks: resolvedScriptLinks,
-            preScripts: preScripts,
-            viewTransitions: theme?.viewTransitions ?? false
-        )
+        return LocalizationContext.$current.withValue(context) {
+            var renderer = HTMLRenderer(classInjector: { modifiers, scope in
+                classMap.className(for: modifiers, scope: scope)
+            })
+            renderer.componentClassInjector = { node in
+                if node is any Component || node is any Page {
+                    return CSSNaming.className(from: String(describing: type(of: node)))
+                }
+                return nil
+            }
+            renderer.isDevMode = environment == .development
+            let bodyHTML = renderer.render(page.body)
 
-        return RenderResult(
-            html: DocumentAssembler.assemble(parts),
-            componentCSS: stylesheetResult.css,
-            componentBlocks: stylesheetResult.componentBlocks,
-            scopeOrder: stylesheetResult.scopeOrder,
-            flatCSS: stylesheetResult.flatCSS,
-            script: jsResult.pageJS.isEmpty ? "" : "<script>\n\(jsResult.needsRuntime ? JSEmitter.clientRuntime : "")\(jsResult.pageJS)</script>",
-            pageJS: jsResult.pageJS,
-            pageLevelJS: jsResult.pageLevelJS,
-            jsScopeBlocks: jsResult.scopeBlocks,
-            needsRuntime: jsResult.needsRuntime
-        )
+            // Emit client-side JavaScript for reactive bindings
+            let jsResult = JSEmitter.emitPageScript(page: page)
+
+            // Use external script links when provided, otherwise inline
+            var inlineScripts: [String]?
+            let resolvedScriptLinks: [String]
+            if !scriptLinks.isEmpty && !jsResult.pageJS.isEmpty {
+                inlineScripts = nil
+                resolvedScriptLinks = scriptLinks
+            } else if !jsResult.pageJS.isEmpty {
+                var inlineJS = ""
+                if jsResult.needsRuntime {
+                    inlineJS.append(JSEmitter.clientRuntime)
+                }
+                inlineJS.append(jsResult.pageJS)
+                inlineScripts = ["<script>\n\(inlineJS)</script>"]
+                resolvedScriptLinks = []
+            } else {
+                inlineScripts = nil
+                resolvedScriptLinks = []
+            }
+
+            // Inject scroll observer when page uses animateOnScroll
+            if bodyHTML.contains("data-scroll-animate") {
+                if inlineScripts != nil {
+                    inlineScripts?.append("<script>\(JSEmitter.scrollObserverRuntime)</script>")
+                } else {
+                    inlineScripts = ["<script>\(JSEmitter.scrollObserverRuntime)</script>"]
+                }
+            }
+
+            // Inject dev tools metadata and script tag in development mode
+            var preScripts: [String] = []
+            if environment == .development {
+                let meta = DevToolsInjector.metadataScript(
+                    pageStates: jsResult.pageStates,
+                    pageComputeds: jsResult.pageComputeds,
+                    pageActions: jsResult.pageActions,
+                    componentScopes: jsResult.componentScopes,
+                    environment: environment
+                )
+                if !meta.isEmpty {
+                    preScripts.append(meta)
+                }
+                let devTag = DevToolsInjector.scriptTag(environment: environment)
+                if inlineScripts != nil {
+                    inlineScripts?.append(devTag)
+                } else {
+                    inlineScripts = [devTag]
+                }
+            }
+
+            let parts = DocumentAssembler.Parts(
+                title: title,
+                description: description,
+                keywords: keywords,
+                bodyHTML: bodyHTML,
+                cssLinks: cssLinks,
+                structuredData: structuredData,
+                scripts: inlineScripts,
+                activeTheme: theme?.name,
+                canonicalURL: canonicalURL,
+                ogSiteName: ogSiteName,
+                themeNames: theme.map { Array($0.named.keys) } ?? [],
+                scriptLinks: resolvedScriptLinks,
+                preScripts: preScripts,
+                viewTransitions: theme?.viewTransitions ?? false,
+                locale: locale?.identifier ?? "en"
+            )
+
+            return RenderResult(
+                html: DocumentAssembler.assemble(parts),
+                css: RenderResult.CSSOutput(
+                    full: stylesheetResult.css,
+                    componentBlocks: stylesheetResult.componentBlocks,
+                    scopeOrder: stylesheetResult.scopeOrder,
+                    flat: stylesheetResult.flatCSS
+                ),
+                js: RenderResult.JSOutput(
+                    inline: jsResult.pageJS.isEmpty ? "" : "<script>\n\(jsResult.needsRuntime ? JSEmitter.clientRuntime : "")\(jsResult.pageJS)</script>",
+                    perPage: jsResult.pageJS,
+                    pageLevel: jsResult.pageLevelJS,
+                    scopeBlocks: jsResult.scopeBlocks,
+                    needsRuntime: jsResult.needsRuntime
+                )
+            )
+        }  // LocalizationContext.$current.withValue
     }
 
     /// Renders an error page body into a complete HTML document.
@@ -252,6 +295,7 @@ private struct ClassMap: Sendable {
             declarations.append(contentsOf: CSSEmitter.declarations(for: modifier))
         }
         guard !declarations.isEmpty else { return nil }
+        declarations = CSSCollector.mergeTransitions(declarations)
         let key = CSSDeclaration.lookupKey(for: declarations)
         let scopedKey = "\(scope ?? "")|\(key)"
         if nestedKeys.contains(scopedKey) { return nil }

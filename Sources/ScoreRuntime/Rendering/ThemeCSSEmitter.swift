@@ -12,18 +12,26 @@ public struct ThemeCSSEmitter: Sendable {
     ///
     /// - Parameters:
     ///   - theme: The theme to emit CSS for.
+    ///   - plugins: Plugins whose stylesheet imports are included.
     ///   - assetManifest: An optional asset manifest used to resolve font file
     ///     paths to fingerprinted URLs. When `nil`, font resource paths are
     ///     used as-is.
     /// - Returns: The complete CSS string for the theme.
     public static func emit(
         _ theme: some Theme,
+        plugins: [any ScorePlugin] = [],
         assetManifest: AssetManifest? = nil
     ) -> String {
         var css = ""
 
         for url in theme.stylesheetImports {
             css.append("@import url('\(url)');\n")
+        }
+
+        for plugin in plugins {
+            for url in plugin.stylesheetImports {
+                css.append("@import url('\(url)');\n")
+            }
         }
 
         emitFontFaces(theme.fontFaces, assetManifest: assetManifest, into: &css)
@@ -54,6 +62,15 @@ public struct ThemeCSSEmitter: Sendable {
             emitViewTransitionStyles(into: &css)
         }
 
+        // Plugin inline CSS
+        for plugin in plugins {
+            if let pluginCSS = plugin.inlineCSS {
+                css.append("/* \(plugin.name) */\n")
+                css.append(pluginCSS)
+                css.append("\n")
+            }
+        }
+
         return css
     }
 
@@ -79,6 +96,9 @@ public struct ThemeCSSEmitter: Sendable {
         for (key, value) in theme.componentStyles.sorted(by: { $0.key < $1.key }) {
             css.append("  --\(key): \(value);\n")
         }
+
+        // Syntax theme custom properties
+        emitSyntaxProperties(theme.syntaxTheme, into: &css)
     }
 
     private static func emitPatchProperties(
@@ -105,6 +125,9 @@ public struct ThemeCSSEmitter: Sendable {
         if let radius = patch.radiusBase {
             css.append("\(indent)--radius-base: \(cleanedPixelValue(radius));\n")
         }
+        if let syntax = patch.syntaxTheme {
+            emitSyntaxProperties(syntax, into: &css, indent: indent)
+        }
     }
 
     private static let textScale: [(name: String, rem: Double, lineHeight: String)] = [
@@ -125,9 +148,7 @@ public struct ThemeCSSEmitter: Sendable {
 
     private static func emitTextScale(into css: inout String, indent: String = "  ") {
         for step in textScale {
-            let rem =
-                step.rem.truncatingRemainder(dividingBy: 1) == 0
-                ? "\(Int(step.rem))" : "\(step.rem)"
+            let rem = step.rem.cleanValue
             css.append("\(indent)--text-\(step.name): \(rem)rem;\n")
             css.append("\(indent)--text-\(step.name)--line-height: \(step.lineHeight);\n")
         }
@@ -136,7 +157,7 @@ public struct ThemeCSSEmitter: Sendable {
     private static func cssValue(for token: ColorToken) -> String {
         switch token.kind {
         case .oklch(let l, let c, let h):
-            return "oklch(\(cleanedNumber(l)) \(cleanedNumber(c)) \(cleanedNumber(h)))"
+            return "oklch(\(l.cleanValue) \(c.cleanValue) \(h.cleanValue))"
         case .semantic: return "inherit"
         case .palette(let name, let shade): return "var(--color-\(name)-\(shade))"
         case .named(let name): return "var(--color-\(name))"
@@ -278,14 +299,13 @@ public struct ThemeCSSEmitter: Sendable {
               h1 { font-size: 24px; }
               h2 { font-size: 18px; }
               h3 { font-size: 15px; }
-              main { padding-inline: 16px; }
             }\n
             """)
     }
 
     private static func emitContentStyles(_ theme: some Theme, into css: inout String) {
         let content = theme.contentStyle
-        let syntax = theme.syntaxTheme
+        let _ = theme.syntaxTheme
 
         var blockquoteDecls: [String] = [
             "border-left: 3px solid \(cssPropertyValue(for: content.blockquoteBorderColor))",
@@ -325,7 +345,7 @@ public struct ThemeCSSEmitter: Sendable {
         let codeBlockBg =
             content.codeBlockBackground
             .map { cssPropertyValue(for: $0) }
-            ?? syntax.background.cssValue
+            ?? "var(--syntax-bg)"
 
         emitRule(
             "[data-code-block]",
@@ -350,13 +370,13 @@ public struct ThemeCSSEmitter: Sendable {
                 "align-items: center",
                 "justify-content: space-between",
                 "padding: 6px 16px",
-                "border-bottom: 1px solid rgba(255,255,255,0.12)",
+                "border-bottom: 1px solid color-mix(in oklch, var(--syntax-comment), transparent 70%)",
             ], into: &css)
 
         emitRule(
             "[data-code-label]",
             declarations: [
-                "color: \(syntax.comment.cssValue)",
+                "color: var(--syntax-comment)",
                 "font-family: var(--font-mono, monospace)",
                 "font-size: 11px",
                 "text-transform: uppercase",
@@ -367,8 +387,8 @@ public struct ThemeCSSEmitter: Sendable {
             "[data-code-copy]",
             declarations: [
                 "background: none",
-                "border: 1px solid rgba(255,255,255,0.15)",
-                "color: \(syntax.variable.cssValue)",
+                "border: 1px solid color-mix(in oklch, var(--syntax-comment), transparent 60%)",
+                "color: var(--syntax-variable)",
                 "font-size: 10px",
                 "padding: 2px 8px",
                 "border-radius: 3px",
@@ -395,7 +415,7 @@ public struct ThemeCSSEmitter: Sendable {
             declarations: [
                 "display: flex",
                 "flex-direction: column",
-                "border-right: 1px solid rgba(255,255,255,0.10)",
+                "border-right: 1px solid color-mix(in oklch, var(--syntax-comment), transparent 70%)",
             ], into: &css)
 
         emitRule(
@@ -405,7 +425,7 @@ public struct ThemeCSSEmitter: Sendable {
                 "font-size: 13px",
                 "line-height: 1.5",
                 "padding: 0 12px",
-                "color: \(syntax.comment.cssValue)",
+                "color: var(--syntax-comment)",
                 "text-align: right",
                 "user-select: none",
                 "-webkit-user-select: none",
@@ -478,7 +498,7 @@ public struct ThemeCSSEmitter: Sendable {
                 "align-items: center",
                 "gap: 0",
                 "padding: 0 16px",
-                "border-bottom: 1px solid rgba(255,255,255,0.12)",
+                "border-bottom: 1px solid color-mix(in oklch, var(--syntax-comment), transparent 70%)",
             ], into: &css)
 
         emitRule(
@@ -498,7 +518,7 @@ public struct ThemeCSSEmitter: Sendable {
                 "letter-spacing: 0.05em",
                 "padding: 8px 12px",
                 "cursor: pointer",
-                "color: \(syntax.comment.cssValue)",
+                "color: var(--syntax-comment)",
                 "border-bottom: 2px solid transparent",
                 "transition: color 0.15s ease, border-color 0.15s ease",
                 "user-select: none",
@@ -527,14 +547,24 @@ public struct ThemeCSSEmitter: Sendable {
             emitRule(
                 "[data-tab-group] > input:nth-of-type(\(i)):checked ~ nav [data-tab-label]:nth-child(\(i))",
                 declarations: [
-                    "color: \(syntax.variable.cssValue)",
-                    "border-bottom-color: \(syntax.variable.cssValue)",
+                    "color: var(--syntax-variable)",
+                    "border-bottom-color: var(--syntax-variable)",
                 ], into: &css)
 
             emitRule(
                 "[data-tab-group] > input:nth-of-type(\(i)):checked ~ div:nth-of-type(\(i))",
                 declarations: ["display: block"],
                 into: &css)
+        }
+    }
+
+    private static func emitSyntaxProperties(
+        _ syntax: SyntaxTheme,
+        into css: inout String,
+        indent: String = "  "
+    ) {
+        for (name, value) in syntax.cssProperties {
+            css.append("\(indent)\(name): \(value.cssValue);\n")
         }
     }
 
@@ -566,15 +596,7 @@ public struct ThemeCSSEmitter: Sendable {
     }
 
     private static func cleanedPixelValue(_ value: Double) -> String {
-        value.truncatingRemainder(dividingBy: 1) == 0
-            ? "\(Int(value))px"
-            : "\(value)px"
-    }
-
-    private static func cleanedNumber(_ value: Double) -> String {
-        value.truncatingRemainder(dividingBy: 1) == 0
-            ? "\(Int(value))"
-            : "\(value)"
+        "\(value.cleanValue)px"
     }
 
     private static func emitSpinnerStyles(into css: inout String) {
@@ -593,7 +615,7 @@ public struct ThemeCSSEmitter: Sendable {
         emitRule(
             "[data-spinner]::after",
             declarations: [
-                "content: \"\"",
+                "content: \"\""
             ], into: &css)
 
         // Built-in spinner patterns
@@ -617,9 +639,7 @@ public struct ThemeCSSEmitter: Sendable {
             css.append("@keyframes \(keyframeName) {\n")
             for (index, frame) in pattern.frames.enumerated() {
                 let percentage = (Double(index) / Double(count)) * 100
-                let pctStr = percentage.truncatingRemainder(dividingBy: 1) == 0
-                    ? "\(Int(percentage))%"
-                    : String(format: "%.2f%%", percentage)
+                let pctStr = "\(percentage.cleanValue)%"
                 css.append("  \(pctStr) { content: \"\(frame)\"; }\n")
             }
             css.append("}\n")

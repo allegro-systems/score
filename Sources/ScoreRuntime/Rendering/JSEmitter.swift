@@ -63,12 +63,6 @@ public struct JSEmitter: Sendable {
         public var reactiveBindings: [ReactiveBinding] = []
     }
 
-    /// Checks whether a node is a leaf (has `Body == Never`) without
-    /// evaluating `body`, which would trigger `fatalError` on leaf nodes.
-    private static func isLeafNode<N: Node>(_ node: N) -> Bool {
-        N.Body.self == Never.self
-    }
-
     private init() {}
 
     // MARK: - Extraction
@@ -181,7 +175,7 @@ public struct JSEmitter: Sendable {
             scope.computeds = extractComputedsFromMirror(mirror)
             scope.actions = extractActionsFromMirror(mirror)
 
-            if !isLeafNode(node) {
+            if !node.isLeafNode {
                 walkForEvents(node.body, into: &scope.bindings)
                 walkForReactiveBindings(node.body, into: &scope.reactiveBindings)
             }
@@ -193,7 +187,7 @@ public struct JSEmitter: Sendable {
                 scopes.append(scope)
             }
 
-            if !isLeafNode(node) {
+            if !node.isLeafNode {
                 var nestedBindings: [EventBinding] = []
                 var nestedReactive: [ReactiveBinding] = []
                 walkForScopes(
@@ -231,7 +225,7 @@ public struct JSEmitter: Sendable {
             return
         }
 
-        if !isLeafNode(node) {
+        if !node.isLeafNode {
             walkForScopes(node.body, scopes: &scopes, pageLevelBindings: &pageLevelBindings, pageLevelReactive: &pageLevelReactive)
         }
     }
@@ -260,7 +254,7 @@ public struct JSEmitter: Sendable {
             return
         }
 
-        if !isLeafNode(node) {
+        if !node.isLeafNode {
             walkForReactiveBindings(node.body, into: &bindings)
         }
     }
@@ -274,6 +268,17 @@ public struct JSEmitter: Sendable {
     /// `Signal.effect` is a Score addition not present in the TC39 spec.
     public static let clientRuntime = """
         const Signal=(()=>{let t=null;function State(v){let subs=new Set();return{get(){if(t)subs.add(t);return v},set(n){if(n===v)return;v=n;for(const fn of subs)fn()}}}function effect(fn){const run=()=>{t=run;try{fn()}finally{t=null}};run()}function Computed(fn){let s=new State(undefined);effect(()=>s.set(fn()));return{get:s.get}}return{State,effect,Computed}})();
+        """
+
+    /// Lightweight IntersectionObserver bootstrap for `.animateOnScroll()`.
+    ///
+    /// Elements with `data-scroll-animate` start at `opacity: 0` (set by CSS)
+    /// and store their animation shorthand in `--score-scroll-animation`.
+    /// When observed intersecting the viewport, the animation is applied and
+    /// the element becomes visible. Elements with `once:0` in their config
+    /// re-hide when they leave the viewport.
+    public static let scrollObserverRuntime = """
+        (function(){var els=document.querySelectorAll("[data-scroll-animate]");if(!els.length)return;var io=new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting){var anim=getComputedStyle(e.target).getPropertyValue("--score-scroll-animation").trim();e.target.style.opacity="1";if(anim)e.target.style.animation=anim;var cfg=e.target.getAttribute("data-scroll-animate")||"";if(cfg.indexOf("once:0")===-1)io.unobserve(e.target)}else{var cfg=e.target.getAttribute("data-scroll-animate")||"";if(cfg.indexOf("once:0")!==-1){e.target.style.opacity="0";e.target.style.animation="none"}}})},{threshold:0.1,rootMargin:"0px"});els.forEach(function(el){var cfg=el.getAttribute("data-scroll-animate")||"";var m=cfg.match(/t:([\\d.]+)/);var threshold=m?parseFloat(m[1]):0.1;if(threshold!==0.1){var custom=new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting){var anim=getComputedStyle(e.target).getPropertyValue("--score-scroll-animation").trim();e.target.style.opacity="1";if(anim)e.target.style.animation=anim;if(cfg.indexOf("once:0")===-1)custom.unobserve(e.target)}else if(cfg.indexOf("once:0")!==-1){e.target.style.opacity="0";e.target.style.animation="none"}})},{threshold:threshold});custom.observe(el)}else{io.observe(el)}})})();
         """
 
     // MARK: - Emission
@@ -540,7 +545,7 @@ public struct JSEmitter: Sendable {
             return
         }
 
-        if !isLeafNode(node) {
+        if !node.isLeafNode {
             walkForComponents(node.body, states: &states, computeds: &computeds, actions: &actions)
         }
     }
@@ -567,7 +572,7 @@ public struct JSEmitter: Sendable {
             return
         }
 
-        if !isLeafNode(node) {
+        if !node.isLeafNode {
             walkForEvents(node.body, into: &bindings)
         }
     }

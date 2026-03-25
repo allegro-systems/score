@@ -171,7 +171,7 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
                 let queryParams = RequestContext.parseQuery(uri)
                 var headers: [String: String] = [:]
                 for field in request.headerFields {
-                    let name = field.name.rawName
+                    let name = field.name.rawName.lowercased()
                     if headers[name] == nil {
                         headers[name] = field.value
                     }

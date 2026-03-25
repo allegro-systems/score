@@ -176,11 +176,11 @@ public struct Minifier: Sendable {
 
                 let lower = tagName.lowercased()
                 if isClosing {
-                    if lower == "pre" || lower == "script" || lower == "style" || lower == "textarea" {
+                    if lower == "pre" || lower == "script" || lower == "style" || lower == "textarea" || lower == "code" {
                         inPreOrScript = false
                     }
                 } else {
-                    if lower == "pre" || lower == "script" || lower == "style" || lower == "textarea" {
+                    if lower == "pre" || lower == "script" || lower == "style" || lower == "textarea" || lower == "code" {
                         inPreOrScript = true
                     }
                 }

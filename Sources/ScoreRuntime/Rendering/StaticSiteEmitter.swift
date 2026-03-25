@@ -89,9 +89,11 @@ public struct StaticSiteEmitter: Sendable {
             assetManifest = nil
         }
 
+        let plugins = application.plugins
+
         let globalCSS =
             application.theme.map {
-                ThemeCSSEmitter.emit($0, assetManifest: assetManifest)
+                ThemeCSSEmitter.emit($0, plugins: plugins, assetManifest: assetManifest)
             } ?? ""
         try transform(globalCSS, minify: minify, using: Minifier.minifyCSS).write(
             toFile: "\(outputDir)/global.css",
@@ -109,35 +111,51 @@ public struct StaticSiteEmitter: Sendable {
             )
         }
 
+        // Determine locale variants to render.
+        let localization = application.localization
+        let localesToRender = Self.resolvedLocales(localization)
+
         // Render all pages with placeholder CSS and JS links.
         // The actual links are rewritten after chunk computation.
+        // When localization is configured, pages are rendered once per locale.
         var rendered: [RenderedPageEntry] = []
         var anyPageNeedsRuntime = false
 
-        for page in application.pages {
-            let pagePath = page.path
-            let cssName = Self.fileName(for: pagePath)
+        let theme = application.theme
+        let metadata = application.metadata
 
-            // Build script links: runtime + per-page placeholder
-            var scriptLinks: [String] = []
-            let jsResult = JSEmitter.emitPageScript(page: page)
-            if !jsResult.pageJS.isEmpty {
-                if jsResult.needsRuntime {
-                    scriptLinks.append("/score.js")
-                    anyPageNeedsRuntime = true
+        for locale in localesToRender {
+            let isDefault = localization == nil || locale == localization?.defaultLocale
+            let pathPrefix = isDefault ? "" : "/\(locale.identifier)"
+
+            for page in application.pages {
+                let pagePath = pathPrefix + page.path
+                let cssName = Self.fileName(for: pagePath)
+
+                // Build script links: runtime + per-page placeholder + plugins
+                var scriptLinks: [String] = []
+                let jsResult = JSEmitter.emitPageScript(page: page)
+                if !jsResult.pageJS.isEmpty {
+                    if jsResult.needsRuntime {
+                        scriptLinks.append("/score.js")
+                        anyPageNeedsRuntime = true
+                    }
+                    scriptLinks.append("/scripts/\(cssName).js")
                 }
-                scriptLinks.append("/scripts/\(cssName).js")
+                scriptLinks.append(contentsOf: plugins.flatMap(\.scriptLinks))
+
+                let result = PageRenderer.render(
+                    page: page,
+                    metadata: metadata,
+                    theme: theme,
+                    locale: locale,
+                    localization: localization,
+                    cssLinks: ["/global.css", "/styles/\(cssName).css"],
+                    scriptLinks: scriptLinks
+                )
+
+                rendered.append(RenderedPageEntry(pagePath: pagePath, cssName: cssName, result: result))
             }
-
-            let result = PageRenderer.render(
-                page: page,
-                metadata: application.metadata,
-                theme: application.theme,
-                cssLinks: ["/global.css", "/styles/\(cssName).css"],
-                scriptLinks: scriptLinks
-            )
-
-            rendered.append(RenderedPageEntry(pagePath: pagePath, cssName: cssName, result: result))
         }
 
         // Write shared Score runtime
@@ -149,10 +167,28 @@ public struct StaticSiteEmitter: Sendable {
             )
         }
 
+        // Write scroll observer runtime if any page uses animateOnScroll
+        let anyPageUsesScrollAnimate = rendered.contains { $0.result.html.contains("data-scroll-animate") }
+        if anyPageUsesScrollAnimate {
+            try JSEmitter.scrollObserverRuntime.write(
+                toFile: "\(outputDir)/score-scroll.js",
+                atomically: true,
+                encoding: .utf8
+            )
+        }
+
+        // Compute JS scope-block chunking once for both file writing and link map.
+        let reactiveEntries = rendered.filter { !$0.result.js.perPage.isEmpty }
+        let jsChunked: JSChunkResult? =
+            reactiveEntries.isEmpty
+            ? nil
+            : chunkJSScopeBlocks(rendered: rendered, totalPages: reactiveEntries.count)
+
         // Deduplicate JS: group Element scope blocks by usage pattern
         // (mirroring CSS chunking), write shared/chunk/page-specific files.
         try writeJSFiles(
             rendered: rendered,
+            chunked: jsChunked,
             scriptsDir: scriptsDir,
             minify: minify,
             fm: fm
@@ -168,7 +204,7 @@ public struct StaticSiteEmitter: Sendable {
         var scopeCSS: [String: String] = [:]
         var divergentScopes: Set<String> = []
         for entry in rendered {
-            for (scope, block) in entry.result.componentBlocks {
+            for (scope, block) in entry.result.css.componentBlocks {
                 scopePages[scope, default: []].insert(entry.cssName)
                 if let existing = scopeCSS[scope] {
                     if existing != block {
@@ -183,7 +219,7 @@ public struct StaticSiteEmitter: Sendable {
         // Divergent scopes stay page-specific
         var singlePageScopes: [String: [String]] = [:]
         for scope in divergentScopes {
-            for entry in rendered where entry.result.componentBlocks[scope] != nil {
+            for entry in rendered where entry.result.css.componentBlocks[scope] != nil {
                 singlePageScopes[entry.cssName, default: []].append(scope)
             }
             scopePages.removeValue(forKey: scope)
@@ -240,13 +276,13 @@ public struct StaticSiteEmitter: Sendable {
             var pageCSS = ""
             if let scopes = singlePageScopes[entry.cssName] {
                 let scopeSet = Set(scopes)
-                for scope in entry.result.scopeOrder where scopeSet.contains(scope) {
-                    if let block = entry.result.componentBlocks[scope] {
+                for scope in entry.result.css.scopeOrder where scopeSet.contains(scope) {
+                    if let block = entry.result.css.componentBlocks[scope] {
                         pageCSS.append(block)
                     }
                 }
             }
-            pageCSS.append(entry.result.flatCSS)
+            pageCSS.append(entry.result.css.flat)
 
             if !pageCSS.isEmpty {
                 pageHasCSS.insert(entry.cssName)
@@ -259,7 +295,7 @@ public struct StaticSiteEmitter: Sendable {
         }
 
         // Build JS link map: page name → actual script paths
-        let jsLinkMap = buildJSLinkMap(rendered: rendered)
+        let jsLinkMap = buildJSLinkMap(rendered: rendered, chunked: jsChunked)
 
         // Write HTML with correct CSS and JS links
         for entry in rendered {
@@ -312,6 +348,7 @@ public struct StaticSiteEmitter: Sendable {
         try writeSitemap(
             pages: application.pages,
             baseURL: application.metadata?.baseURL,
+            localization: localization,
             outputDirectory: outputDir
         )
 
@@ -327,15 +364,14 @@ public struct StaticSiteEmitter: Sendable {
     /// chunks, and page-unique blocks stay in per-page files.
     private static func writeJSFiles(
         rendered: [RenderedPageEntry],
+        chunked: JSChunkResult?,
         scriptsDir: String,
         minify: Bool,
         fm: FileManager
     ) throws {
-        let reactiveEntries = rendered.filter { !$0.result.pageJS.isEmpty }
-        guard !reactiveEntries.isEmpty else { return }
+        let reactiveEntries = rendered.filter { !$0.result.js.perPage.isEmpty }
+        guard !reactiveEntries.isEmpty, let chunked else { return }
         try fm.createDirectory(atPath: scriptsDir, withIntermediateDirectories: true)
-
-        let chunked = chunkJSScopeBlocks(rendered: rendered, totalPages: reactiveEntries.count)
 
         if !chunked.sharedJS.isEmpty {
             try transform(chunked.sharedJS, minify: minify, using: Minifier.minifyJS).write(
@@ -348,7 +384,7 @@ public struct StaticSiteEmitter: Sendable {
         }
 
         for entry in reactiveEntries {
-            var pageJS = entry.result.pageLevelJS
+            var pageJS = entry.result.js.pageLevel
             if let blocks = chunked.pageBlocks[entry.cssName] {
                 pageJS.append(blocks.joined())
             }
@@ -370,7 +406,7 @@ public struct StaticSiteEmitter: Sendable {
     ) -> JSChunkResult {
         var blockPages: [String: Set<String>] = [:]
         for entry in rendered {
-            for block in entry.result.jsScopeBlocks {
+            for block in entry.result.js.scopeBlocks {
                 blockPages[block, default: []].insert(entry.cssName)
             }
         }
@@ -383,7 +419,7 @@ public struct StaticSiteEmitter: Sendable {
         var sharedJS = ""
         var chunks: [(name: String, js: String, pages: Set<String>)] = []
         var pageBlocks: [String: [String]] = [:]
-        var usedNames: Set<String> = []
+        var usedNames: Set<String> = ["shared"]
 
         for (pageSet, blocks) in pageSetBlocks {
             let combined = blocks.joined()
@@ -402,11 +438,9 @@ public struct StaticSiteEmitter: Sendable {
 
     /// Builds a map from page name to the list of actual JS script paths,
     /// accounting for scope-block deduplication.
-    private static func buildJSLinkMap(rendered: [RenderedPageEntry]) -> [String: [String]] {
-        let reactiveEntries = rendered.filter { !$0.result.pageJS.isEmpty }
-        guard !reactiveEntries.isEmpty else { return [:] }
-
-        let chunked = chunkJSScopeBlocks(rendered: rendered, totalPages: reactiveEntries.count)
+    private static func buildJSLinkMap(rendered: [RenderedPageEntry], chunked: JSChunkResult?) -> [String: [String]] {
+        let reactiveEntries = rendered.filter { !$0.result.js.perPage.isEmpty }
+        guard !reactiveEntries.isEmpty, let chunked else { return [:] }
 
         var linkMap: [String: [String]] = [:]
         for entry in reactiveEntries {
@@ -419,7 +453,7 @@ public struct StaticSiteEmitter: Sendable {
                 links.append("/scripts/\(chunk.name).js")
             }
             let hasPageJS =
-                !entry.result.pageLevelJS.isEmpty
+                !entry.result.js.pageLevel.isEmpty
                 || chunked.pageBlocks[entry.cssName] != nil
             if hasPageJS {
                 links.append("/scripts/\(entry.cssName).js")
@@ -453,7 +487,7 @@ public struct StaticSiteEmitter: Sendable {
         } else if let first = scopes.sorted().first {
             name = first
         } else {
-            name = "shared"
+            name = "chunk"
         }
 
         if used.contains(name) {
@@ -510,21 +544,30 @@ public struct StaticSiteEmitter: Sendable {
     private static func writeSitemap(
         pages: [any Page],
         baseURL: String?,
+        localization: Localization?,
         outputDirectory: String
     ) throws {
         guard let baseURL, !baseURL.isEmpty else { return }
 
         let base = baseURL.hasSuffix("/") ? String(baseURL.dropLast()) : baseURL
 
+        let localesToRender = Self.resolvedLocales(localization)
+
         var xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
         xml.append("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n")
 
-        for page in pages {
-            let path = page.path
-            if isStatusPage(path) { continue }
+        for locale in localesToRender {
+            let isDefault = localization == nil || locale == localization?.defaultLocale
+            let pathPrefix = isDefault ? "" : "/\(locale.identifier)"
 
-            let loc = path == "/" ? base + "/" : base + path
-            xml.append("  <url>\n    <loc>\(loc)</loc>\n  </url>\n")
+            for page in pages {
+                let path = page.path
+                if isStatusPage(path) { continue }
+
+                let fullPath = pathPrefix + path
+                let loc = fullPath == "/" ? base + "/" : base + fullPath
+                xml.append("  <url>\n    <loc>\(loc)</loc>\n  </url>\n")
+            }
         }
 
         xml.append("</urlset>\n")
@@ -541,6 +584,15 @@ public struct StaticSiteEmitter: Sendable {
     private static func isStatusPage(_ path: String) -> Bool {
         let segment = path.drop(while: { $0 == "/" })
         return segment.count == 3 && segment.allSatisfy(\.isNumber)
+    }
+
+    /// Returns the locales to render, defaulting to English when no
+    /// localization is configured.
+    private static func resolvedLocales(_ localization: Localization?) -> [SiteLocale] {
+        if let localization {
+            return localization.supportedLocales
+        }
+        return [SiteLocale("en")]
     }
 
     /// Maps a page path to a file path.

@@ -5,13 +5,39 @@ import SwiftSyntaxMacros
 ///
 /// When applied to a struct, this macro:
 /// 1. Adds `Component` protocol conformance via an extension.
-/// 2. If the struct has a `content: Content` stored property, generates
+/// 2. Applies `@NodeBuilder` to the `body` property so multi-expression
+///    bodies work without an explicit annotation.
+/// 3. If the struct has a `content: Content` stored property, generates
 ///    an `init` with a `@NodeBuilder` trailing-closure parameter that
 ///    wraps the builder result in `Content(...)`.
 ///
 /// For structs without a `content: Content` property, only conformance
-/// is added — no initializer is generated.
-public struct ComponentMacro: MemberMacro, ExtensionMacro {
+/// and the `@NodeBuilder` attribute are added — no initializer is generated.
+public struct ComponentMacro: MemberMacro, MemberAttributeMacro, ExtensionMacro {
+
+    // MARK: - MemberAttributeMacro
+
+    public static func expansion(
+        of node: AttributeSyntax,
+        attachedTo declaration: some DeclGroupSyntax,
+        providingAttributesFor member: some DeclSyntaxProtocol,
+        in context: some MacroExpansionContext
+    ) throws -> [AttributeSyntax] {
+        guard let variable = member.as(VariableDeclSyntax.self) else { return [] }
+
+        let isBody = variable.bindings.contains { binding in
+            binding.pattern.as(IdentifierPatternSyntax.self)?.identifier.text == "body"
+                && binding.accessorBlock != nil
+        }
+        guard isBody else { return [] }
+
+        let alreadyAnnotated = variable.attributes.contains { attr in
+            attr.as(AttributeSyntax.self)?.attributeName.trimmedDescription == "NodeBuilder"
+        }
+        guard !alreadyAnnotated else { return [] }
+
+        return [AttributeSyntax(atSign: .atSignToken(), attributeName: IdentifierTypeSyntax(name: .identifier("NodeBuilder")))]
+    }
 
     // MARK: - MemberMacro
 

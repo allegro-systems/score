@@ -1,5 +1,11 @@
 import Foundation
 
+#if canImport(zlib)
+import zlib
+#elseif canImport(CZlib)
+import CZlib
+#endif
+
 /// Content encoding applied during optimization.
 ///
 /// Represents the transfer encoding that was applied to an asset during
@@ -87,7 +93,7 @@ public struct AssetOptimizer: Sendable {
             )
         }
 
-        if let compressed = try? (data as NSData).compressed(using: .zlib) as Data,
+        if let compressed = Self.deflateCompress(data),
             compressed.count < data.count
         {
             return OptimizedAsset(
@@ -104,5 +110,42 @@ public struct AssetOptimizer: Sendable {
             optimizedSize: data.count,
             encoding: nil
         )
+    }
+
+    /// Compresses data using raw deflate (RFC 1951) via the zlib C library.
+    public static func deflateCompress(_ data: Data) -> Data? {
+        guard !data.isEmpty else { return nil }
+
+        var stream = z_stream()
+        let initResult = deflateInit2_(
+            &stream,
+            Z_DEFAULT_COMPRESSION,
+            Z_DEFLATED,
+            -15,
+            8,
+            Z_DEFAULT_STRATEGY,
+            ZLIB_VERSION,
+            Int32(MemoryLayout<z_stream>.size)
+        )
+        guard initResult == Z_OK else { return nil }
+        defer { deflateEnd(&stream) }
+
+        let outputCapacity = deflateBound(&stream, UInt(data.count))
+        var output = Data(count: Int(outputCapacity))
+
+        let result: Int32 = data.withUnsafeBytes { inputPtr in
+            output.withUnsafeMutableBytes { outputPtr in
+                stream.next_in = UnsafeMutablePointer(
+                    mutating: inputPtr.bindMemory(to: UInt8.self).baseAddress)
+                stream.avail_in = uInt(data.count)
+                stream.next_out = outputPtr.bindMemory(to: UInt8.self).baseAddress
+                stream.avail_out = uInt(outputCapacity)
+                return deflate(&stream, Z_FINISH)
+            }
+        }
+
+        guard result == Z_STREAM_END else { return nil }
+        output.count = Int(stream.total_out)
+        return output
     }
 }

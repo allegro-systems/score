@@ -1,3 +1,5 @@
+import Foundation
+
 /// A protocol that represents the root configuration of a Score application.
 ///
 /// `Application` is the top-level entry point that wires together the page
@@ -156,8 +158,15 @@ extension Application {
 
     /// The directory where build output is written.
     ///
-    /// Defaults to `.score`.
-    public var outputDirectory: String { ".score" }
+    /// Defaults to `.score` in development and `"static"` in production
+    /// (Stage deploys place built output in a `static/` directory).
+    public var outputDirectory: String {
+        // When running inside Stage (--listen mode), use "static"
+        if ProcessInfo.processInfo.arguments.contains("--listen") {
+            return "static"
+        }
+        return ".score"
+    }
 
     /// The directory where content files are stored.
     ///

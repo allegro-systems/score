@@ -1,3 +1,5 @@
+import Foundation
+
 /// A locale identifier used for internationalization.
 ///
 /// `SiteLocale` wraps an IETF BCP 47 language tag (e.g. `"en"`, `"es"`,
@@ -20,6 +22,20 @@ public struct SiteLocale: Sendable, Hashable, Equatable {
     /// - Parameter identifier: A BCP 47 language tag.
     public init(_ identifier: String) {
         self.identifier = identifier
+    }
+
+    /// The native display name of the locale (e.g. `"Français"` for `"fr"`,
+    /// `"Deutsch"` for `"de"`).
+    ///
+    /// Uses `Foundation.Locale` to produce the language's endonym — the name
+    /// of the language as written in that language itself. Falls back to the
+    /// raw identifier if the system cannot resolve a display name.
+    public var displayName: String {
+        let locale = Foundation.Locale(identifier: identifier)
+        if let name = locale.localizedString(forLanguageCode: identifier) {
+            return name.prefix(1).uppercased() + name.dropFirst()
+        }
+        return identifier
     }
 }
 

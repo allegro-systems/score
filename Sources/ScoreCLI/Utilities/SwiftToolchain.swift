@@ -15,7 +15,7 @@ struct SwiftToolchain: Sendable {
         }
     }
 
-    /// Returns the Swift version string (e.g. `"6.2"`).
+    /// Returns the Swift version string (e.g. `"6.3"`).
     ///
     /// - Throws: ``CLIError/toolchainNotFound`` if `swift` is not available.
     static func version() throws -> String {

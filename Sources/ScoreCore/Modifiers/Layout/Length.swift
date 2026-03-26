@@ -22,6 +22,12 @@ public enum Length: Sendable, Hashable {
 
     /// A relative length as a percentage of the containing block.
     case percent(Double)
+
+    /// A viewport-height relative length.
+    case vh(Double)
+
+    /// A viewport-width relative length.
+    case vw(Double)
 }
 
 extension Length: DevDescribable {
@@ -31,6 +37,10 @@ extension Length: DevDescribable {
             return v.cleanValue
         case .percent(let v):
             return "\(v.cleanValue)%"
+        case .vh(let v):
+            return "\(v.cleanValue)vh"
+        case .vw(let v):
+            return "\(v.cleanValue)vw"
         }
     }
 }

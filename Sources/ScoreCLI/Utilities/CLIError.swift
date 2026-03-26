@@ -18,6 +18,9 @@ enum CLIError: Error, CustomStringConvertible {
     /// The Swift toolchain is not available.
     case toolchainNotFound
 
+    /// The requested agent configuration does not exist.
+    case unknownAgent(String)
+
     /// A network operation failed (e.g. template clone).
     case networkError(String)
 
@@ -33,6 +36,8 @@ enum CLIError: Error, CustomStringConvertible {
             "'\(command)' exited with code \(code):\n\(stderr)"
         case .toolchainNotFound:
             "Swift toolchain not found. Install Swift 6.2 or later."
+        case .unknownAgent(let name):
+            "Unknown agent '\(name)'. Available agents: claude, cursor."
         case .networkError(let detail):
             "Network error: \(detail)"
         }

@@ -29,6 +29,8 @@ extension Length {
         switch self {
         case .pixels(let v): CSSEmitter.pixels(v)
         case .percent(let v): "\(CSSEmitter.number(v))%"
+        case .vh(let v): "\(CSSEmitter.number(v))vh"
+        case .vw(let v): "\(CSSEmitter.number(v))vw"
         }
     }
 }

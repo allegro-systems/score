@@ -18,6 +18,7 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
 
     private let outputDirectory: String
     private let routeTable: RouteTable
+    private let maxBodySize: Int
     private let loggingMiddleware = RequestLoggingMiddleware()
     private let metricsMiddleware = RequestMetricsMiddleware()
     private let tracingMiddleware = RequestTracingMiddleware()
@@ -28,12 +29,18 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
     /// - Parameters:
     ///   - outputDirectory: The directory containing pre-built static files.
     ///   - routeTable: The route table for resolving controller routes.
+    /// - Parameters:
+    ///   - outputDirectory: The directory containing pre-built static files.
+    ///   - routeTable: The route table for resolving controller routes.
+    ///   - maxBodySize: Maximum allowed request body size in bytes (default: 10 MB).
     public init(
         outputDirectory: String,
-        routeTable: RouteTable
+        routeTable: RouteTable,
+        maxBodySize: Int = 10 * 1024 * 1024
     ) {
         self.outputDirectory = outputDirectory
         self.routeTable = routeTable
+        self.maxBodySize = maxBodySize
     }
 
     // MARK: - State
@@ -64,6 +71,12 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
                 state.body = buffer
             } else {
                 state.body?.writeBuffer(&buffer)
+            }
+            if let size = state.body?.readableBytes, size > maxBodySize {
+                let response = Response.text("Request body too large", status: .init(code: 413))
+                writeResponse(response, context: context)
+                context.close(promise: nil)
+                return
             }
         case .end:
             guard let head = state.head else { return }
@@ -237,7 +250,12 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
         }
 
         let relativePath = String(path.dropFirst())
+
+        // Reject path traversal attempts
+        guard !relativePath.contains("..") else { return nil }
+
         let directPath = "\(outputDirectory)/\(relativePath)"
+        guard resolvedPathIsWithin(directPath, directory: outputDirectory) else { return nil }
         if let response = serveFile(at: directPath, fm: fm) {
             return response
         }
@@ -253,6 +271,12 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
         }
 
         return nil
+    }
+
+    private func resolvedPathIsWithin(_ path: String, directory: String) -> Bool {
+        let resolved = (path as NSString).standardizingPath
+        let base = (directory as NSString).standardizingPath
+        return resolved.hasPrefix(base + "/") || resolved == base
     }
 
     private func serveFile(at path: String, fm: FileManager) -> Response? {
@@ -286,6 +310,9 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
         var headers = HTTPHeaders()
         for (key, value) in response.headers {
             headers.add(name: key, value: value)
+        }
+        if !response.body.isEmpty {
+            headers.replaceOrAdd(name: "content-length", value: String(response.body.count))
         }
 
         let head = HTTPResponseHead(version: .http1_1, status: status, headers: headers)
@@ -357,6 +384,14 @@ public final class RequestHandler: ChannelInboundHandler, Sendable {
         guard let filePath = pathParts.first.map(String.init) else {
             return Response.text("Invalid sourcePath", status: .badRequest)
         }
+
+        // Validate the file path stays within the project directory
+        let cwd = FileManager.default.currentDirectoryPath
+        let resolved = (filePath as NSString).standardizingPath
+        guard resolved.hasPrefix(cwd + "/") || resolved == cwd else {
+            return Response.text("sourcePath outside project directory", status: .forbidden)
+        }
+
         let lineNumber = pathParts.count > 1 ? Int(pathParts[1]) : nil
 
         switch action {

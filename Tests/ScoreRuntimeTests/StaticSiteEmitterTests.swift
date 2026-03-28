@@ -228,6 +228,42 @@ private struct EmitterAppWithStatusPage: Application {
     #expect(!xml.contains("404"))
 }
 
+@Test func emitCreatesRobotsTxtWithSitemapWhenBaseURLIsSet() throws {
+    let tempDir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("score-emitter-test-\(UUID().uuidString)")
+        .path
+    defer { try? FileManager.default.removeItem(atPath: tempDir) }
+
+    let app = EmitterAppWithBaseURL(outputDirectory: tempDir)
+    try StaticSiteEmitter.emit(application: app)
+
+    let robotsPath = "\(tempDir)/robots.txt"
+    #expect(FileManager.default.fileExists(atPath: robotsPath))
+
+    let content = try String(contentsOfFile: robotsPath, encoding: .utf8)
+    #expect(content.contains("User-agent: *"))
+    #expect(content.contains("Allow: /"))
+    #expect(content.contains("Sitemap: https://example.com/sitemap.xml"))
+}
+
+@Test func emitCreatesRobotsTxtWithoutSitemapWhenNoBaseURL() throws {
+    let tempDir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("score-emitter-test-\(UUID().uuidString)")
+        .path
+    defer { try? FileManager.default.removeItem(atPath: tempDir) }
+
+    let app = EmitterApp(outputDirectory: tempDir)
+    try StaticSiteEmitter.emit(application: app)
+
+    let robotsPath = "\(tempDir)/robots.txt"
+    #expect(FileManager.default.fileExists(atPath: robotsPath))
+
+    let content = try String(contentsOfFile: robotsPath, encoding: .utf8)
+    #expect(content.contains("User-agent: *"))
+    #expect(content.contains("Allow: /"))
+    #expect(!content.contains("Sitemap:"))
+}
+
 private struct TestErrorPage: ErrorPage {
     var context: ErrorContext
 

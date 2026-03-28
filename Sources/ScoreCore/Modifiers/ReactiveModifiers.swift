@@ -52,4 +52,28 @@ extension Node {
     public func visible(when stateName: String, initially: Bool = false) -> ModifiedNode<Self> {
         modifier(ReactiveVisibilityModifier(stateName: stateName, initiallyVisible: initially))
     }
+
+    /// Toggles this element's visibility based on a `@State` property's
+    /// projected value.
+    ///
+    /// This overload accepts the `$<name>` ``ReactiveTextNode`` generated
+    /// by the `@State` macro, providing compile-time safety for state names.
+    ///
+    /// ### Example
+    ///
+    /// ```swift
+    /// @State var isMenuOpen = false
+    ///
+    /// Stack { /* menu content */ }
+    ///     .visible(when: $isMenuOpen)
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - state: The `$<name>` reactive text node from a `@State` property.
+    ///   - initially: Whether the element starts visible in the server
+    ///     render. Defaults to `false`.
+    /// - Returns: A `ModifiedNode` with the reactive visibility binding.
+    public func visible(when state: ReactiveTextNode, initially: Bool = false) -> ModifiedNode<Self> {
+        modifier(ReactiveVisibilityModifier(stateName: state.bindingName, initiallyVisible: initially))
+    }
 }

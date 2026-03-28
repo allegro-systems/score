@@ -48,7 +48,11 @@ public struct ActionMacro: PeerMacro {
                 """
         }
 
-        return [descriptor]
+        let actionRef: DeclSyntax = """
+            static let $\(raw: name) = ActionRef(\(literal: name))
+            """
+
+        return [descriptor, actionRef]
     }
 }
 

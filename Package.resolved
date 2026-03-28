@@ -1,5 +1,5 @@
 {
-  "originHash" : "a888691b8dbbf73a4099afa00fc60ecd2dc364931f5dee27dabbb839fa469270",
+  "originHash" : "db1b161ac1570cb6dc5717fea7231df7e8a9d1cd5aad3b318131b4e16ed29467",
   "pins" : [
     {
       "identity" : "noora",
@@ -26,6 +26,15 @@
       "state" : {
         "revision" : "cdf146ae671b2624917648b61c908d1244b98ca1",
         "version" : "4.2.1"
+      }
+    },
+    {
+      "identity" : "stage",
+      "kind" : "remoteSourceControl",
+      "location" : "git@github.com:allegro-systems/stage.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "40d5cbab9558cc6b4ce228e98ab7d28f566baf6f"
       }
     },
     {

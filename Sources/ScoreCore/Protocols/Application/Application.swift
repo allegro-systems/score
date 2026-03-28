@@ -158,14 +158,9 @@ extension Application {
 
     /// The directory where build output is written.
     ///
-    /// Defaults to `.score` in development and `"static"` in production
-    /// (Stage deploys place built output in a `static/` directory).
+    /// Defaults to `.score`.
     public var outputDirectory: String {
-        // When running inside Stage (--listen mode), use "static"
-        if ProcessInfo.processInfo.arguments.contains("--listen") {
-            return "static"
-        }
-        return ".score"
+        ".score"
     }
 
     /// The directory where content files are stored.
@@ -187,6 +182,14 @@ extension Application {
     /// Returns `nil`, keeping the framework's default error responses.
     public var errorPage: (any ErrorPage.Type)? { nil }
 
-    /// Returns `nil`, disabling internationalization.
-    public var localization: Localization? { nil }
+    /// Automatically loads `Localizable.xcstrings` if present.
+    ///
+    /// Returns `nil` (disabling i18n) when the file doesn't exist.
+    /// Override to provide a custom ``Localization`` or disable auto-detection.
+    public var localization: Localization? {
+        guard let catalog = try? StringCatalog.load(from: "Localizable.xcstrings") else {
+            return nil
+        }
+        return try? Localization(catalog: catalog)
+    }
 }

@@ -27,8 +27,15 @@ public enum CryptoRandom {
         #else
         // Linux / FreeBSD: read from /dev/urandom
         guard let file = fopen("/dev/urandom", "r") else { return bytes }
-        fread(&bytes, 1, count, file)
+        let bytesRead = fread(&bytes, 1, count, file)
         fclose(file)
+        if bytesRead != count {
+            // Partial read — fill remaining bytes with SystemRandomNumberGenerator
+            var fallback = SystemRandomNumberGenerator()
+            for i in bytesRead..<count {
+                bytes[i] = UInt8.random(in: .min ... .max, using: &fallback)
+            }
+        }
         #endif
         return bytes
     }

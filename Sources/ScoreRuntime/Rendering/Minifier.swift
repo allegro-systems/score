@@ -82,19 +82,47 @@ public struct Minifier: Sendable {
         while index < end {
             let char = js[index]
 
-            // Skip single-line comments
-            if char == "/", js.index(after: index) < end, js[js.index(after: index)] == "/" {
-                while index < end, js[index] != "\n" {
-                    index = js.index(after: index)
-                }
-                continue
-            }
-
-            // Skip block comments
-            if char == "/", js.index(after: index) < end, js[js.index(after: index)] == "*" {
-                if let closeRange = js.range(of: "*/", range: js.index(index, offsetBy: 2)..<end) {
-                    index = closeRange.upperBound
-                    continue
+            // Skip comments (but not regex literals)
+            if char == "/" {
+                let next = js.index(after: index)
+                if next < end {
+                    if js[next] == "/" {
+                        // Single-line comment — but only if not a regex literal
+                        if isRegexContext(result: result) {
+                            // This is a regex literal like /foo/
+                            result.append(char)
+                            index = js.index(after: index)
+                            while index < end, js[index] != "/" {
+                                if js[index] == "\\" {
+                                    result.append(js[index])
+                                    index = js.index(after: index)
+                                    guard index < end else { break }
+                                }
+                                result.append(js[index])
+                                index = js.index(after: index)
+                            }
+                            if index < end {
+                                result.append(js[index])
+                                index = js.index(after: index)
+                                // Consume regex flags
+                                while index < end, js[index].isLetter {
+                                    result.append(js[index])
+                                    index = js.index(after: index)
+                                }
+                            }
+                            continue
+                        }
+                        while index < end, js[index] != "\n" {
+                            index = js.index(after: index)
+                        }
+                        continue
+                    }
+                    if js[next] == "*" {
+                        if let closeRange = js.range(of: "*/", range: js.index(index, offsetBy: 2)..<end) {
+                            index = closeRange.upperBound
+                            continue
+                        }
+                    }
                 }
             }
 
@@ -211,9 +239,15 @@ public struct Minifier: Sendable {
                 continue
             }
 
-            // Outside tags, preserve pre/script/style content verbatim
+            // Outside tags, preserve pre/script/style content but encode newlines
             if inPreOrScript {
-                result.append(char)
+                if char == "\n" {
+                    result.append(contentsOf: "&#10;")
+                } else if char == "\r" {
+                    // skip \r, the following \n (if any) will be encoded
+                } else {
+                    result.append(char)
+                }
                 index = html.index(after: index)
                 continue
             }
@@ -251,5 +285,16 @@ public struct Minifier: Sendable {
 
     private static func isJSIdentifierChar(_ char: Character) -> Bool {
         char.isLetter || char.isNumber || char == "_" || char == "$"
+    }
+
+    /// Determines if `/` at the current position could start a regex literal
+    /// rather than a comment. A `/` after an operator, keyword, or punctuation
+    /// is likely a regex; after an identifier or closing bracket it's division.
+    private static func isRegexContext(result: String) -> Bool {
+        guard let last = result.last else { return true }
+        if last == ")" || last == "]" || isJSIdentifierChar(last) {
+            return false
+        }
+        return true
     }
 }

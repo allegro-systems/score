@@ -148,4 +148,42 @@ public struct AssetOptimizer: Sendable {
         output.count = Int(stream.total_out)
         return output
     }
+
+    /// Compresses data using gzip (RFC 1952) via the zlib C library.
+    public static func gzipCompress(_ data: Data) -> Data? {
+        guard !data.isEmpty else { return nil }
+
+        var stream = z_stream()
+        // windowBits 15 + 16 = gzip format
+        let initResult = deflateInit2_(
+            &stream,
+            Z_DEFAULT_COMPRESSION,
+            Z_DEFLATED,
+            15 + 16,
+            8,
+            Z_DEFAULT_STRATEGY,
+            ZLIB_VERSION,
+            Int32(MemoryLayout<z_stream>.size)
+        )
+        guard initResult == Z_OK else { return nil }
+        defer { deflateEnd(&stream) }
+
+        let outputCapacity = deflateBound(&stream, UInt(data.count))
+        var output = Data(count: Int(outputCapacity))
+
+        let result: Int32 = data.withUnsafeBytes { inputPtr in
+            output.withUnsafeMutableBytes { outputPtr in
+                stream.next_in = UnsafeMutablePointer(
+                    mutating: inputPtr.bindMemory(to: UInt8.self).baseAddress)
+                stream.avail_in = uInt(data.count)
+                stream.next_out = outputPtr.bindMemory(to: UInt8.self).baseAddress
+                stream.avail_out = uInt(outputCapacity)
+                return deflate(&stream, Z_FINISH)
+            }
+        }
+
+        guard result == Z_STREAM_END else { return nil }
+        output.count = Int(stream.total_out)
+        return output
+    }
 }

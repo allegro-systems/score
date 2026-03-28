@@ -352,6 +352,11 @@ public struct StaticSiteEmitter: Sendable {
             outputDirectory: outputDir
         )
 
+        try writeRobotsTxt(
+            baseURL: application.metadata?.baseURL,
+            outputDirectory: outputDir
+        )
+
         try writeErrorPage(
             application: application,
             outputDirectory: outputDir
@@ -574,6 +579,30 @@ public struct StaticSiteEmitter: Sendable {
 
         try xml.write(
             toFile: "\(outputDirectory)/sitemap.xml",
+            atomically: true,
+            encoding: .utf8
+        )
+    }
+
+    /// Writes a `robots.txt` file that allows all crawlers and points to
+    /// the sitemap when a base URL is available.
+    ///
+    /// Only includes the `Sitemap` directive when the application metadata
+    /// provides a ``Metadata/baseURL``, matching the sitemap generation
+    /// condition.
+    private static func writeRobotsTxt(
+        baseURL: String?,
+        outputDirectory: String
+    ) throws {
+        var content = "User-agent: *\nAllow: /\n"
+
+        if let baseURL, !baseURL.isEmpty {
+            let base = baseURL.hasSuffix("/") ? String(baseURL.dropLast()) : baseURL
+            content.append("\nSitemap: \(base)/sitemap.xml\n")
+        }
+
+        try content.write(
+            toFile: "\(outputDirectory)/robots.txt",
             atomically: true,
             encoding: .utf8
         )

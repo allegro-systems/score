@@ -143,30 +143,30 @@ struct ToolingConfigurator: Sendable {
 
     private static func writeMakefile(to directory: String) throws {
         let content = """
-        .PHONY: dev build format lint clean
+            .PHONY: dev build format lint clean
 
-        # Start the development server with hot reload
-        dev:
-        \tswift run score dev --port 8080
+            # Start the development server with hot reload
+            dev:
+            \tswift run score dev --port 8080
 
-        # Build the site for production
-        build:
-        \tswift run score build
+            # Build the site for production
+            build:
+            \tswift run score build
 
-        # Format source code
-        format:
-        \tswift format --recursive -i Sources
+            # Format source code
+            format:
+            \tswift format --recursive -i Sources
 
-        # Lint source code
-        lint:
-        \tswift format lint --recursive --strict Sources
+            # Lint source code
+            lint:
+            \tswift format lint --recursive --strict Sources
 
-        # Remove build artifacts
-        clean:
-        \tswift package clean
-        \trm -rf .score
+            # Remove build artifacts
+            clean:
+            \tswift package clean
+            \trm -rf .score
 
-        """
+            """
 
         try content.write(toFile: "\(directory)/Makefile", atomically: true, encoding: .utf8)
     }
@@ -175,26 +175,26 @@ struct ToolingConfigurator: Sendable {
 
     private static func writeHkPkl(to directory: String) throws {
         let content = """
-        amends "package://github.com/jdx/hk/releases/download/v1.39.0/hk@1.39.0#/Config.pkl"
+            amends "package://github.com/jdx/hk/releases/download/v1.39.0/hk@1.39.0#/Config.pkl"
 
-        hooks {
-          ["pre-commit"] {
-            fix = true
-            stash = "git"
-            steps {
-              ["swift-format"] {
-                glob = List("*.swift")
-                check = "swift format lint --strict {{files}}"
-                fix = "swift format -i {{files}}"
-              }
-              ["swift-build"] {
-                run = "swift build -c release -Xswiftc -warnings-as-errors"
+            hooks {
+              ["pre-commit"] {
+                fix = true
+                stash = "git"
+                steps {
+                  ["swift-format"] {
+                    glob = List("*.swift")
+                    check = "swift format lint --strict {{files}}"
+                    fix = "swift format -i {{files}}"
+                  }
+                  ["swift-build"] {
+                    run = "swift build -c release -Xswiftc -warnings-as-errors"
+                  }
+                }
               }
             }
-          }
-        }
 
-        """
+            """
 
         try content.write(toFile: "\(directory)/hk.pkl", atomically: true, encoding: .utf8)
     }
@@ -203,24 +203,24 @@ struct ToolingConfigurator: Sendable {
 
     private static func writeFnoxToml(to directory: String) throws {
         let content = """
-        # fnox — secret management for developers.
-        # Docs: https://fnox.jdx.dev/
-        #
-        # Quick start:
-        #   1. fnox keygen             — generate an age keypair (one-time)
-        #   2. fnox set APP_SECRET … — encrypt and store a secret
-        #   3. eval "$(fnox activate)" — load secrets into your shell
-        #
-        # Secrets are age-encrypted and safe to commit.
+            # fnox — secret management for developers.
+            # Docs: https://fnox.jdx.dev/
+            #
+            # Quick start:
+            #   1. fnox keygen             — generate an age keypair (one-time)
+            #   2. fnox set APP_SECRET … — encrypt and store a secret
+            #   3. eval "$(fnox activate)" — load secrets into your shell
+            #
+            # Secrets are age-encrypted and safe to commit.
 
-        [providers]
-        age = { type = "age" }
+            [providers]
+            age = { type = "age" }
 
-        [secrets]
-        APP_NAME = { default = "Score App" }
-        # APP_SECRET = { provider = "age", value = "<run: fnox set APP_SECRET \\"your-value\\">" }
+            [secrets]
+            APP_NAME = { default = "Score App" }
+            # APP_SECRET = { provider = "age", value = "<run: fnox set APP_SECRET \\"your-value\\">" }
 
-        """
+            """
 
         try content.write(toFile: "\(directory)/fnox.toml", atomically: true, encoding: .utf8)
     }
@@ -229,13 +229,13 @@ struct ToolingConfigurator: Sendable {
 
     private static func writeDotEnv(to directory: String) throws {
         let content = """
-        # Environment variables for local development.
-        # This file is git-ignored — never commit secrets.
+            # Environment variables for local development.
+            # This file is git-ignored — never commit secrets.
 
-        APP_NAME=MyApp
-        # APP_SECRET=replace-me
+            APP_NAME=MyApp
+            # APP_SECRET=replace-me
 
-        """
+            """
 
         try content.write(toFile: "\(directory)/.env", atomically: true, encoding: .utf8)
     }

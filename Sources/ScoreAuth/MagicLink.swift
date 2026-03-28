@@ -69,6 +69,13 @@ public final class MagicLinkManager: Sendable {
     private let configuration: MagicLinkConfiguration
     private let sender: any MagicLinkSender
     private let pendingTokens = OSAllocatedUnfairLock<[String: MagicLinkToken]>(initialState: [:])
+    private let rateLimits = OSAllocatedUnfairLock<[String: (count: Int, windowStart: Date)]>(initialState: [:])
+
+    /// Maximum magic link emails per email address within the rate limit window.
+    private static let maxRequestsPerWindow = 5
+
+    /// Rate limit window duration in seconds (15 minutes).
+    private static let rateLimitWindow: TimeInterval = 900
 
     public init(
         configuration: MagicLinkConfiguration = MagicLinkConfiguration(),
@@ -81,6 +88,26 @@ public final class MagicLinkManager: Sendable {
     /// Generates a magic link and sends it to the given email.
     @discardableResult
     public func send(to email: String) async throws -> String {
+        let normalizedEmail = email.lowercased()
+        let now = Date()
+
+        let allowed = rateLimits.withLock { limits in
+            let entry = limits[normalizedEmail]
+            if let entry, now.timeIntervalSince(entry.windowStart) < Self.rateLimitWindow {
+                if entry.count >= Self.maxRequestsPerWindow {
+                    return false
+                }
+                limits[normalizedEmail] = (count: entry.count + 1, windowStart: entry.windowStart)
+            } else {
+                limits[normalizedEmail] = (count: 1, windowStart: now)
+            }
+            return true
+        }
+
+        guard allowed else {
+            throw MagicLinkRateLimitError.tooManyRequests
+        }
+
         let token = CryptoRandom.hexToken()
         let magicToken = MagicLinkToken(
             token: token,
@@ -109,5 +136,14 @@ public final class MagicLinkManager: Sendable {
             guard !magicToken.isExpired else { return nil }
             return magicToken.email
         }
+    }
+}
+
+/// Error thrown when magic link rate limit is exceeded.
+public enum MagicLinkRateLimitError: Error, CustomStringConvertible {
+    case tooManyRequests
+
+    public var description: String {
+        "Too many magic link requests. Please try again later."
     }
 }

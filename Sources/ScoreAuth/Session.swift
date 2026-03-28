@@ -1,4 +1,5 @@
 import Foundation
+import ScoreCore
 
 /// A user session with an expiration time.
 public struct Session: Sendable, Codable, Equatable {
@@ -19,7 +20,7 @@ public struct Session: Sendable, Codable, Equatable {
     public var metadata: [String: String]
 
     public init(
-        id: String = UUID().uuidString,
+        id: String = CryptoRandom.hexToken(),
         userId: String,
         createdAt: Date = Date(),
         expiresAt: Date = Date().addingTimeInterval(86400 * 7),

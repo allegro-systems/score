@@ -1,4 +1,5 @@
 import Foundation
+
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
@@ -79,33 +80,44 @@ public struct ResendMagicLinkSender: MagicLinkSender {
     }
 
     private func emailHTML(link: String, email: String) -> String {
-        """
-        <!DOCTYPE html>
-        <html>
-        <head><meta charset="utf-8"></head>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; \
-        background: #0f0e0c; color: #e8e0d0; padding: 40px 20px;">
-          <div style="max-width: 480px; margin: 0 auto;">
-            <h1 style="font-family: Georgia, serif; font-size: 24px; font-weight: 300; \
-        margin-bottom: 24px; color: #e8e0d0;">\(productName)</h1>
-            <p style="font-size: 15px; line-height: 1.6; color: #a09888; margin-bottom: 24px;">
-              Click the button below to sign in to your account. This link expires in 10 minutes.
-            </p>
-            <a href="\(link)" style="display: inline-block; padding: 14px 32px; \
-        background: #c8a96e; color: #0f0e0c; text-decoration: none; font-size: 14px; \
-        font-weight: 600; border-radius: 6px;">Sign In</a>
-            <p style="font-size: 12px; color: #5a5448; margin-top: 32px; line-height: 1.5;">
-              If you didn\u{2019}t request this email, you can safely ignore it.<br>
-              This link was sent to \(email).
-            </p>
-            <hr style="border: none; border-top: 1px solid #2e2a22; margin: 24px 0;">
-            <p style="font-size: 11px; color: #3d3830;">
-              \(productName) \u{2014} part of the Allegro ecosystem
-            </p>
-          </div>
-        </body>
-        </html>
-        """
+        let safeEmail = escapeHTML(email)
+        let safeLink = escapeHTML(link)
+        return """
+            <!DOCTYPE html>
+            <html>
+            <head><meta charset="utf-8"></head>
+            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; \
+            background: #0f0e0c; color: #e8e0d0; padding: 40px 20px;">
+              <div style="max-width: 480px; margin: 0 auto;">
+                <h1 style="font-family: Georgia, serif; font-size: 24px; font-weight: 300; \
+            margin-bottom: 24px; color: #e8e0d0;">\(productName)</h1>
+                <p style="font-size: 15px; line-height: 1.6; color: #a09888; margin-bottom: 24px;">
+                  Click the button below to sign in to your account. This link expires in 10 minutes.
+                </p>
+                <a href="\(safeLink)" style="display: inline-block; padding: 14px 32px; \
+            background: #c8a96e; color: #0f0e0c; text-decoration: none; font-size: 14px; \
+            font-weight: 600; border-radius: 6px;">Sign In</a>
+                <p style="font-size: 12px; color: #5a5448; margin-top: 32px; line-height: 1.5;">
+                  If you didn\u{2019}t request this email, you can safely ignore it.<br>
+                  This link was sent to \(safeEmail).
+                </p>
+                <hr style="border: none; border-top: 1px solid #2e2a22; margin: 24px 0;">
+                <p style="font-size: 11px; color: #3d3830;">
+                  \(productName) \u{2014} part of the Allegro ecosystem
+                </p>
+              </div>
+            </body>
+            </html>
+            """
+    }
+
+    private func escapeHTML(_ string: String) -> String {
+        string
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+            .replacingOccurrences(of: "'", with: "&#39;")
     }
 }
 

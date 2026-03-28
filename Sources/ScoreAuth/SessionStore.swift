@@ -32,7 +32,13 @@ public final class MemorySessionStore: SessionStore, Sendable {
     }
 
     public func save(_ session: Session) async throws {
-        sessions.withLock { $0[session.id] = session }
+        sessions.withLock { store in
+            store[session.id] = session
+            // Sweep expired sessions on write to prevent unbounded growth
+            if store.count > 100 {
+                store = store.filter { !$0.value.isExpired }
+            }
+        }
     }
 
     public func delete(sessionID id: String) async throws {

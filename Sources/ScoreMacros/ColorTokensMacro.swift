@@ -29,7 +29,7 @@ public struct ColorTokensMacro: DeclarationMacro {
         }
 
         return names.map { name in
-            "static let \(raw: name) = ColorToken(\"\(raw: name)\")"
+            "public static let \(raw: name) = ColorToken(\"\(raw: name)\")"
         }
     }
 }

@@ -66,7 +66,7 @@ import Testing
     #expect(grid?.gap == 10)
     #expect(grid?.autoFlow == .rowDense)
 
-    let item = TextNode("x").flexItem(grow: 1, shrink: 0, basis: 180, order: 2, alignSelf: .end)
+    let item = TextNode("x").flex(grow: 1, shrink: 0, basis: 180, order: 2, alignSelf: .end)
     let itemMod = item.modifiers.first as? FlexItemModifier
     #expect(itemMod?.grow == 1)
     #expect(itemMod?.shrink == 0)
@@ -74,7 +74,7 @@ import Testing
     #expect(itemMod?.order == 2)
     #expect(itemMod?.alignSelf == .end)
 
-    let placed = TextNode("x").gridPlacement(column: .range(1, 3), row: .line(2), area: "main", justifySelf: .center)
+    let placed = TextNode("x").grid(column: .range(1, 3), row: .line(2), area: "main", justifySelf: .center)
     let place = placed.modifiers.first as? GridPlacementModifier
     #expect(place?.column?.cssValue == "1 / 3")
     #expect(place?.row?.cssValue == "2")

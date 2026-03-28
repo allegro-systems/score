@@ -338,7 +338,7 @@ extension Node {
     /// Turns the element into a flex container with the specified layout options.
     ///
     /// Apply this modifier to a parent node to arrange its children using CSS Flexbox.
-    /// Combine with `.flexItem(...)` on individual children for full control over
+    /// Combine with `.flex(...)` on individual children for full control over
     /// item sizing and alignment.
     ///
     /// ### Example
@@ -378,7 +378,7 @@ extension Node {
     /// Turns the element into a grid container with the specified number of columns.
     ///
     /// Apply this modifier to a parent node to arrange its children using CSS Grid.
-    /// Combine with `.gridPlacement(...)` on individual children to place them
+    /// Combine with `.grid(...)` on individual children to place them
     /// at specific tracks or named areas.
     ///
     /// ### Example

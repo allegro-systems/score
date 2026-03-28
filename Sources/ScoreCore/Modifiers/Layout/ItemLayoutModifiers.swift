@@ -10,7 +10,7 @@
 /// Div {
 ///     Text("Grows to fill space")
 /// }
-/// .flexItem(grow: 1, shrink: 0, alignSelf: .center)
+/// .flex(grow: 1, shrink: 0, alignSelf: .center)
 /// ```
 ///
 /// ### CSS Mapping
@@ -123,12 +123,12 @@ public struct GridSpan: Sendable {
 /// Div {
 ///     Text("Header")
 /// }
-/// .gridPlacement(area: "header", justifySelf: .center)
+/// .grid(area: "header", justifySelf: .center)
 ///
 /// Div {
 ///     Text("Spanning")
 /// }
-/// .gridPlacement(column: .range(1, 3), row: .line(1))
+/// .grid(column: .range(1, 3), row: .line(1))
 /// ```
 ///
 /// ### CSS Mapping
@@ -190,12 +190,12 @@ extension Node {
     /// Div {
     ///     Text("Sidebar")
     /// }
-    /// .flexItem(grow: 0, shrink: 0, basis: 240)
+    /// .flex(grow: 0, shrink: 0, basis: 240)
     ///
     /// Div {
     ///     Text("Main content")
     /// }
-    /// .flexItem(grow: 1)
+    /// .flex(grow: 1)
     /// ```
     ///
     /// ### CSS Mapping
@@ -210,7 +210,7 @@ extension Node {
     ///   - order: The visual ordering index. Defaults to `nil`.
     ///   - alignSelf: The per-item cross-axis alignment. Defaults to `nil`.
     /// - Returns: A modified node with the flex item styles applied.
-    public func flexItem(grow: Double? = nil, shrink: Double? = nil, basis: Double? = nil, order: Int? = nil, alignSelf: FlexAlign? = nil) -> ModifiedNode<Self> {
+    public func flex(grow: Double? = nil, shrink: Double? = nil, basis: Double? = nil, order: Int? = nil, alignSelf: FlexAlign? = nil) -> ModifiedNode<Self> {
         let mod = FlexItemModifier(grow: grow, shrink: shrink, basis: basis, order: order, alignSelf: alignSelf)
         return ModifiedNode(content: self, modifiers: [mod])
     }
@@ -226,12 +226,12 @@ extension Node {
     /// Div {
     ///     Text("Spanning header")
     /// }
-    /// .gridPlacement(column: .range(1, -1), row: .line(1))
+    /// .grid(column: .range(1, -1), row: .line(1))
     ///
     /// Div {
     ///     Text("Named area")
     /// }
-    /// .gridPlacement(area: "sidebar", justifySelf: .start)
+    /// .grid(area: "sidebar", justifySelf: .start)
     /// ```
     ///
     /// ### CSS Mapping
@@ -245,7 +245,7 @@ extension Node {
     ///   - area: The named grid area. Defaults to `nil`.
     ///   - justifySelf: The inline-axis alignment. Defaults to `nil`.
     /// - Returns: A modified node with the grid placement styles applied.
-    public func gridPlacement(column: GridSpan? = nil, row: GridSpan? = nil, area: String? = nil, justifySelf: TextAlign? = nil) -> ModifiedNode<Self> {
+    public func grid(column: GridSpan? = nil, row: GridSpan? = nil, area: String? = nil, justifySelf: TextAlign? = nil) -> ModifiedNode<Self> {
         let mod = GridPlacementModifier(column: column, row: row, area: area, justifySelf: justifySelf)
         return ModifiedNode(content: self, modifiers: [mod])
     }

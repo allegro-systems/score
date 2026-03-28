@@ -1,4 +1,4 @@
-// swift-tools-version: 6.2
+// swift-tools-version: 6.3
 
 import CompilerPluginSupport
 import PackageDescription
@@ -80,8 +80,7 @@ let package = Package(
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "Metrics", package: "swift-metrics"),
                 .product(name: "Tracing", package: "swift-distributed-tracing"),
-            ],
-            resources: [.copy("Resources")]
+            ]
         ),
         .target(
             name: "ScoreContent",
@@ -104,7 +103,7 @@ let package = Package(
         ),
         .target(name: "ScoreAssets", dependencies: ["ScoreCore"]),
         .target(name: "ScoreData", dependencies: ["ScoreCore"]),
-        .target(name: "ScoreAuth", dependencies: ["ScoreCore"]),
+        .target(name: "ScoreAuth", dependencies: ["ScoreCore", "ScoreRuntime"]),
         .target(
             name: "ScoreTesting",
             dependencies: [

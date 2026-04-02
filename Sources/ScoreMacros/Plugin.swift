@@ -8,6 +8,10 @@ struct ScoreMacrosPlugin: CompilerPlugin {
         ColorTokensMacro.self,
         ComponentMacro.self,
         ComputedMacro.self,
+        ControllerMacro.self,
+        QueryMacro.self,
+        RouteMacro.self,
         StateMacro.self,
+        ThemeMacro.self,
     ]
 }

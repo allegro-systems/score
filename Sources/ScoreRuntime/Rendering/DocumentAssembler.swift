@@ -239,7 +239,7 @@ public struct DocumentAssembler: Sendable {
             html.append("\n")
         }
         for link in parts.scripts.scriptLinks {
-            html.append("<script src=\"\(link)\"></script>\n")
+            html.append("<script src=\"\(link)\" defer></script>\n")
         }
         if let inlineScripts = parts.scripts.inline {
             for script in inlineScripts {
@@ -265,6 +265,6 @@ public struct DocumentAssembler: Sendable {
         }
         let allowed = effectiveNames.map { "\"\($0.htmlEscaped)\"" }.joined(separator: ",")
         return
-            "<script>!function(){var t=localStorage.getItem(\"as-theme\");if(t===\"true\")t=\"dark\";if(t===\"false\")t=\"light\";if(t&&[\(allowed)].indexOf(t)!==-1){document.documentElement.setAttribute(\"data-theme\",t)}}()</script>\n"
+            "<script>!function(){var t=localStorage.getItem(\"as-theme\");if(t&&[\(allowed)].indexOf(t)!==-1){document.documentElement.setAttribute(\"data-theme\",t)}}()</script>\n"
     }
 }

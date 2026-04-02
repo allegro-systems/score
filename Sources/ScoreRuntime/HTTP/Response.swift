@@ -51,6 +51,31 @@ public struct Response: Sendable {
         )
     }
 
+    /// Creates a JSON response by encoding an `Encodable` value.
+    public static func json<T: Encodable>(_ value: T, status: HTTPResponse.Status = .ok) throws -> Response {
+        let data = try JSONEncoder().encode(value)
+        return json(data, status: status)
+    }
+
+    /// Creates a JSON error response with `{"error": "message"}`.
+    public static func error(_ message: String, status: HTTPResponse.Status = .badRequest) -> Response {
+        let body = "{\"error\":\"\(message.replacingOccurrences(of: "\"", with: "\\\""))\"}"
+        return Response(
+            status: status,
+            headers: ["content-type": "application/json"],
+            body: Data(body.utf8)
+        )
+    }
+
+    /// Creates a JSON `{"ok": true}` response.
+    public static var ok: Response {
+        Response(
+            status: .ok,
+            headers: ["content-type": "application/json"],
+            body: Data("{\"ok\":true}".utf8)
+        )
+    }
+
     /// Creates a CSS response.
     public static func css(_ string: String, status: HTTPResponse.Status = .ok) -> Response {
         Response(

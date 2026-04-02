@@ -37,6 +37,8 @@ public struct RenderResult: Sendable {
         public let scopeBlocks: [String]
         /// Whether this page requires the Score signals runtime.
         public let needsRuntime: Bool
+        /// Whether this page requires the local-first IndexedDB runtime.
+        public let needsLocalFirstRuntime: Bool
     }
 }
 
@@ -57,6 +59,7 @@ public struct PageRenderer: Sendable {
     ///     ``LocalizationContext`` is installed so ``Localized`` nodes and
     ///     ``t(_:default:)`` calls resolve translations.
     ///   - cssLinks: External CSS file paths to link in `<head>`.
+    ///   - headLinks: Extra `<link>` tags for `<head>` (preconnects, external stylesheets).
     ///   - scriptLinks: External JavaScript file paths to link before `</body>`.
     ///     When provided, scripts are loaded externally instead of inlined.
     /// - Returns: A `RenderResult` containing the HTML and extracted component CSS.
@@ -67,39 +70,15 @@ public struct PageRenderer: Sendable {
         locale: SiteLocale? = nil,
         localization: Localization? = nil,
         cssLinks: [String] = [],
+        headLinks: [String] = [],
         scriptLinks: [String] = []
     ) -> RenderResult {
-        let pageMeta = page.metadata
-
-        // Compose title
-        let pageTitle = pageMeta?.title ?? appMeta?.title
-        let site = pageMeta?.site ?? appMeta?.site
-        let separator = pageMeta?.titleSeparator ?? appMeta?.titleSeparator ?? " — "
-        let title = DocumentAssembler.composeTitle(page: pageTitle, separator: separator, site: site)
-
-        // Description, keywords, and canonical URL
-        let description = pageMeta?.description ?? appMeta?.description
-        let keywords = pageMeta?.keywords ?? appMeta?.keywords
-        let structuredData = pageMeta?.structuredData ?? appMeta?.structuredData
-        let baseURL = pageMeta?.baseURL ?? appMeta?.baseURL
-        let canonicalURL = baseURL.map { $0 + page.path }
-        let ogSiteName = pageMeta?.site ?? appMeta?.site
-
-        // Collect CSS from node tree with component scope tracking
-        var collector = CSSCollector()
-        collector.pageName = CSSNaming.className(from: String(describing: type(of: page)))
-        collector.collect(from: page.body)
-        let stylesheetResult = collector.renderStylesheet()
-
-        // Build class map from stylesheet analysis
-        let classMap = ClassMap(
-            classLookup: stylesheetResult.classLookup,
-            nestedKeys: stylesheetResult.nestedKeys
-        )
-
         let environment = Environment.current
 
-        // Install localization context for this rendering pass.
+        // Install localization context for the entire rendering pass.
+        // CSS collection, metadata, and HTML rendering all need it so
+        // components that depend on locale data (e.g. LanguageDropdown)
+        // produce consistent output.
         let context: LocalizationContext? =
             if let localization, let locale {
                 LocalizationContext(locale: locale, localization: localization)
@@ -108,6 +87,33 @@ public struct PageRenderer: Sendable {
             }
 
         return LocalizationContext.$current.withValue(context) {
+            // Collect CSS from node tree with component scope tracking
+            var collector = CSSCollector()
+            collector.pageName = CSSNaming.className(from: String(describing: type(of: page)))
+            collector.collect(from: page.body)
+            let stylesheetResult = collector.renderStylesheet()
+
+            // Build class map from stylesheet analysis
+            let classMap = ClassMap(
+                classLookup: stylesheetResult.classLookup,
+                nestedKeys: stylesheetResult.nestedKeys
+            )
+            // Resolve metadata inside localization context so `t()` calls
+            // in metadata properties return locale-specific translations.
+            let pageMeta = page.metadata
+
+            let pageTitle = pageMeta?.title ?? appMeta?.title
+            let site = pageMeta?.site ?? appMeta?.site
+            let separator = pageMeta?.titleSeparator ?? appMeta?.titleSeparator ?? " — "
+            let title = DocumentAssembler.composeTitle(page: pageTitle, separator: separator, site: site)
+
+            let description = pageMeta?.description ?? appMeta?.description
+            let keywords = pageMeta?.keywords ?? appMeta?.keywords
+            let structuredData = pageMeta?.structuredData ?? appMeta?.structuredData
+            let baseURL = pageMeta?.baseURL ?? appMeta?.baseURL
+            let canonicalURL = baseURL.map { $0 + page.path }
+            let ogSiteName = pageMeta?.site ?? appMeta?.site
+
             var renderer = HTMLRenderer(classInjector: { modifiers, scope in
                 classMap.className(for: modifiers, scope: scope)
             })
@@ -125,7 +131,7 @@ public struct PageRenderer: Sendable {
 
             // Use external script links when provided, otherwise inline
             var inlineScripts: [String]?
-            let resolvedScriptLinks: [String]
+            var resolvedScriptLinks: [String]
             if !scriptLinks.isEmpty && !jsResult.pageJS.isEmpty {
                 inlineScripts = nil
                 resolvedScriptLinks = scriptLinks
@@ -133,6 +139,9 @@ public struct PageRenderer: Sendable {
                 var inlineJS = ""
                 if jsResult.needsRuntime {
                     inlineJS.append(JSEmitter.clientRuntime)
+                }
+                if jsResult.needsLocalFirstRuntime {
+                    inlineJS.append(JSEmitter.localFirstRuntime)
                 }
                 inlineJS.append(jsResult.pageJS)
                 inlineScripts = ["<script>\n\(inlineJS)</script>"]
@@ -144,10 +153,35 @@ public struct PageRenderer: Sendable {
 
             // Inject scroll observer when page uses animateOnScroll
             if bodyHTML.contains("data-scroll-animate") {
-                if inlineScripts != nil {
+                if !scriptLinks.isEmpty {
+                    // Static build: reference the external file
+                    resolvedScriptLinks.append("/scripts/_score-scroll.js")
+                } else if inlineScripts != nil {
                     inlineScripts?.append("<script>\(JSEmitter.scrollObserverRuntime)</script>")
                 } else {
                     inlineScripts = ["<script>\(JSEmitter.scrollObserverRuntime)</script>"]
+                }
+            }
+
+            // Inject code-copy handler when page has code blocks
+            if bodyHTML.contains("data-code-copy") {
+                if !scriptLinks.isEmpty {
+                    resolvedScriptLinks.append("/scripts/_score-code-copy.js")
+                } else if inlineScripts != nil {
+                    inlineScripts?.append("<script>\(JSEmitter.codeCopyRuntime)</script>")
+                } else {
+                    inlineScripts = ["<script>\(JSEmitter.codeCopyRuntime)</script>"]
+                }
+            }
+
+            // Inject tab-group initializer when page has tab groups
+            if bodyHTML.contains("data-tab-group") {
+                if !scriptLinks.isEmpty {
+                    resolvedScriptLinks.append("/scripts/_score-tabs.js")
+                } else if inlineScripts != nil {
+                    inlineScripts?.append("<script>\(JSEmitter.tabGroupRuntime)</script>")
+                } else {
+                    inlineScripts = ["<script>\(JSEmitter.tabGroupRuntime)</script>"]
                 }
             }
 
@@ -183,6 +217,7 @@ public struct PageRenderer: Sendable {
                 activeTheme: theme?.name,
                 canonicalURL: canonicalURL,
                 ogSiteName: ogSiteName,
+                headLinks: headLinks,
                 themeNames: theme.map { Array($0.named.keys) } ?? [],
                 scriptLinks: resolvedScriptLinks,
                 preScripts: preScripts,
@@ -199,11 +234,12 @@ public struct PageRenderer: Sendable {
                     flat: stylesheetResult.flatCSS
                 ),
                 js: RenderResult.JSOutput(
-                    inline: jsResult.pageJS.isEmpty ? "" : "<script>\n\(jsResult.needsRuntime ? JSEmitter.clientRuntime : "")\(jsResult.pageJS)</script>",
+                    inline: jsResult.pageJS.isEmpty ? "" : "<script>\n\(jsResult.needsRuntime ? JSEmitter.clientRuntime : "")\(jsResult.needsLocalFirstRuntime ? JSEmitter.localFirstRuntime : "")\(jsResult.pageJS)</script>",
                     perPage: jsResult.pageJS,
                     pageLevel: jsResult.pageLevelJS,
                     scopeBlocks: jsResult.scopeBlocks,
-                    needsRuntime: jsResult.needsRuntime
+                    needsRuntime: jsResult.needsRuntime,
+                    needsLocalFirstRuntime: jsResult.needsLocalFirstRuntime
                 )
             )
         }  // LocalizationContext.$current.withValue

@@ -4,11 +4,83 @@ import ScoreCore
 /// Emits CSS custom properties from a ``Theme`` definition.
 public struct ThemeCSSEmitter: Sendable {
 
+    /// Flags indicating which optional base styles should be emitted in the
+    /// theme stylesheet. When `nil` is passed to ``emit(_:plugins:assetManifest:usage:)``,
+    /// all styles are emitted (backward-compatible default).
+    public struct UsageFlags: Sendable {
+        /// Whether any page uses the `Spinner` component.
+        public var spinners: Bool = false
+        /// Whether any page uses the `TabGroup` component.
+        public var tabGroups: Bool = false
+        /// Whether any page uses the `CodeBlock` component.
+        public var codeBlocks: Bool = false
+        /// Whether any page uses `<table>` elements.
+        public var tables: Bool = false
+        /// Whether any page uses `<blockquote>` elements.
+        public var blockquotes: Bool = false
+
+        public init() {}
+    }
+
     private init() {}
 
-    /// Emits a complete theme stylesheet including font imports, `@font-face`
-    /// rules, `:root` block, optional dark mode media query, and named theme
+    /// Returns `<link>` tags for external stylesheets and preconnect hints
+    /// derived from the theme and plugin stylesheet imports.
+    ///
+    /// Call this to emit stylesheet imports as `<link>` tags in `<head>`
+    /// instead of CSS `@import url()` rules. The returned strings are
+    /// complete HTML tags ready to inject into the document head.
+    public static func headLinks(
+        _ theme: some Theme,
+        plugins: [any ScorePlugin] = []
+    ) -> [String] {
+        var urls: [String] = []
+        urls.append(contentsOf: theme.stylesheetImports)
+        for plugin in plugins {
+            urls.append(contentsOf: plugin.stylesheetImports)
+        }
+        guard !urls.isEmpty else { return [] }
+
+        var links: [String] = []
+
+        // Emit preconnect hints for unique external origins
+        var seenOrigins: Set<String> = []
+        for url in urls {
+            if let origin = extractOrigin(from: url), seenOrigins.insert(origin).inserted {
+                links.append("<link rel=\"preconnect\" href=\"\(origin)\" crossorigin>")
+            }
+        }
+
+        // Emit stylesheet links
+        for url in urls {
+            links.append("<link rel=\"stylesheet\" href=\"\(url)\">")
+        }
+
+        return links
+    }
+
+    /// Extracts the origin (scheme + host) from a URL string.
+    private static func extractOrigin(from url: String) -> String? {
+        guard url.hasPrefix("http") else { return nil }
+        // Find the end of "scheme://host" by locating the third slash
+        var slashCount = 0
+        for (index, char) in url.enumerated() {
+            if char == "/" { slashCount += 1 }
+            if slashCount == 3 {
+                return String(url.prefix(index))
+            }
+        }
+        // No path component — the whole URL is the origin
+        return url
+    }
+
+    /// Emits a complete theme stylesheet including `@font-face` rules,
+    /// `:root` block, optional dark mode media query, and named theme
     /// variants.
+    ///
+    /// External stylesheet imports are **not** included in the CSS output.
+    /// Use ``headLinks(_:plugins:)`` to emit them as `<link>` tags in
+    /// `<head>` instead.
     ///
     /// - Parameters:
     ///   - theme: The theme to emit CSS for.
@@ -20,19 +92,10 @@ public struct ThemeCSSEmitter: Sendable {
     public static func emit(
         _ theme: some Theme,
         plugins: [any ScorePlugin] = [],
-        assetManifest: AssetManifest? = nil
+        assetManifest: AssetManifest? = nil,
+        usage: UsageFlags? = nil
     ) -> String {
         var css = ""
-
-        for url in theme.stylesheetImports {
-            css.append("@import url('\(url)');\n")
-        }
-
-        for plugin in plugins {
-            for url in plugin.stylesheetImports {
-                css.append("@import url('\(url)');\n")
-            }
-        }
 
         emitFontFaces(theme.fontFaces, assetManifest: assetManifest, into: &css)
 
@@ -41,21 +104,22 @@ public struct ThemeCSSEmitter: Sendable {
         css.append("}\n")
 
         // Dark mode
+        let baseSyntax = theme.syntaxTheme
         if let dark = theme.dark {
             css.append("@media (prefers-color-scheme: dark) {\n  :root:not([data-theme]) {\n")
-            emitPatchProperties(dark, into: &css)
+            emitPatchProperties(dark, baseSyntax: baseSyntax, into: &css)
             css.append("  }\n}\n")
         }
 
         // Named variants
         for (name, patch) in theme.named.sorted(by: { $0.key < $1.key }) {
             css.append("[data-theme=\"\(name)\"] {\n")
-            emitPatchProperties(patch, into: &css, indent: "  ")
+            emitPatchProperties(patch, baseSyntax: baseSyntax, into: &css, indent: "  ")
             css.append("}\n")
         }
 
         // Base element styles
-        emitBaseStyles(theme, into: &css)
+        emitBaseStyles(theme, usage: usage, into: &css)
 
         // View transition styles
         if theme.viewTransitions {
@@ -103,6 +167,7 @@ public struct ThemeCSSEmitter: Sendable {
 
     private static func emitPatchProperties(
         _ patch: some ThemePatch,
+        baseSyntax: SyntaxTheme? = nil,
         into css: inout String,
         indent: String = "    "
     ) {
@@ -126,7 +191,12 @@ public struct ThemeCSSEmitter: Sendable {
             css.append("\(indent)--radius-base: \(cleanedPixelValue(radius));\n")
         }
         if let syntax = patch.syntaxTheme {
-            emitSyntaxProperties(syntax, into: &css, indent: indent)
+            // Only emit syntax properties that differ from the base theme
+            if let baseSyntax {
+                emitDiffSyntaxProperties(syntax, base: baseSyntax, into: &css, indent: indent)
+            } else {
+                emitSyntaxProperties(syntax, into: &css, indent: indent)
+            }
         }
     }
 
@@ -164,7 +234,7 @@ public struct ThemeCSSEmitter: Sendable {
         }
     }
 
-    private static func emitBaseStyles(_ theme: some Theme, into css: inout String) {
+    private static func emitBaseStyles(_ theme: some Theme, usage: UsageFlags? = nil, into css: inout String) {
         let hasColor = { (role: String) in theme.colorRoles[role] != nil }
         let hasFont = { (name: String) in theme.fontFamilies[name] != nil }
 
@@ -178,8 +248,18 @@ public struct ThemeCSSEmitter: Sendable {
             [hidden] {
               display: none !important;
             }
+            .score-hidden {
+              display: none;
+            }
             ul, ol {
               padding-left: 1.5em;
+            }
+            dialog {
+              margin: auto;
+              border: none;
+            }
+            dialog::backdrop {
+              background: rgba(0, 0, 0, 0.4);
             }\n
             """)
 
@@ -230,6 +310,14 @@ public struct ThemeCSSEmitter: Sendable {
 
         emitRule("p", declarations: ["margin-top: 8px", "margin-bottom: 8px"], into: &css)
 
+        // Reset prose margins inside article elements (cards) where flex gap
+        // handles spacing. Uses descendant selector to cover nested wrappers.
+        emitRule(
+            "article h1, article h2, article h3, article p",
+            declarations: ["margin: 0"],
+            into: &css)
+
+
         if hasFont("mono") {
             let content = theme.contentStyle
             var codeDecls: [String] = [
@@ -252,7 +340,7 @@ public struct ThemeCSSEmitter: Sendable {
                 into: &css)
         }
 
-        emitContentStyles(theme, into: &css)
+        emitContentStyles(theme, usage: usage, into: &css)
 
         emitRule("details", declarations: ["position: relative"], into: &css)
         emitRule(
@@ -289,8 +377,10 @@ public struct ThemeCSSEmitter: Sendable {
             }\n
             """)
 
-        // Braille spinner styles
-        emitSpinnerStyles(into: &css)
+        // Braille spinner styles (only when spinners are used)
+        if usage?.spinners ?? true {
+            emitSpinnerStyles(into: &css)
+        }
 
         // Responsive breakpoints
         css.append(
@@ -303,23 +393,25 @@ public struct ThemeCSSEmitter: Sendable {
             """)
     }
 
-    private static func emitContentStyles(_ theme: some Theme, into css: inout String) {
+    private static func emitContentStyles(_ theme: some Theme, usage: UsageFlags? = nil, into css: inout String) {
         let content = theme.contentStyle
         let _ = theme.syntaxTheme
 
-        var blockquoteDecls: [String] = [
-            "border-left: 3px solid \(cssPropertyValue(for: content.blockquoteBorderColor))",
-            "padding: 12px 20px",
-            "margin: 16px 0",
-        ]
-        if let bg = content.blockquoteBackground {
-            blockquoteDecls.append("background: \(cssPropertyValue(for: bg))")
+        if usage?.blockquotes ?? true {
+            var blockquoteDecls: [String] = [
+                "border-left: 3px solid \(cssPropertyValue(for: content.blockquoteBorderColor))",
+                "padding: 12px 20px",
+                "margin: 16px 0",
+            ]
+            if let bg = content.blockquoteBackground {
+                blockquoteDecls.append("background: \(cssPropertyValue(for: bg))")
+            }
+            emitRule(
+                "blockquote",
+                declarations: blockquoteDecls,
+                nested: [("p", ["margin: 4px 0"])],
+                into: &css)
         }
-        emitRule(
-            "blockquote",
-            declarations: blockquoteDecls,
-            nested: [("p", ["margin: 4px 0"])],
-            into: &css)
 
         emitRule(
             "hr",
@@ -329,16 +421,18 @@ public struct ThemeCSSEmitter: Sendable {
                 "margin: 24px 0",
             ], into: &css)
 
-        emitRule("table", declarations: ["border-collapse: collapse", "width: 100%", "margin: 16px 0"], into: &css)
-        emitRule(
-            "th, td",
-            declarations: [
-                "border: 1px solid \(cssPropertyValue(for: content.tableBorderColor))",
-                "padding: 8px 12px",
-                "text-align: left",
-            ], into: &css)
-        if let headerBg = content.tableHeaderBackground {
-            emitRule("th", declarations: ["background: \(cssPropertyValue(for: headerBg))"], into: &css)
+        if usage?.tables ?? true {
+            emitRule("table", declarations: ["border-collapse: collapse", "width: 100%", "margin: 16px 0"], into: &css)
+            emitRule(
+                "th, td",
+                declarations: [
+                    "border: 1px solid \(cssPropertyValue(for: content.tableBorderColor))",
+                    "padding: 8px 12px",
+                    "text-align: left",
+                ], into: &css)
+            if let headerBg = content.tableHeaderBackground {
+                emitRule("th", declarations: ["background: \(cssPropertyValue(for: headerBg))"], into: &css)
+            }
         }
 
         // Code block styles
@@ -347,6 +441,7 @@ public struct ThemeCSSEmitter: Sendable {
             .map { cssPropertyValue(for: $0) }
             ?? "var(--syntax-bg)"
 
+        if usage?.codeBlocks ?? true {
         emitRule(
             "[data-code-block]",
             declarations: [
@@ -470,8 +565,10 @@ public struct ThemeCSSEmitter: Sendable {
             "[data-code-line]:last-child",
             declarations: ["padding-bottom: 12px"],
             into: &css)
+        }
 
         // Tab group styles
+        if usage?.tabGroups ?? true {
         emitRule(
             "[data-tab-group]",
             declarations: [
@@ -556,6 +653,7 @@ public struct ThemeCSSEmitter: Sendable {
                 declarations: ["display: block"],
                 into: &css)
         }
+        }
     }
 
     private static func emitSyntaxProperties(
@@ -565,6 +663,24 @@ public struct ThemeCSSEmitter: Sendable {
     ) {
         for (name, value) in syntax.cssProperties {
             css.append("\(indent)\(name): \(value.cssValue);\n")
+        }
+    }
+
+    /// Emits only the syntax properties that differ from the base syntax theme.
+    private static func emitDiffSyntaxProperties(
+        _ syntax: SyntaxTheme,
+        base: SyntaxTheme,
+        into css: inout String,
+        indent: String = "  "
+    ) {
+        let baseProps = Dictionary(
+            base.cssProperties.map { ($0.name, $0.value) },
+            uniquingKeysWith: { _, new in new }
+        )
+        for (name, value) in syntax.cssProperties {
+            if baseProps[name] != value {
+                css.append("\(indent)\(name): \(value.cssValue);\n")
+            }
         }
     }
 

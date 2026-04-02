@@ -165,6 +165,12 @@ public struct Input: Node, SourceLocatable {
     /// element.
     public let value: String?
 
+    /// The name of the reactive state signal bound to this input's value.
+    ///
+    /// When non-nil, the emitter generates two-way binding JavaScript
+    /// that syncs the input's value with the named signal.
+    public let reactiveBindingName: String?
+
     /// A unique identifier for this input element.
     ///
     /// Used by `Label(for:)` to associate a visible label with the control,
@@ -235,6 +241,7 @@ public struct Input: Node, SourceLocatable {
         self.name = name
         self.placeholder = placeholder
         self.value = value
+        self.reactiveBindingName = nil
         self.id = id
         self.isRequired = required
         self.isDisabled = disabled
@@ -243,6 +250,53 @@ public struct Input: Node, SourceLocatable {
         self.min = min
         self.max = max
         self.list = list
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
+    }
+
+    /// Creates an input control with two-way state binding.
+    ///
+    /// The input's value is synchronized with the reactive state signal.
+    /// Changes to the input update the signal, and changes to the signal
+    /// update the input.
+    ///
+    /// ```swift
+    /// @State var title: String = ""
+    /// Input(type: .text, placeholder: "Title", value: $title)
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - type: The input type.
+    ///   - name: The form field name.
+    ///   - placeholder: Hint text.
+    ///   - value: A reactive text node from a `@State` property's `$` projection.
+    ///   - id: A unique identifier.
+    ///   - required: Whether the field is required.
+    ///   - disabled: Whether the field is disabled.
+    ///   - readOnly: Whether the field is read-only.
+    public init(
+        type: InputType,
+        name: String? = nil,
+        placeholder: String? = nil,
+        value binding: ReactiveTextNode,
+        id: String? = nil,
+        required: Bool = false,
+        disabled: Bool = false,
+        readOnly: Bool = false,
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column
+    ) {
+        self.type = type
+        self.name = name
+        self.placeholder = placeholder
+        self.value = binding.text
+        self.reactiveBindingName = binding.bindingName
+        self.id = id
+        self.isRequired = required
+        self.isDisabled = disabled
+        self.isReadOnly = readOnly
+        self.isChecked = false
+        self.min = nil
+        self.max = nil
+        self.list = nil
         self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
     }
 

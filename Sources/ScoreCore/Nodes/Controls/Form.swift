@@ -122,6 +122,13 @@ public struct Form<Content: Node>: Node, SourceLocatable {
     /// Corresponds to the `id` attribute on the HTML `<form>` element.
     public let id: String?
 
+    /// The name of the `@Action` function to invoke on submit.
+    ///
+    /// When non-nil, the form does not submit to a URL. Instead, the
+    /// client-side handler calls `preventDefault()` and invokes the
+    /// named action function.
+    public let actionRefName: String?
+
     /// The child nodes that constitute the form's controls and layout.
     public let content: Content
 
@@ -140,6 +147,35 @@ public struct Form<Content: Node>: Node, SourceLocatable {
         self.method = method
         self.encoding = encoding
         self.id = id
+        self.actionRefName = nil
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
+        self.content = content()
+    }
+
+    /// Creates a form that invokes an `@Action` function on submit.
+    ///
+    /// Instead of submitting to a server URL, the form calls
+    /// `preventDefault()` and invokes the named action client-side.
+    ///
+    /// ```swift
+    /// @Action func addItem() { items.create(["title": input.title]) }
+    ///
+    /// Form(action: $addItem) {
+    ///     Input(type: .text, name: "title", value: $input.title)
+    ///     Button(type: .submit) { "Add" }
+    /// }
+    /// ```
+    public init(
+        action actionRef: ActionRef,
+        id: String? = nil,
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.action = ""
+        self.method = .post
+        self.encoding = nil
+        self.id = id
+        self.actionRefName = actionRef.name
         self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
         self.content = content()
     }

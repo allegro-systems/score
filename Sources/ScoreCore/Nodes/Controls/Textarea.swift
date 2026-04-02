@@ -44,6 +44,9 @@ public struct TextArea: Node, SourceLocatable {
     /// the textarea is initially empty.
     public let value: String?
 
+    /// The name of the reactive state signal bound to this textarea's value.
+    public let reactiveBindingName: String?
+
     /// The visible number of text lines displayed by the control.
     ///
     /// Rendered as the HTML `rows` attribute. If `nil`, the browser uses its
@@ -97,6 +100,38 @@ public struct TextArea: Node, SourceLocatable {
         self.name = name
         self.placeholder = placeholder
         self.value = value
+        self.reactiveBindingName = nil
+        self.rows = rows
+        self.columns = columns
+        self.id = id
+        self.isRequired = required
+        self.isDisabled = disabled
+        self.isReadOnly = readOnly
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
+    }
+
+    /// Creates a multi-line text editing control with two-way state binding.
+    ///
+    /// ```swift
+    /// @State var body: String = ""
+    /// TextArea(name: "body", placeholder: "Write here...", value: $body)
+    /// ```
+    public init(
+        name: String? = nil,
+        placeholder: String? = nil,
+        value binding: ReactiveTextNode,
+        rows: Int? = nil,
+        columns: Int? = nil,
+        id: String? = nil,
+        required: Bool = false,
+        disabled: Bool = false,
+        readOnly: Bool = false,
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column
+    ) {
+        self.name = name
+        self.placeholder = placeholder
+        self.value = binding.text
+        self.reactiveBindingName = binding.bindingName
         self.rows = rows
         self.columns = columns
         self.id = id

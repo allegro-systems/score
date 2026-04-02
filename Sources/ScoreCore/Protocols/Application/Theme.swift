@@ -181,6 +181,30 @@ public struct ColorToken: Sendable, Hashable {
 @freestanding(declaration, names: arbitrary)
 public macro colorTokens(_ names: String...) = #externalMacro(module: "ScoreMacros", type: "ColorTokensMacro")
 
+/// Marks a struct as a Score theme.
+///
+/// `@Theme` adds `Theme` protocol conformance. The `score dev` and
+/// `score build` commands auto-generate `ColorToken` static properties
+/// for any custom keys found in `extraColorRoles` (or `colorRoles`),
+/// so no manual `#colorTokens(...)` extension is needed.
+///
+/// Built-in semantic tokens (`surface`, `text`, `border`, `accent`,
+/// `muted`, `destructive`, `success`) are skipped since they already
+/// exist on `ColorToken`.
+///
+/// ```swift
+/// @Theme
+/// struct AppTheme {
+///     var extraColorRoles: [String: ColorToken] {
+///         ["elevated": .oklch(0.96, 0.004, 240)]
+///     }
+/// }
+/// // score dev/build auto-generates:
+/// // extension ColorToken { public static let elevated = ColorToken("elevated") }
+/// ```
+@attached(extension, conformances: Theme)
+public macro Theme() = #externalMacro(module: "ScoreMacros", type: "ThemeMacro")
+
 extension ColorToken: DevDescribable {
     public var devDescription: String {
         switch kind {
@@ -237,13 +261,45 @@ public protocol Theme: Sendable {
     /// project-specific custom colors (`"brand"`, `"sidebar"`). Each entry
     /// is emitted as `--color-{key}: {value}` in the `:root` block.
     ///
+    /// Override this to replace the entire color role dictionary (advanced).
+    /// For most apps, override ``extraColorRoles`` instead to add or override
+    /// individual roles while keeping the ``DefaultTheme`` base.
+    ///
     /// Reference custom entries elsewhere using ``ColorToken/init(_:)``.
     var colorRoles: [String: ColorToken] { get }
 
+    /// Additional color roles merged on top of the ``DefaultTheme`` base.
+    ///
+    /// Override this instead of ``colorRoles`` to add custom colors or
+    /// override individual defaults without replacing the entire dictionary:
+    ///
+    /// ```swift
+    /// var extraColorRoles: [String: ColorToken] {
+    ///     ["elevated": .oklch(0.96, 0.004, 240)]
+    /// }
+    /// ```
+    var extraColorRoles: [String: ColorToken] { get }
+
     /// Named font-family mappings used by typography emitters.
+    ///
+    /// Override this to replace the entire font family dictionary (advanced).
+    /// For most apps, override ``extraFontFamilies`` instead to add fonts
+    /// while keeping the ``DefaultTheme`` base.
     ///
     /// Example keys include `"sans"`, `"mono"`, and `"brand"`.
     var fontFamilies: [String: String] { get }
+
+    /// Additional font families merged on top of the ``DefaultTheme`` base.
+    ///
+    /// Override this instead of ``fontFamilies`` to add custom font families
+    /// or override individual defaults without replacing the entire dictionary:
+    ///
+    /// ```swift
+    /// var extraFontFamilies: [String: String] {
+    ///     ["brand": "'Inter', system-ui, sans-serif"]
+    /// }
+    /// ```
+    var extraFontFamilies: [String: String] { get }
 
     /// External stylesheet URLs imported before theme custom properties.
     ///
@@ -357,11 +413,21 @@ extension Theme {
     /// Default theme name.
     public var name: String? { nil }
 
-    /// Default color roles from ``DefaultTheme``.
-    public var colorRoles: [String: ColorToken] { DefaultTheme().colorRoles }
+    /// Default color roles: ``DefaultTheme`` base merged with ``extraColorRoles``.
+    public var colorRoles: [String: ColorToken] {
+        DefaultTheme().colorRoles.merging(extraColorRoles) { _, new in new }
+    }
 
-    /// Default font families from ``DefaultTheme``.
-    public var fontFamilies: [String: String] { DefaultTheme().fontFamilies }
+    /// Default extra color roles is empty.
+    public var extraColorRoles: [String: ColorToken] { [:] }
+
+    /// Default font families: ``DefaultTheme`` base merged with ``extraFontFamilies``.
+    public var fontFamilies: [String: String] {
+        DefaultTheme().fontFamilies.merging(extraFontFamilies) { _, new in new }
+    }
+
+    /// Default extra font families is empty.
+    public var extraFontFamilies: [String: String] { [:] }
 
     /// Default stylesheet imports return an empty array.
     public var stylesheetImports: [String] { [] }

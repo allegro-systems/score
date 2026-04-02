@@ -110,6 +110,23 @@ public protocol Application: Sendable {
     /// - During static site generation to emit a `404.html` file.
     var errorPage: (any ErrorPage.Type)? { get }
 
+    /// Custom rules appended to the generated `robots.txt` file.
+    ///
+    /// Each string is emitted as a separate line after the default
+    /// `User-agent: * / Allow: /` block. Use this to add `Disallow`,
+    /// extra `User-agent`, or `Crawl-delay` directives.
+    ///
+    /// ```swift
+    /// var robotsRules: [String] {
+    ///     [
+    ///         "Disallow: /api/",
+    ///         "Disallow: /admin/",
+    ///         "Crawl-delay: 1",
+    ///     ]
+    /// }
+    /// ```
+    var robotsRules: [String] { get }
+
     /// The internationalization configuration for this application.
     ///
     /// When set, the static site emitter generates pages for each supported
@@ -181,6 +198,9 @@ extension Application {
 
     /// Returns `nil`, keeping the framework's default error responses.
     public var errorPage: (any ErrorPage.Type)? { nil }
+
+    /// Defaults to an empty array (no extra rules).
+    public var robotsRules: [String] { [] }
 
     /// Automatically loads `Localizable.xcstrings` if present.
     ///

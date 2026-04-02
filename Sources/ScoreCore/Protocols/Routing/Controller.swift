@@ -1,5 +1,64 @@
 import HTTPTypes
 
+// MARK: - @Controller Macro
+
+/// Marks a struct as a ``Controller`` with automatic route and endpoint generation.
+///
+/// `@Controller` scans the struct for `@Route`-annotated functions and generates:
+/// - ``Controller`` protocol conformance
+/// - `var base: String` from the macro argument
+/// - `var routes: [Route]` collecting all `@Route` handlers
+/// - A `static var` ``Endpoint`` for each handler function (named after the function)
+///
+/// ### Usage
+///
+/// ```swift
+/// @Controller("/api/posts")
+/// struct PostController {
+///     @Route(method: .get)
+///     func listPosts(_ ctx: RequestContext) async throws -> Response { ... }
+///
+///     @Route(":postId", method: .get)
+///     func getPost(_ ctx: RequestContext) async throws -> Response { ... }
+///
+///     @Route(":postId", method: .put)
+///     func updatePost(_ ctx: RequestContext) async throws -> Response { ... }
+/// }
+/// ```
+///
+/// Generates:
+/// ```swift
+/// extension PostController: Controller {}
+/// var base: String { "/api/posts" }
+/// var routes: [Route] { ... }
+/// static var listPosts: Endpoint { endpoint() }
+/// static var getPost: Endpoint { endpoint(":postId") }
+/// static var updatePost: Endpoint { endpoint(":postId") }
+/// ```
+@attached(member, names: arbitrary)
+@attached(extension, conformances: Controller)
+public macro Controller(_ base: String) = #externalMacro(module: "ScoreMacros", type: "ControllerMacro")
+
+// MARK: - @Route Macro
+
+/// Marks a function as an HTTP route handler within a ``Controller``.
+///
+/// `@Route` is a marker macro — it generates no code on its own but is read
+/// by the ``Controller`` macro to build the route table and endpoint statics.
+///
+/// - Parameters:
+///   - path: The sub-path relative to the controller's base. Defaults to root (`"/"`).
+///   - method: The HTTP method this route handles.
+@attached(peer)
+public macro Route(_ path: String, method: RouteMethod) = #externalMacro(
+    module: "ScoreMacros", type: "RouteMacro")
+
+/// `@Route` at the controller root path.
+@attached(peer)
+public macro Route(method: RouteMethod) = #externalMacro(module: "ScoreMacros", type: "RouteMacro")
+
+// MARK: - Controller Protocol
+
 /// A protocol that groups a set of HTTP route handlers under a common base path.
 ///
 /// `Controller` is the organisational unit for request handling in Score.
@@ -32,6 +91,13 @@ import HTTPTypes
 /// ```
 public protocol Controller: Sendable {
 
+    /// Creates a default instance of this controller.
+    ///
+    /// Required so ``endpoint(_:)`` can resolve the ``base`` path
+    /// at compile time. All controllers are plain structs with no stored
+    /// properties, so the memberwise initializer satisfies this.
+    init()
+
     /// The base path prefix shared by all routes in this controller.
     ///
     /// All `Route` paths declared in `routes` are resolved relative to this
@@ -46,6 +112,33 @@ public protocol Controller: Sendable {
     /// Each `Route` pairs an HTTP method with a path segment that is appended
     /// to `base` to form the complete endpoint path.
     var routes: [Route] { get }
+}
+
+extension Controller {
+
+    /// Creates an ``Endpoint`` relative to this controller's ``base`` path.
+    ///
+    /// Use this in `static` properties so `@Query` consumers can reference
+    /// sub-paths without duplicating the base string:
+    ///
+    /// ```swift
+    /// struct CommentController: Controller {
+    ///     var base: String { "/api/comments" }
+    ///
+    ///     static var forPost: Endpoint { endpoint(":postId") }
+    ///     static var all: Endpoint { endpoint() }
+    ///
+    ///     var routes: [Route] { ... }
+    /// }
+    /// ```
+    ///
+    /// - Parameter subpath: The path segment to append. Defaults to `"/"` (the base itself).
+    /// - Returns: An ``Endpoint`` whose ``Endpoint/path`` is `base + subpath`, normalized.
+    public static func endpoint(_ subpath: String = "/") -> Endpoint {
+        let base = Self().base
+        let combined = (base + "/" + subpath).normalized()
+        return Endpoint(subpath: subpath.normalized(), path: combined)
+    }
 }
 
 /// A type alias for the HTTP method used when defining a `Route`.

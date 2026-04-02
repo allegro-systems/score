@@ -274,6 +274,40 @@ public struct Navigation<Content: Node>: Node, SourceLocatable {
     public var body: Never { fatalError() }
 }
 
+/// An inline container that groups child nodes without block-level semantics.
+///
+/// `Span` renders as the HTML `<span>` element. Use it when you need an inline
+/// wrapper for styling or labeling without the block-level semantics of a `Stack`.
+///
+/// ### Example
+///
+/// ```swift
+/// Span {
+///     Icon("star")
+///     Text { "Featured" }
+/// }
+/// .font(.sans, size: 12, color: .muted)
+/// ```
+public struct Span<Content: Node>: Node, SourceLocatable {
+
+    /// The child nodes contained within this span.
+    public let content: Content
+    public let sourceLocation: SourceLocation
+
+    /// Creates an inline span with the given child content.
+    public init(
+        file: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column,
+        @NodeBuilder content: () -> Content
+    ) {
+        self.sourceLocation = SourceLocation(fileID: file, filePath: filePath, line: line, column: column)
+        self.content = content()
+    }
+
+    /// This node is rendered directly by the Score runtime and does not have a
+    /// composable body.
+    public var body: Never { fatalError() }
+}
+
 /// A transparent grouping node that produces no wrapper element in the rendered output.
 ///
 /// `Group` is a purely structural tool that allows multiple nodes to be

@@ -69,40 +69,64 @@ public struct StateMacro: AccessorMacro, PeerMacro {
             typeAnnotation = ""
         }
 
-        let jsValue = formatJSLiteral(initializer, binding: binding)
-
         var peers: [DeclSyntax] = []
 
-        peers.append(
-            """
-            private var _stateStorage_\(raw: name)\(raw: typeAnnotation) = \(raw: initializer)
-            """)
+        // Detect grouped state: initializer is a struct constructor call (e.g., ItemForm())
+        // In that case, generate GroupedStateDescriptor + GroupedStateProjection
+        // instead of StateDescriptor + ReactiveTextNode.
+        let isGroupedState = isStructConstructorCall(binding)
 
-        if let key = persistedKey {
-            if key.isTheme {
-                peers.append(
-                    """
-                    let _state_\(raw: name) = StateDescriptor(name: \(literal: name), jsInitialValue: \(literal: jsValue), storageKey: \(literal: key.storageKey), isTheme: true)
-                    """)
+        if isGroupedState {
+            let typeName = extractConstructorTypeName(binding)
+
+            peers.append(
+                """
+                private var _stateStorage_\(raw: name)\(raw: typeAnnotation) = \(raw: initializer)
+                """)
+
+            peers.append(
+                """
+                let _grouped_\(raw: name) = GroupedStateDescriptor(name: \(literal: name), fields: \(raw: typeName).jsFields)
+                """)
+
+            peers.append(
+                """
+                var $\(raw: name): GroupedStateProjection { GroupedStateProjection(name: \(literal: name)) }
+                """)
+        } else {
+            let jsValue = formatJSLiteral(initializer, binding: binding)
+
+            peers.append(
+                """
+                private var _stateStorage_\(raw: name)\(raw: typeAnnotation) = \(raw: initializer)
+                """)
+
+            if let key = persistedKey {
+                if key.isTheme {
+                    peers.append(
+                        """
+                        let _state_\(raw: name) = StateDescriptor(name: \(literal: name), jsInitialValue: \(literal: jsValue), storageKey: \(literal: key.storageKey), isTheme: true)
+                        """)
+                } else {
+                    peers.append(
+                        """
+                        let _state_\(raw: name) = StateDescriptor(name: \(literal: name), jsInitialValue: \(literal: jsValue), storageKey: \(literal: key.storageKey))
+                        """)
+                }
             } else {
                 peers.append(
                     """
-                    let _state_\(raw: name) = StateDescriptor(name: \(literal: name), jsInitialValue: \(literal: jsValue), storageKey: \(literal: key.storageKey))
+                    let _state_\(raw: name) = StateDescriptor(name: \(literal: name), jsInitialValue: \(literal: jsValue))
                     """)
             }
-        } else {
+
             peers.append(
                 """
-                let _state_\(raw: name) = StateDescriptor(name: \(literal: name), jsInitialValue: \(literal: jsValue))
+                var $\(raw: name): ReactiveTextNode {
+                    ReactiveTextNode(name: \(literal: name), text: \"\\(\(raw: name))\")
+                }
                 """)
         }
-
-        peers.append(
-            """
-            var $\(raw: name): ReactiveTextNode {
-                ReactiveTextNode(name: \(literal: name), text: \"\\(\(raw: name))\")
-            }
-            """)
 
         return peers
     }
@@ -133,6 +157,30 @@ public struct StateMacro: AccessorMacro, PeerMacro {
             }
         }
         return nil
+    }
+
+    /// Returns `true` when the initializer is a struct constructor call
+    /// (e.g., `ItemForm()` or `ItemForm(title: "")`) as opposed to a
+    /// primitive literal like `0`, `""`, or `true`.
+    private static func isStructConstructorCall(_ binding: PatternBindingSyntax) -> Bool {
+        guard let initExpr = binding.initializer?.value else { return false }
+        guard let call = initExpr.as(FunctionCallExprSyntax.self) else { return false }
+
+        // The callee must be a simple identifier starting with uppercase (type name)
+        if let ident = call.calledExpression.as(DeclReferenceExprSyntax.self) {
+            let name = ident.baseName.text
+            return name.first?.isUppercase == true
+        }
+        return false
+    }
+
+    /// Extracts the type name from a struct constructor call initializer.
+    private static func extractConstructorTypeName(_ binding: PatternBindingSyntax) -> String {
+        guard let initExpr = binding.initializer?.value,
+            let call = initExpr.as(FunctionCallExprSyntax.self),
+            let ident = call.calledExpression.as(DeclReferenceExprSyntax.self)
+        else { return "Unknown" }
+        return ident.baseName.text
     }
 
     private static func formatJSLiteral(_ initializer: String, binding: PatternBindingSyntax) -> String {

@@ -82,36 +82,6 @@ public struct ShadowModifier: ModifierValue {
     }
 }
 
-/// A modifier that rounds the corners of a node.
-///
-/// `RadiusModifier` applies a uniform border-radius to all four corners of a node,
-/// creating rounded rectangles or, at sufficiently large values, circular shapes.
-///
-/// ### Example
-///
-/// ```swift
-/// Box()
-///     .radius(8)
-///
-/// Avatar()
-///     .radius(9999)
-/// ```
-///
-/// ### CSS Mapping
-///
-/// Maps to the CSS `border-radius` property on the rendered element.
-public struct RadiusModifier: ModifierValue {
-    /// The corner radius in points, applied uniformly to all four corners.
-    public let value: Double
-
-    /// Creates a radius modifier.
-    ///
-    /// - Parameter value: The corner radius in points.
-    public init(_ value: Double) {
-        self.value = value
-    }
-}
-
 extension Node {
     /// Sets the transparency level of this node and all its descendants.
     ///
@@ -163,25 +133,4 @@ extension Node {
         return ModifiedNode(content: self, modifiers: [mod])
     }
 
-    /// Rounds the corners of this node uniformly.
-    ///
-    /// ### Example
-    ///
-    /// ```swift
-    /// Card()
-    ///     .radius(12)
-    ///
-    /// Avatar()
-    ///     .radius(9999)
-    /// ```
-    ///
-    /// ### CSS Mapping
-    ///
-    /// Maps to the CSS `border-radius` property on the rendered element.
-    ///
-    /// - Parameter value: The corner radius in points, applied to all four corners.
-    /// - Returns: A `ModifiedNode` with the radius modifier applied.
-    public func radius(_ value: Double) -> ModifiedNode<Self> {
-        ModifiedNode(content: self, modifiers: [RadiusModifier(value)])
-    }
 }

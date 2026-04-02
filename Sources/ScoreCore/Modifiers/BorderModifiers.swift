@@ -52,10 +52,14 @@ public struct BorderModifier: ModifierValue {
     public let width: Double
 
     /// The design-token color of the border.
-    public let color: ColorToken
+    ///
+    /// When `nil`, no border color or shorthand is emitted (radius-only mode).
+    public let color: ColorToken?
 
     /// The line style of the border (solid, dashed, dotted, or none).
-    public let style: BorderStyle
+    ///
+    /// When `nil`, no border style or shorthand is emitted (radius-only mode).
+    public let style: BorderStyle?
 
     /// The corner radius applied to the node, in points.
     ///
@@ -70,15 +74,15 @@ public struct BorderModifier: ModifierValue {
     /// Creates a border modifier.
     ///
     /// - Parameters:
-    ///   - width: The border stroke width in points.
-    ///   - color: The design-token color of the border.
-    ///   - style: The line style (e.g., `.solid`, `.dashed`).
+    ///   - width: The border stroke width in points. Defaults to `0`.
+    ///   - color: The design-token color of the border. Defaults to `nil`.
+    ///   - style: The line style (e.g., `.solid`, `.dashed`). Defaults to `nil`.
     ///   - radius: Optional corner radius in points.
     ///   - edges: The edges on which to apply the border. Pass `nil` for all edges.
     public init(
-        width: Double,
-        color: ColorToken,
-        style: BorderStyle,
+        width: Double = 0,
+        color: ColorToken? = nil,
+        style: BorderStyle? = nil,
         radius: Double? = nil,
         edges: Set<Edge>? = nil
     ) {
@@ -150,6 +154,9 @@ extension Node {
     ///
     /// Divider()
     ///     .border(width: 1, color: .separator, style: .solid, at: .bottom)
+    ///
+    /// Avatar()
+    ///     .border(radius: 9999)
     /// ```
     ///
     /// ### CSS Mapping
@@ -158,14 +165,14 @@ extension Node {
     /// properties on the rendered element.
     ///
     /// - Parameters:
-    ///   - width: The border stroke width in points.
+    ///   - width: The border stroke width in points. Defaults to `0`.
     ///   - color: The design-token color of the border.
     ///   - style: The line style (e.g., `.solid`, `.dashed`).
     ///   - radius: Optional corner radius in points.
     ///   - edges: A variadic list of edges on which to draw the border. Omit for all edges.
     /// - Returns: A `ModifiedNode` with the border modifier applied.
     public func border(
-        width: Double,
+        width: Double = 0,
         color: ColorToken,
         style: BorderStyle,
         radius: Double? = nil,
@@ -195,14 +202,14 @@ extension Node {
     /// properties on the rendered element.
     ///
     /// - Parameters:
-    ///   - width: The border stroke width in points.
+    ///   - width: The border stroke width in points. Defaults to `0`.
     ///   - color: The design-token color of the border.
     ///   - style: The line style (e.g., `.solid`, `.dashed`).
     ///   - radius: Optional corner radius in points.
     ///   - edges: An array of edges on which to draw the border. Pass an empty array for all edges.
     /// - Returns: A `ModifiedNode` with the border modifier applied.
     public func border(
-        width: Double,
+        width: Double = 0,
         color: ColorToken,
         style: BorderStyle,
         radius: Double? = nil,
@@ -211,6 +218,34 @@ extension Node {
         let configuredEdges = edges.isEmpty ? nil : Set(edges)
         let mod = BorderModifier(
             width: width, color: color, style: style, radius: radius, edges: configuredEdges)
+        return ModifiedNode(content: self, modifiers: [mod])
+    }
+
+    /// Rounds the corners of this node without adding a visible border stroke.
+    ///
+    /// This is a convenience for `.border(radius:)` when you only need corner
+    /// rounding and no border width, color, or style.
+    ///
+    /// ### Example
+    ///
+    /// ```swift
+    /// Card()
+    ///     .border(radius: 12)
+    ///
+    /// Avatar()
+    ///     .border(radius: 9999)
+    /// ```
+    ///
+    /// ### CSS Mapping
+    ///
+    /// Maps to the CSS `border-radius` property on the rendered element.
+    ///
+    /// - Parameter radius: The corner radius in points, applied to all four corners.
+    /// - Returns: A `ModifiedNode` with the border modifier applied.
+    public func border(
+        radius: Double
+    ) -> ModifiedNode<Self> {
+        let mod = BorderModifier(radius: radius)
         return ModifiedNode(content: self, modifiers: [mod])
     }
 }

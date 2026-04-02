@@ -24,4 +24,7 @@ extension Aside: CSSContainerNode {
 extension Navigation: CSSContainerNode {
     package var htmlTag: String? { "nav" }
 }
+extension Span: CSSContainerNode {
+    package var htmlTag: String? { "span" }
+}
 extension Group: CSSContainerNode {}

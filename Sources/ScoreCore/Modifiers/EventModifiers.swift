@@ -95,14 +95,29 @@ public struct EventBindingModifier: ModifierValue {
     /// function in the component scope.
     public let handler: String
 
+    /// Server-rendered argument values to pass to the handler.
+    ///
+    /// When non-empty, the emitted event listener calls the handler with
+    /// these values as positional arguments instead of the event object.
+    public let args: [String]
+
+    /// Whether the default event behavior should be prevented.
+    ///
+    /// Used for form submit handlers bound to `@Action` functions.
+    public let preventDefault: Bool
+
     /// Creates an event binding modifier.
     ///
     /// - Parameters:
     ///   - event: The DOM event to listen for.
     ///   - handler: The name of the handler function.
-    public init(event: DOMEvent, handler: String) {
+    ///   - args: Server-rendered argument values. Defaults to empty.
+    ///   - preventDefault: Whether to call `preventDefault()`. Defaults to `false`.
+    public init(event: DOMEvent, handler: String, args: [String] = [], preventDefault: Bool = false) {
         self.event = event
         self.handler = handler
+        self.args = args
+        self.preventDefault = preventDefault
     }
 }
 
@@ -149,5 +164,31 @@ extension Node {
     /// - Returns: A `ModifiedNode` with the event binding applied.
     public func on(_ event: DOMEvent, action handler: ActionRef) -> ModifiedNode<Self> {
         modifier(EventBindingModifier(event: event, handler: handler.name))
+    }
+
+    /// Binds a DOM event on this node to a type-safe action reference,
+    /// passing server-rendered values as arguments.
+    ///
+    /// The `args` values are evaluated at server render time and passed
+    /// positionally to the action function when the event fires.
+    ///
+    /// ### Example
+    ///
+    /// ```swift
+    /// @Action func editItem(id: String, title: String) { ... }
+    ///
+    /// for item in items {
+    ///     Button { "Edit" }
+    ///         .on(.click, action: $editItem, args: item.id, item.title)
+    /// }
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - event: The DOM event to listen for.
+    ///   - handler: A type-safe reference to an `@Action` function.
+    ///   - args: Server-rendered values passed as positional arguments.
+    /// - Returns: A `ModifiedNode` with the event binding applied.
+    public func on(_ event: DOMEvent, action handler: ActionRef, args: String...) -> ModifiedNode<Self> {
+        modifier(EventBindingModifier(event: event, handler: handler.name, args: args))
     }
 }

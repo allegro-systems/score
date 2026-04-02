@@ -677,15 +677,20 @@ public struct CSSCollector: Sendable {
     /// element-based nested selectors. Using `div { ... }` or `span { ... }`
     /// inside a component scope is fragile because it targets every instance
     /// of that tag, not just the styled one.
-    private static let alwaysClassedTags: Set<String> = ["div", "span"]
+    private static let alwaysClassedTags: Set<String> = ["div", "span", "p", "a"]
 
     /// Maps HTML tag names to human-readable equivalents for class naming.
     static func friendlyTagName(_ tag: String) -> String {
         switch tag {
-        case "h1", "h2", "h3", "h4", "h5", "h6": return "heading"
+        case "h1": return "h1"
+        case "h2": return "h2"
+        case "h3": return "h3"
+        case "h4": return "h4"
+        case "h5": return "h5"
+        case "h6": return "h6"
         case "p": return "text"
         case "a": return "link"
-        case "div": return "stack"
+        case "div": return "row"
         case "section": return "section"
         case "article": return "article"
         case "nav": return "nav"
@@ -696,6 +701,7 @@ public struct CSSCollector: Sendable {
         case "button": return "button"
         case "img": return "image"
         case "small": return "small"
+        case "span": return "label"
         default: return tag
         }
     }

@@ -27,6 +27,11 @@ public enum DisplayMode: String, Sendable {
     /// Equivalent to CSS `inline-block`.
     case inlineBlock = "inline-block"
 
+    /// The element generates a flex container that flows inline.
+    ///
+    /// Equivalent to CSS `inline-flex`.
+    case inlineFlex = "inline-flex"
+
     /// The element itself is not rendered, but its children are.
     ///
     /// Useful for wrapper elements that should not introduce a box of their own.

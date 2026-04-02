@@ -26,13 +26,21 @@ Every Score modifier follows a **one modifier per CSS concept** rule:
 .size(width: 200, height: 100)
 .position(.absolute, top: 0)
 .overflow(vertical: .auto)     // use horizontal/vertical, never x/y
-.radius(8)
+.border(radius: 8)
 ```
 
 **Rules:**
 - **One modifier per concept** — never create `.flexItem()`, `.gridPlacement()`, `.fontSize()`, etc.
 - **Use `horizontal`/`vertical`** — never `x`/`y` for axis parameters.
 - **New CSS properties** go into the appropriate existing modifier.
+
+## Never Create Custom Control Flow Components
+
+Score uses `@NodeBuilder` result builders — Swift's native `for`, `switch`, `if/else` work directly in component bodies. Never create `ForEach`, `Switch`, `Case`, `If`, or similar wrapper components. Use the language.
+
+## Never Wrap Nodes in Unnecessary Stacks
+
+Only use `Stack` when you need flex layout (direction, gap, alignment). Do not use `Stack` as a grouping wrapper — it creates div soup.
 
 ## Never Use htmlAttribute for Styles or Events
 

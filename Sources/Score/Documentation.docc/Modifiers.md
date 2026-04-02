@@ -75,8 +75,8 @@ Stack {
 ### Radius
 
 ```swift
-.radius(8)
-.radius(9999)  // Fully rounded (pill shape)
+.border(radius: 8)
+.border(radius: 9999)  // Fully rounded (pill shape)
 ```
 
 ## Typography
@@ -165,7 +165,7 @@ Text { "Hello" }
     .padding(8, at: .horizontal)
     .padding(4, at: .vertical)
     .background(.elevated)
-    .radius(4)
+    .border(radius: 4)
     .hover { $0.background(.accent).color(.surface) }
     .transition(.all, duration: 0.15)
 ```

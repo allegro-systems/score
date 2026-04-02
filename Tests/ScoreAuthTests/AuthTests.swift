@@ -114,7 +114,8 @@ struct PasskeyTests {
         try await manager.completeRegistration(
             userId: "user1",
             credentialId: "cred1",
-            publicKey: Data([1, 2, 3])
+            publicKey: Data([1, 2, 3]),
+            clientDataJSON: Data()
         )
         let credential = try await store.get(credentialId: "cred1")
         #expect(credential?.userId == "user1")
@@ -148,11 +149,24 @@ struct PasskeyTests {
         try await manager.completeRegistration(
             userId: "user1",
             credentialId: "cred1",
-            publicKey: Data([1, 2, 3])
+            publicKey: Data([1, 2, 3]),
+            clientDataJSON: Data()
         )
-        let result = try await manager.verifyAuthentication(credentialId: "cred1", signCount: 1)
+        let result = try await manager.verifyAuthentication(
+            credentialId: "cred1",
+            clientDataJSON: Data(),
+            authenticatorData: Data(),
+            signature: Data(),
+            signCount: 1
+        )
         #expect(result != nil)
-        let failed = try await manager.verifyAuthentication(credentialId: "cred1", signCount: 0)
+        let failed = try await manager.verifyAuthentication(
+            credentialId: "cred1",
+            clientDataJSON: Data(),
+            authenticatorData: Data(),
+            signature: Data(),
+            signCount: 0
+        )
         #expect(failed == nil)
     }
 }

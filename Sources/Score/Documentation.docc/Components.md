@@ -22,7 +22,7 @@ struct FeatureCard: Component {
         }
         .padding(24, at: .all)
         .background(.elevated)
-        .radius(8)
+        .border(radius: 8)
     }
 }
 ```

@@ -119,5 +119,5 @@ The `spacingUnit` and `radiusBase` values establish the grid for padding, margin
 
 ```swift
 .padding(24, at: .vertical)  // 24px = 6 spacing units (if unit = 4)
-.radius(8)                    // Uses the radius base
+.border(radius: 8)                    // Uses the radius base
 ```

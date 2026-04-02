@@ -9,6 +9,10 @@ struct ToolingConfigurator: Sendable {
     static func configure(at directory: String, projectName: String, options: ToolingOptions) throws {
         let fm = FileManager.default
 
+        // -- Generated files (theme codegen) ----------------------------------
+
+        try appendToGitignore(at: directory, line: "**/Generated/")
+
         // -- Task runner -------------------------------------------------------
 
         // Remove the default mise.toml that ships with the template — we'll

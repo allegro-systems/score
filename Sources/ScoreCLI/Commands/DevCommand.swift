@@ -90,6 +90,7 @@ final class DevRunner: Sendable {
             self.stopServer()
 
             do {
+                try ThemeCodegen.run(in: self.directory)
                 let result = try SwiftToolchain.buildStreaming(release: false, in: self.directory) { _ in
                 }
                 if result.succeeded {
@@ -112,6 +113,8 @@ final class DevRunner: Sendable {
 
     private func initialBuild() async throws -> Bool {
         printStatusBlock(icon: "◉", style: .info, message: "Building project...")
+
+        try ThemeCodegen.run(in: directory)
 
         let result = try SwiftToolchain.buildStreaming(release: false, in: directory) { line in
             print("  \(line)")

@@ -1,0 +1,156 @@
+import Foundation
+
+/// Pre-build code generation for `@Theme` structs.
+///
+/// Scans Swift source files for `@Theme`-annotated structs, extracts
+/// dictionary keys from `extraColorRoles` or `colorRoles`, and writes
+/// an `extension ColorToken` file so custom color roles get type-safe
+/// dot-syntax access without a manual `#colorTokens(...)` call.
+enum ThemeCodegen {
+
+    /// Semantic tokens already defined on `ColorToken`.
+    private static let builtinTokens: Set<String> = [
+        "surface", "text", "border", "accent", "muted", "destructive", "success",
+    ]
+
+    /// Runs theme codegen for the project at `directory`.
+    ///
+    /// Scans `Sources/` for `@Theme` structs, extracts color role keys,
+    /// and writes `Sources/Generated/ThemeColorTokens.swift` if any
+    /// custom keys are found. Removes the generated file if no custom
+    /// keys exist.
+    static func run(in directory: String) throws {
+        let sourcesDir = "\(directory)/Sources"
+        let fm = FileManager.default
+
+        guard fm.fileExists(atPath: sourcesDir) else { return }
+
+        let swiftFiles = collectSwiftFiles(in: sourcesDir)
+        var allKeys: [String] = []
+
+        for file in swiftFiles {
+            guard let content = try? String(contentsOfFile: file, encoding: .utf8) else { continue }
+            let keys = extractColorRoleKeys(from: content)
+            allKeys.append(contentsOf: keys)
+        }
+
+        // Deduplicate and sort, filter builtins.
+        let uniqueKeys = Array(Set(allKeys)).filter { !builtinTokens.contains($0) }.sorted()
+
+        let generatedDir = "\(sourcesDir)/Generated"
+        let outputPath = "\(generatedDir)/ThemeColorTokens.swift"
+
+        if uniqueKeys.isEmpty {
+            // Clean up if no custom keys exist.
+            if fm.fileExists(atPath: outputPath) {
+                try fm.removeItem(atPath: outputPath)
+            }
+            return
+        }
+
+        let generated = generateSource(for: uniqueKeys)
+
+        // Only write if content changed to avoid unnecessary rebuilds.
+        if let existing = try? String(contentsOfFile: outputPath, encoding: .utf8),
+            existing == generated
+        {
+            return
+        }
+
+        if !fm.fileExists(atPath: generatedDir) {
+            try fm.createDirectory(atPath: generatedDir, withIntermediateDirectories: true)
+        }
+
+        try generated.write(toFile: outputPath, atomically: true, encoding: .utf8)
+    }
+
+    // MARK: - Source Parsing
+
+    private static let dotAll: NSRegularExpression.Options = .dotMatchesLineSeparators
+
+    // Pre-compiled regexes — reused across every file scan.
+    private static let themeRegex = try! NSRegularExpression(
+        pattern: #"@Theme\s+struct\s+\w+[^\{]*\{(.+)\}"#, options: dotAll
+    )
+    private static let keyRegex = try! NSRegularExpression(pattern: #""([^"]+)"\s*:"#)
+
+    private static func dictRegex(for property: String) -> NSRegularExpression {
+        let pattern =
+            "(?:var|let)\\s+" + NSRegularExpression.escapedPattern(for: property)
+            + #"[^\{=]*(?:\{|=)\s*\[(.+?)\]"#
+        return try! NSRegularExpression(pattern: pattern, options: dotAll)
+    }
+
+    private static let extraColorRolesRegex = dictRegex(for: "extraColorRoles")
+    private static let colorRolesRegex = dictRegex(for: "colorRoles")
+
+    /// Extracts color role keys from `extraColorRoles` or `colorRoles`
+    /// dictionary literals in `@Theme` structs.
+    private static func extractColorRoleKeys(from source: String) -> [String] {
+        guard
+            let themeMatch = themeRegex.firstMatch(
+                in: source, range: NSRange(source.startIndex..., in: source)),
+            let bodyRange = Range(themeMatch.range(at: 1), in: source)
+        else { return [] }
+
+        let body = String(source[bodyRange])
+
+        for regex in [extraColorRolesRegex, colorRolesRegex] {
+            let keys = extractDictionaryKeys(using: regex, in: body)
+            if !keys.isEmpty { return keys }
+        }
+
+        return []
+    }
+
+    /// Extracts string keys from a dictionary literal matched by the given regex.
+    private static func extractDictionaryKeys(using regex: NSRegularExpression, in body: String) -> [String] {
+        guard let match = regex.firstMatch(in: body, range: NSRange(body.startIndex..., in: body)),
+            let dictRange = Range(match.range(at: 1), in: body)
+        else { return [] }
+
+        let dictContent = String(body[dictRange])
+        let matches = keyRegex.matches(in: dictContent, range: NSRange(dictContent.startIndex..., in: dictContent))
+        return matches.compactMap { match in
+            guard let range = Range(match.range(at: 1), in: dictContent) else { return nil }
+            return String(dictContent[range])
+        }
+    }
+
+    // MARK: - Generation
+
+    private static func generateSource(for keys: [String]) -> String {
+        var lines: [String] = []
+        lines.append("// Auto-generated by Score — do not edit.")
+        lines.append("// Regenerated on each build from @Theme color role keys.")
+        lines.append("")
+        lines.append("import ScoreCore")
+        lines.append("")
+        lines.append("extension ColorToken {")
+        for key in keys {
+            lines.append("    public static let \(key) = ColorToken(\"\(key)\")")
+        }
+        lines.append("}")
+        lines.append("")
+        return lines.joined(separator: "\n")
+    }
+
+    // MARK: - File Discovery
+
+    private static func collectSwiftFiles(in directory: String) -> [String] {
+        let fm = FileManager.default
+        guard let enumerator = fm.enumerator(atPath: directory) else { return [] }
+
+        var files: [String] = []
+        while let path = enumerator.nextObject() as? String {
+            // Skip the Generated directory itself.
+            if path.hasPrefix("Generated/") || path.contains("/Generated/") {
+                continue
+            }
+            if path.hasSuffix(".swift") {
+                files.append("\(directory)/\(path)")
+            }
+        }
+        return files
+    }
+}

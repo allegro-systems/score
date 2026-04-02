@@ -35,6 +35,9 @@ struct BuildCommand: AsyncParsableCommand {
         }
 
         let directory = FileManager.default.currentDirectoryPath
+
+        try ThemeCodegen.run(in: directory)
+
         let resultBox = LockedValue<BuildResult?>(nil)
 
         do {

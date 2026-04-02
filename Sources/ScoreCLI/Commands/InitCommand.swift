@@ -50,7 +50,7 @@ struct InitCommand: AsyncParsableCommand {
             try ToolingConfigurator.configure(at: destination, projectName: projectName, options: tooling)
         }
 
-        var takeaways = [
+        var takeaways: [TerminalText] = [
             "cd \(projectName)",
             "swift build",
             "swift run \(projectName)",

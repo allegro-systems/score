@@ -32,4 +32,8 @@ extension Navigation: HTMLContainerElement {
     package var htmlTagName: String { "nav" }
 }
 
+extension Span: HTMLContainerElement {
+    package var htmlTagName: String { "span" }
+}
+
 extension Group: HTMLTransparentElement {}

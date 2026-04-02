@@ -15,8 +15,12 @@ extension Button: HTMLContainerElement {
 extension Form: HTMLContainerElement {
     package var htmlTagName: String { "form" }
     package var htmlAttributes: [(String, String)] {
-        var a: [(String, String)] = [("action", action), ("method", method.rawValue)]
-        if let v = encoding { a.append(("enctype", v.rawValue)) }
+        var a: [(String, String)] = []
+        if actionRefName == nil {
+            a.append(("action", action))
+            a.append(("method", method.rawValue))
+            if let v = encoding { a.append(("enctype", v.rawValue)) }
+        }
         if let v = id { a.append(("id", v)) }
         return a
     }
@@ -30,6 +34,7 @@ extension Input: HTMLVoidElement {
         if let v = placeholder { a.append(("placeholder", v)) }
         if let v = value { a.append(("value", v)) }
         if let v = id { a.append(("id", v)) }
+        if let v = reactiveBindingName { a.append(("data-bind-value", v)) }
         if isRequired { a.append(("required", "")) }
         if isDisabled { a.append(("disabled", "")) }
         if isReadOnly { a.append(("readonly", "")) }
@@ -92,6 +97,7 @@ extension TextArea: HTMLRenderable {
         if let v = rows { a.append(("rows", String(v))) }
         if let v = columns { a.append(("cols", String(v))) }
         if let v = id { a.append(("id", v)) }
+        if let v = reactiveBindingName { a.append(("data-bind-value", v)) }
         if isRequired { a.append(("required", "")) }
         if isDisabled { a.append(("disabled", "")) }
         if isReadOnly { a.append(("readonly", "")) }

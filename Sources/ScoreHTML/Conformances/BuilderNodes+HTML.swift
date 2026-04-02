@@ -14,15 +14,6 @@ extension TextNode: HTMLRenderable {
     }
 }
 
-/// Renders a localized text node by resolving the translation key
-/// against the active ``LocalizationContext``.
-extension Localized: HTMLRenderable {
-    /// Appends the resolved translated text with HTML escaping.
-    package func renderHTML(into output: inout String, renderer: HTMLRenderer) {
-        output.append(resolvedText.htmlEscaped)
-    }
-}
-
 /// Renders raw content directly into the output stream without escaping.
 extension RawTextNode: HTMLRenderable {
     /// Appends the raw content verbatim with no HTML escaping.
@@ -44,14 +35,19 @@ extension ModifiedNode: HTMLRenderable {
     package func renderHTML(into output: inout String, renderer: HTMLRenderer) {
         let (allModifiers, innerContent) = flattenedChain()
         let className = renderer.classInjector?(allModifiers, renderer.context.currentComponentScope)
-        let (htmlAttrs, hasEventBindings, hasReactiveBindings) = Self.collectHTMLAttributesAndEvents(from: allModifiers)
+        let (htmlAttrs, hasEventBindings, hasReactiveBindings, eventAction) = Self.collectHTMLAttributesAndEvents(from: allModifiers)
 
         if className != nil || !htmlAttrs.isEmpty || hasEventBindings || hasReactiveBindings {
             var extraAttributes: [(String, String)] = []
 
             if hasEventBindings {
-                let eventIndex = renderer.context.nextEventIndex()
-                extraAttributes.append(("data-s", "\(eventIndex)"))
+                if let action = eventAction {
+                    let scope = renderer.context.currentComponentScope ?? "page"
+                    extraAttributes.append(("data-action", "\(scope):\(action)"))
+                } else {
+                    let eventIndex = renderer.context.nextEventIndex()
+                    extraAttributes.append(("data-s", "\(eventIndex)"))
+                }
             }
 
             if hasReactiveBindings {
@@ -110,18 +106,23 @@ extension ModifiedNode: HTMLRenderable {
     /// modifier array.
     private static func collectHTMLAttributesAndEvents(
         from modifiers: [any ModifierValue]
-    ) -> (attributes: [String: String], hasEventBindings: Bool, hasReactiveBindings: Bool) {
+    ) -> (attributes: [String: String], hasEventBindings: Bool, hasReactiveBindings: Bool, eventAction: String?) {
         var result: [String: String] = [:]
         var hasEvents = false
         var hasReactive = false
+        var eventAction: String?
         for modifier in modifiers {
-            if modifier is EventBindingModifier {
+            if let binding = modifier as? EventBindingModifier {
                 hasEvents = true
+                if eventAction == nil {
+                    eventAction = binding.handler
+                }
             }
             if let visMod = modifier as? ReactiveVisibilityModifier {
                 hasReactive = true
                 if !visMod.initiallyVisible {
-                    result["hidden"] = ""
+                    result["class"] = (result["class"].map { $0 + " " } ?? "") + "score-hidden"
+                    result["aria-hidden"] = "true"
                 }
                 continue
             }
@@ -158,7 +159,7 @@ extension ModifiedNode: HTMLRenderable {
                 }
             }
         }
-        return (result, hasEvents, hasReactive)
+        return (result, hasEvents, hasReactive, eventAction)
     }
 }
 

@@ -114,13 +114,8 @@ public struct CodeBlock: Node {
             html.append("</span>")
             if showsCopyButton {
                 html.append(
-                    """
-                    <button data-code-copy onclick="navigator.clipboard.writeText(\
-                    document.getElementById(&quot;\(codeId)&quot;).textContent)\
-                    .then(function(){var b=this;b.textContent=&quot;Copied!&quot;;\
-                    setTimeout(function(){b.textContent=&quot;Copy&quot;},1500)}\
-                    .bind(this))">Copy</button>
-                    """)
+                    "<button data-code-copy data-code-id=\"\(codeId)\">Copy</button>"
+                )
             }
             html.append("</div>")
         }

@@ -70,6 +70,13 @@ public struct HTMLRenderer: Sendable {
             }
         }
 
+        /// A scope class waiting to be applied to the next rendered element.
+        ///
+        /// Set when a non-stateful component scope is entered without a wrapper
+        /// div. The next `HTMLContainerElement` consumes this value and adds
+        /// it to its own class attribute, preserving CSS nesting targets.
+        var pendingScopeClass: String?
+
         /// The name of the component scope currently being rendered.
         var currentComponentScope: String? {
             scopeStack.last

@@ -212,24 +212,7 @@ extension TabGroup: HTMLRenderable {
         }
         output.append("</span>")
         if showsCopyButton {
-            output.append(
-                """
-                <button data-code-copy onclick="var g=this.closest('[data-tab-group]');\
-                var inputs=g.querySelectorAll('input[type=radio]');\
-                var idx=0;for(var i=0;i<inputs.length;i++){if(inputs[i].checked){idx=i;break}}\
-                var src=g.querySelectorAll('[data-tab-panel]')[idx].querySelector('[data-tab-source]');\
-                if(!src)return;\
-                navigator.clipboard.writeText(src.textContent)\
-                .then((function(){var b=this;b.textContent='Copied!';\
-                setTimeout(function(){b.textContent='Copy'},1500)}).bind(this))">Copy</button>\
-                <script>(function(){var g=document.currentScript.closest('[data-tab-group]');\
-                var btn=g.querySelector('[data-code-copy]');\
-                var inputs=g.querySelectorAll('input[type=radio]');\
-                function u(){var idx=0;for(var i=0;i<inputs.length;i++){if(inputs[i].checked){idx=i;break}}\
-                var p=g.querySelectorAll('[data-tab-panel]')[idx];\
-                btn.style.display=p.querySelector('[data-tab-source]')?'':'none'}\
-                for(var i=0;i<inputs.length;i++)inputs[i].addEventListener('change',u);u()})()</script>
-                """)
+            output.append("<button data-code-copy data-tab-copy>Copy</button>")
         }
         output.append("</nav>")
 
@@ -292,14 +275,18 @@ extension TabGroup: JSEventWalkable {
     package func walkForJSScoped(
         scopes: inout [JSEmitter.ComponentScope],
         pageLevelBindings: inout [JSEmitter.EventBinding],
-        pageLevelReactive: inout [JSEmitter.ReactiveBinding]
+        pageLevelReactive: inout [JSEmitter.ReactiveBinding],
+        eventCounter: inout Int,
+        reactiveCounter: inout Int
     ) {
         for tab in tabs {
             JSEmitter.walkForScopes(
                 tab.content,
                 scopes: &scopes,
                 pageLevelBindings: &pageLevelBindings,
-                pageLevelReactive: &pageLevelReactive
+                pageLevelReactive: &pageLevelReactive,
+                eventCounter: &eventCounter,
+                reactiveCounter: &reactiveCounter
             )
         }
     }
